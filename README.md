@@ -239,7 +239,7 @@ venv/bin/python scripts/review_log.py --rewards
 
 Everything is stored in `data/learning/` and `data/diary/`.
 
-**Train on the Mac first, then continue on the Pi.**
+**Train on the Mac first, then continue on the Pi.** The full walkthrough is in [Train Instructions.md](Train%20Instructions.md).
 
 ```bash
 # simulated visitors (a second local model plays the visitor and the judge)
@@ -284,7 +284,7 @@ Luna-2.0/
 └── docs/                    architecture, benchmark results, servo wiring, changelog
 ```
 
-Architecture in depth: [docs/PROJECT_PIPELINE.md](docs/PROJECT_PIPELINE.md). Change history: [docs/UPDATES.txt](docs/UPDATES.txt). Servo wiring: [docs/SERVO_SETUP.md](docs/SERVO_SETUP.md).
+Website knowledge and training: [Train Instructions.md](Train%20Instructions.md) (also as a [PDF](Train%20Instructions.pdf)). Architecture in depth: [docs/PROJECT_PIPELINE.md](docs/PROJECT_PIPELINE.md). Change history: [docs/UPDATES.txt](docs/UPDATES.txt). Servo wiring: [docs/SERVO_SETUP.md](docs/SERVO_SETUP.md).
 
 ## 11. Troubleshooting
 
