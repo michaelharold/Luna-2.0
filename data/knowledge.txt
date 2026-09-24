@@ -1,0 +1,128 @@
+What is the name of the college:TKM college of engineering ,kollam
+
+What is the full name of the college:thangal Kunju musaliar college of engineering
+
+Where is the college located:tkm college of engineering is located at karikode,kollam,kerala,india
+
+What are the nearby landmarks of the college:the college is located at a distance of 450 meter from college
+
+What is the PIN code of the college:691005
+
+When was the college established:tkm college of engineering was established in 1958
+
+Who founded the college:tkm college of engineering was founded by janab a. thangal Kunju musaliar 
+
+What is the vision of the computer science department:the vision of the department is To be a centre of excellence imparting quality education in Computer Science and Engineering and transforming students to critical thinkers and lifelong learners capable of developing environment friendly and economically feasible solutions to real world problems.
+
+What is the mission of the computer science department: the mission of the department is To provide strong foundation in Computer Science and Engineering, prepare students for professional career and higher education, and inculcate research interest.
+To be abreast of the technological advances in a rapidly changing world.
+To impart skills to come up with socially acceptable solutions to real world problems, upholding ethical Values
+
+Is the college autonomous:yes,tkm college of engineering is autonomous since may 2022
+
+What is the NAAC accreditation grade:the college has been NAAC accredited with an A grade
+
+What is the NBA accreditation status:Several undergraduate engineering (B.Tech) programs are accredited. Notable extensions include Mechanical Engineering, Electrical & Electronics, and Electronics & Communication ,computer science and engineering programs.
+
+What is the KIRF ranking of the college:the college is ranked second position in kerala among engineering colleges by kerala institutional ranking framework
+
+who is the head of computer science department:dr Aneesh g nath is the head of computer science department
+
+who is the advisor of computer science with ai department:Dr thushara is the advisor of computer science with ai
+
+Who is Dr. Dimple A Shajahan?: Dr. Dimple A Shajahan is a Professor in the Department of Computer Science. She obtained her PhD from IIT Madras.
+
+Who is Dr. Manu J Pillai?: Dr. Manu J Pillai is an Associate Professor in the Department of Computer Science. He obtained his PhD from NIT Calicut.
+
+Who is Dr. Aneesh G Nath?: Dr. Aneesh G Nath is the head of  the Department of Computer Science. He obtained his PhD from IIT (BHU) Varanasi.
+
+Who is Dr. Thushara A?: Dr. Thushara A is a Professor in the Department of Computer Science. She obtained her PhD from APJ Abdul Kalam Technological University (KTU).
+
+Who is B. Mohammed Siyad?: B. Mohammed Siyad is an Assistant Professor in the Department of Computer Science.
+
+Who is Nisa A K?: Nisa A K is an Assistant Professor in the Department of Computer Science.
+
+Who is Dr. Shameem Ansar?: Dr. Shameem Ansar is an Assistant Professor in the Department of Computer Science. He obtained his PhD from NIT Tiruchirappalli (NIT Trichy). His research focuses on the application of wireless networks.
+
+Who is Dr. Anantha Padmanabhan N K?: Dr. Anantha Padmanabhan N K is an Assistant Professor in the Department of Computer Science. He obtained his PhD from IIT (BHU) Varanasi.
+
+Who is Dr. Shyna A?: Dr. Shyna A is an Assistant Professor in the Department of Computer Science. She obtained her PhD from APJ Abdul Kalam Technological University (KTU).
+
+Who is Dr. Reshma Sheik?: Dr. Reshma Sheik is an Assistant Professor in the Department of Computer Science. She holds a PhD.
+
+Who is Reena Mary George?: Reena Mary George is an Assistant Professor in the Department of Computer Science.
+
+Who is Rehannara Begum T?: Rehannara Begum T is an Assistant Professor in the Department of Computer Science.
+
+Who is Dr. Jini Raju?: Dr. Jini Raju is an Assistant Professor in the Department of Computer Science. She obtained her PhD from APJ Abdul Kalam Technological University (KTU).
+
+where is the college canteen and store:the college canteen and store is opposite to somanathan centre near back gate
+
+where is the campus doctor:near college store ,near the back gate
+
+which is the nearest railway station to TKM college of engineering:kollam railway station is at a distance of 7 kilometers from college and kilikollur railway railway station at a distance of 500 meters from the college
+
+Where is the AI Lab located?: The AI Lab is located on the second floor of the Computer Science Department.
+
+Where is the Operating Systems Lab located?: The Operating Systems Lab is located on the ground floor of the Computer Science Department.
+
+Where is the Systems Software Lab located?: The Systems Software Lab is located on the second floor of the Computer Science Department.
+
+Where is the Computing Lab located?: The Computing Lab is located on the second floor of the Computer Science Department.
+
+where is HOD's room:ground floor
+
+where is faculty room:second floor
+
+which all are the best technical clubs and societies for computer science students:the best clubs and societies includes coding club,CSI,IEEE,ISTE,IEI,civil service aspirants club
+
+which clubs for extracurricular activities:dance club,music club,TKM photography club,film and drama club,literary and debate club,fine arts club,college sports council etc
+
+What is Hestia?: Hestia is the annual techno-cultural festival of TKM College of Engineering. It brings together students from various colleges to participate in technical and cultural 
+events.
+
+where is KTU office:KTU office is at the first floor of computer science department
+
+where is jubilee hall:jubilee hall is at the first floor
+
+where is seminar hall:ground floor of computer science department
+
+who are you : I am Luna.A voice controlled desk bot powered by raspberry pi 5 with camera and motor abilities who can help you with simple queries and guide you through college and give you information about our department CS.Luna is able to answer your queries in voice and able to detect or interpret your emotions through camera module attached and can show some cute gestures with her hands .
+
+who developed you : I was developed by Michael Harold Sony, Sreenadhana, and Devadathan as a Computer Science Department project.
+
+who made you : I was made by Michael Harold Sony, Sreenadhana, and Devadathan, students of the Computer Science Department.
+
+who created you : I was created by Michael Harold Sony, Sreenadhana, and Devadathan for the Computer Science Department.
+
+where is ladies' common room:backside of college canteen
+
+What is the placement rate of TKM College of Engineering?: TKM College of Engineering has a placement rate of approximately 90%.
+
+How many companies visit TKM College of Engineering for placements?: More than 100 companies visit TKM College of Engineering for campus placements every year.
+
+What is the highest package offered at TKM College of Engineering?: The highest package offered is ₹21 LPA.
+
+What is the average package offered at TKM College of Engineering?: The average package offered is ₹5.03 LPA.
+
+Does TKM College of Engineering have a placement cell?: Yes. TKM College of Engineering has a Career Guidance and Placement Unit (CGPU).
+
+What is the Career Guidance and Placement Unit (CGPU)?: The Career Guidance and Placement Unit (CGPU) is responsible for career guidance, placement training, and campus recruitment activities.
+
+Does TKM College of Engineering provide placement training?: Yes. TKM College of Engineering provides placement training to prepare students for campus recruitment.
+
+Does TKM College of Engineering conduct campus placements?: Yes. TKM College of Engineering conducts campus placement drives with leading companies.
+
+What facilities are available for placement activities?: The placement unit has air-conditioned halls, computer laboratories, and interview rooms for recruitment activities.
+
+where can i take a print out:print out facilities are available at the college store
+
+is the campus ragging free:Yes,the campus is strictly ragging free
+
+where is principal's room :principal's room is at the first floor of administrative block
+
+
+
+
+
+

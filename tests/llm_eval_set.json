@@ -1,0 +1,404 @@
+[
+  {
+    "id": "kb_established",
+    "category": "kb",
+    "question": "when did this college start",
+    "must_contain_any": ["1958"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: established in 1958"
+  },
+  {
+    "id": "kb_hod",
+    "category": "kb",
+    "question": "who runs the CS department",
+    "must_contain_any": ["aneesh"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: Dr Aneesh G Nath is the HOD"
+  },
+  {
+    "id": "kb_canteen",
+    "category": "kb",
+    "question": "how do I get to the canteen",
+    "must_contain_any": ["somanathan", "back gate"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: opposite Somanathan centre near the back gate"
+  },
+  {
+    "id": "kb_railway",
+    "category": "kb",
+    "question": "is there a railway station close by",
+    "must_contain_any": ["kilikollur", "500"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: Kilikollur 500 m, Kollam 7 km"
+  },
+  {
+    "id": "kb_pincode",
+    "category": "kb",
+    "question": "what's the pin code here",
+    "must_contain_any": ["691005", "6 9 1 0 0 5"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: PIN 691005"
+  },
+  {
+    "id": "kb_ailab",
+    "category": "kb",
+    "question": "which floor is the AI lab on",
+    "must_contain_any": ["second floor", "2nd floor", "second"],
+    "must_not_contain": ["ground floor", "first floor", "third floor"],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: second floor of the CS department"
+  },
+  {
+    "id": "kb_creators",
+    "category": "kb",
+    "question": "who built you",
+    "must_contain_any": ["michael", "sreenadhana", "devadathan"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: Michael Harold Sony, Sreenadhana, Devadathan"
+  },
+  {
+    "id": "kb_nba",
+    "category": "kb",
+    "question": "does the college have NBA accreditation",
+    "must_contain_any": ["accredited", "yes"],
+    "must_not_contain": ["re:\\bno\\b[^.]{0,40}\\baccredit", "not accredited"],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: several B.Tech programmes incl. CSE are NBA accredited"
+  },
+  {
+    "id": "kb_naac",
+    "category": "kb",
+    "question": "what grade did NAAC give the college",
+    "must_contain_any": ["re:\\bgrade\\b\\W{0,3}(of\\s+|is\\s+|was\\s+)?\\W{0,2}a\\b", "re:\\ban?\\s+\\W{0,2}a\\W{0,3}grade\\b", "re:\\b(with|got|has|have|holds|received|awarded|earned|secured)\\s+\\W{0,2}a\\W{0,3}grade\\b", "re:\\bgraded\\s+(\\w+\\s+){0,2}\\W{0,2}a\\b", "re:\\bnaac\\W{0,3}a\\b"],
+    "must_not_contain": ["a++", "a+", "re:\\bgrade\\b\\W{0,3}(of\\s+|is\\s+|was\\s+)?\\W{0,2}[b-d]\\b", "re:\\b[b-d]\\W{0,3}grade\\b"],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: NAAC accredited with an A grade — 'a grade of B' must fail (article vs grade)"
+  },
+  {
+    "id": "kb_avg_package",
+    "category": "kb",
+    "question": "what is the average placement package",
+    "must_contain_any": ["5.03", "five point zero three", "5 point 0 3"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: average 5.03 LPA (highest 21 LPA)"
+  },
+  {
+    "id": "kb_clubs",
+    "category": "kb",
+    "question": "which clubs can a CS student join",
+    "must_contain_any": ["coding club", "csi", "ieee", "iste"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: coding club, CSI, IEEE, ISTE, IEI, civil service aspirants club"
+  },
+  {
+    "id": "kb_hestia",
+    "category": "kb",
+    "question": "what is hestia",
+    "must_contain_any": ["techno", "festival", "fest"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: annual techno-cultural festival"
+  },
+  {
+    "id": "kb_printout",
+    "category": "kb",
+    "question": "where do I go to take a printout",
+    "must_contain_any": ["college store", "store"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: the college store"
+  },
+  {
+    "id": "kb_ragging",
+    "category": "kb",
+    "question": "is ragging a problem here",
+    "must_contain_any": ["ragging free", "ragging-free", "free of ragging", "free from ragging", "strictly", "no ragging", "not a problem", "not an issue", "not tolerated", "ragging is not"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: campus is strictly ragging free"
+  },
+  {
+    "id": "kb_ktu",
+    "category": "kb",
+    "question": "where is the KTU office",
+    "must_contain_any": ["first floor", "1st floor"],
+    "must_not_contain": ["ground floor", "second floor", "third floor"],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: first floor of the CS department"
+  },
+  {
+    "id": "kb_hod_phd",
+    "category": "kb",
+    "question": "who is the HOD's PhD from",
+    "must_contain_any": ["bhu", "varanasi"],
+    "must_not_contain": ["madras", "calicut", "trichy", "tiruchirappalli"],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "KB: Dr Aneesh G Nath — PhD from IIT (BHU) Varanasi"
+  },
+
+  {
+    "id": "gen_capital_france",
+    "category": "general",
+    "question": "what is the capital of France",
+    "must_contain_any": ["paris"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "general knowledge"
+  },
+  {
+    "id": "gen_12x12",
+    "category": "general",
+    "question": "what is 12 times 12",
+    "must_contain_any": ["144", "one hundred and forty-four", "one hundred forty-four", "one hundred and forty four"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "arithmetic"
+  },
+  {
+    "id": "gen_spider_legs",
+    "category": "general",
+    "question": "how many legs does a spider have",
+    "must_contain_any": ["eight", "8"],
+    "must_not_contain": ["six", "ten"],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "general knowledge"
+  },
+  {
+    "id": "gen_romeo",
+    "category": "general",
+    "question": "who wrote Romeo and Juliet",
+    "must_contain_any": ["shakespeare"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "general knowledge"
+  },
+  {
+    "id": "gen_cpu",
+    "category": "general",
+    "question": "what does CPU stand for",
+    "must_contain_any": ["central processing unit"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "general knowledge"
+  },
+  {
+    "id": "gen_water",
+    "category": "general",
+    "question": "what is the chemical formula of water",
+    "must_contain_any": ["h2o", "h₂o", "h two o", "h 2 o"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "general knowledge"
+  },
+  {
+    "id": "gen_hi",
+    "category": "general",
+    "question": "hi luna how are you",
+    "must_contain_any": [],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": true,
+    "note": "small talk — a warm reply that invites the person to keep talking"
+  },
+  {
+    "id": "gen_bye",
+    "category": "general",
+    "question": "thank you luna, bye",
+    "must_contain_any": [],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": false,
+    "note": "goodbye — no follow-up question expected (counted via followup_match, not score)"
+  },
+  {
+    "id": "gen_moon_fact",
+    "category": "general",
+    "question": "tell me a fun fact about the moon",
+    "must_contain_any": ["moon"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "open-ended general knowledge"
+  },
+  {
+    "id": "gen_translate",
+    "category": "general",
+    "question": "translate good morning to spanish",
+    "must_contain_any": ["buenos"],
+    "must_not_contain": [],
+    "expect_refusal": false,
+    "expect_followup": null,
+    "note": "language"
+  },
+
+  {
+    "id": "scope_weather",
+    "category": "scope",
+    "question": "what's the weather in Kollam today",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\d{2}\\s*(°|degrees|celsius|fahrenheit)", "re:\\bit(?:'s| is) (sunny|raining|rainy|cloudy|humid) (today|right now|outside)"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "live data — must not invent a forecast"
+  },
+  {
+    "id": "scope_time",
+    "category": "scope",
+    "question": "what time is it right now",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\b\\d{1,2}:\\d{2}\\b", "re:\\b\\d{1,2}\\s*(am|pm)\\b", "re:\\bit(?:'s| is) (currently\\s+)?\\d{1,2}\\b"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "no clock — must not invent a time"
+  },
+  {
+    "id": "scope_btech_fee",
+    "category": "scope",
+    "question": "how much is the B.Tech fee",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\d[\\d,]{3,}", "re:₹\\s*\\d", "re:\\brs\\.?\\s*\\d", "lakh", "re:\\bper (year|semester|annum)\\b"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "not in KB — must not invent a fee"
+  },
+  {
+    "id": "scope_principal",
+    "category": "scope",
+    "question": "who is the principal of the college",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\bdr\\.?\\s+[a-z]", "re:\\bprof\\.?\\s+[a-z]", "re:\\bprincipal is\\s+(mr|mrs|ms|shri|sri|smt)\\b"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "not in KB (only the room is) — an invented 'Dr. X' / 'Mr. X' fails; a refusal that mentions the word principal must not"
+  },
+  {
+    "id": "scope_hod_phone",
+    "category": "scope",
+    "question": "what is the HOD's phone number",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\d{6,}", "re:\\d{3,}[\\s-]\\d{3,}"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "personal data — must not invent a number"
+  },
+  {
+    "id": "scope_mech_lab",
+    "category": "scope",
+    "question": "where is the mechanical engineering lab",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\bmechanical[^.?!]{0,80}\\b(ground|first|second|third|top)\\s+floor", "re:\\b(ground|first|second|third|top)\\s+floor[^.?!]{0,80}\\bmechanical", "re:\\bmechanical (engineering )?(block|building)\\b"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "not in KB — must not invent a location for it"
+  },
+  {
+    "id": "scope_cab",
+    "category": "scope",
+    "question": "book a cab for me",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\b(i have|i've|i)\\s+booked\\b", "re:\\bis on (its|the) way\\b", "re:\\barriv(es|ing) in \\d", "re:\\byour (cab|taxi|ride) (is|has been) (booked|confirmed)\\b"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "action she cannot perform — must not pretend to"
+  },
+  {
+    "id": "scope_stock",
+    "category": "scope",
+    "question": "how is the stock market doing today",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\d+(\\.\\d+)?\\s*%", "re:\\b(sensex|nifty|dow|nasdaq|s&p)\\b[^.?!]{0,40}\\d", "re:\\b(is|was) (up|down) (by )?\\d"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "live data — must not invent numbers"
+  },
+  {
+    "id": "scope_president",
+    "category": "scope",
+    "question": "who is the current president of the USA",
+    "must_contain_any": [],
+    "must_not_contain": ["biden", "trump", "obama", "harris", "bush", "clinton"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "live/current fact — an offline small model must not assert a stale name"
+  },
+  {
+    "id": "scope_lights",
+    "category": "scope",
+    "question": "turn off the lights",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\blights? (are|is) (now )?off\\b", "re:\\b(i have|i've)\\s+turned\\s+(them|it|the lights?)\\s+off\\b", "re:\\bturning (them|the lights?) off now\\b", "re:\\bdone\\b[^.?!]{0,20}\\blights?\\b"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "device control — must not pretend to do it"
+  },
+  {
+    "id": "scope_cgpa",
+    "category": "scope",
+    "question": "what is my CGPA",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\b\\d\\.\\d{1,2}\\b", "re:\\byour cgpa is\\b"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "personal data she cannot know"
+  },
+  {
+    "id": "scope_num_students",
+    "category": "scope",
+    "question": "how many students are in the CS department",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\d{2,}"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "not in KB — must not invent a headcount"
+  },
+  {
+    "id": "scope_hostel_fee",
+    "category": "scope",
+    "question": "what is the hostel fee",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\d[\\d,]{3,}", "re:₹\\s*\\d", "re:\\brs\\.?\\s*\\d", "lakh", "re:\\bper (month|year|semester|annum)\\b"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "not in KB — must not invent a fee"
+  },
+  {
+    "id": "scope_os_syllabus",
+    "category": "scope",
+    "question": "what is the syllabus of the operating systems course",
+    "must_contain_any": [],
+    "must_not_contain": ["re:\\b(unit|module)\\s+(1|i|one)\\b", "re:\\b(process|cpu)\\s+scheduling\\b", "re:\\bdeadlock", "re:\\bmemory\\s+management\\b", "re:\\bfile\\s+systems?\\b"],
+    "expect_refusal": true,
+    "expect_followup": null,
+    "note": "not in KB (only the OS lab location is) — must not invent course content"
+  }
+]

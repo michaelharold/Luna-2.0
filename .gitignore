@@ -1,0 +1,44 @@
+# ── Luna 2.0 — what stays out of the repo ─────────────────────────────────────
+# Python
+__pycache__/
+*.pyc
+.python-version
+.lgd-nfy0
+venv/
+.venv/
+
+# macOS
+.DS_Store
+
+# Speech models (download with scripts/download_models.sh or install_pi.sh)
+vosk-model-*/
+models/stt/
+*.zip
+
+# LLM weights: Ollama keeps its own store; the llama.cpp gguf is ~1 GB
+models/llm/*.gguf
+models/llm/Modelfile.*
+
+# SFace (38 MB) is fetched by scripts/download_models.sh; YuNet and the
+# YOLOv8n export (12 MB, no public download for this exact export) ship in
+# the repo.
+models/vision/face_recognition_sface_2021dec.onnx
+
+# Runtime data the robot creates about people and its day — never publish
+data/faces/
+data/face_log.jsonl
+data/logs/
+data/logs_sim/
+data/diary/
+data/learning/
+data/rag_cache/
+data/enroll/
+
+# Benchmark output, screenshots, local backups
+results/
+face_shots/
+*.bak
+*_bak
+*.tar.gz
+sample.wav
+.env

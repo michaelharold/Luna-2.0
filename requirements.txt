@@ -1,0 +1,19 @@
+# Luna 2.0 — one requirements file for the Raspberry Pi 5 and a Mac dev box.
+numpy==1.26.4
+scipy                         # audio preprocessing filters (numpy fallback exists)
+opencv-contrib-python==4.8.0.76
+mediapipe==0.10.9             # hand gestures
+torch==2.3.1                  # emotion model
+pygame==2.5.2                 # the face
+sounddevice                   # microphone
+vosk                          # offline speech-to-text
+sentence-transformers==2.6.1  # knowledge retrieval, website index, learning
+
+# The LLM runs in Ollama (installed separately, see README). Only needed if
+# you switch config.LLM_BACKEND to "llamacpp" — compiles for 10-20 min on a Pi:
+# llama-cpp-python
+
+# Optional (heavy): better "Sad" detection with ENABLE_DEEPFACE = True.
+# deepface
+# tensorflow==2.15.0
+# tf-keras

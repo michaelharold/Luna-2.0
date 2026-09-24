@@ -1,0 +1,711 @@
+══════════════════════════════════════════════════════════════════
+  Luna — Update Log
+  Every change to the project gets an entry here.
+  Format: date · area · what changed · why
+══════════════════════════════════════════════════════════════════
+
+─── 2026-09-24 — LUNA 2.0: Ollama brain, attention, recognition, learning ──
+
+[llm] Ollama backend (llm_ollama.py; llm_local.py dispatches). Default model
+  llama3.2:3b picked by scripts/bench_llm.py over 8 models / 40 graded
+  questions (docs/llm_benchmark.md): 0.97 composite, zero invented facts.
+  persona.py = one system prompt with scope rules (college facts only from
+  the KB, general questions if confident, otherwise "outside what I can
+  help with"). scripts/make_luna_model.py builds the "luna" Ollama model.
+[audio] audio_preprocess.py: 4th-order high-pass (hum/DC), noise gate, slow
+  AGC before Vosk. Quiet talkers: WER 0.42 -> 0.22 in tests.
+[stt] Answers only when addressed: loudness signal, "clear speech alone
+  never passes" rule, ADDR_THRESHOLD 1.35, per-signal breakdown in the log.
+[rag] web_rag.py: optional website crawl -> cached index, works offline.
+[vision] Guided 3-pose face registration with name confirmation, touch-and-
+  hold registration, photo registration (scripts/enroll_faces.py);
+  detection at half scale (2.7x faster).
+[face] "Recognised" expression + double-take + banner slide = the
+  recognition moment. Rendering 54% faster (57% with head tilt).
+[context] scene_memory.py: who came/left, moods, objects -> summary in every
+  LLM turn; welcome-back greetings; conversation starters.
+[learn] conversation_log.py (every heard utterance + reply, daily JSONL,
+  scripts/review_log.py) and learning.py (rewards -> reply-style bandit,
+  liked-answer exemplars, profiles, approved facts, nightly diary).
+  scripts/train_learning.py trains on the Mac; deploy.sh --seed-learning.
+[repo] Cleaned: backups and stale scripts removed, docs moved to docs/,
+  .gitignore keeps models and personal runtime data out. README rewritten
+  as a from-clone setup guide. Tests: 275 passing.
+
+─── 2026-09-08 — LUNA V2: fully offline product build ─────────────
+
+Design doc: docs/superpowers/specs/2026-09-07-luna-v2-design.md
+Rollback:   ../Luna_rollback_20260907_2247.tar.gz
+
+[brain] Groq REMOVED — no online anything at runtime. brain.py now
+  answers: commands → vision questions → KB direct match → LOCAL LLM
+  (llm_local.py, llama.cpp, Qwen2.5-1.5B-Instruct Q4_K_M at
+  models/llm/*.gguf, background warmup, streaming) → KB fallback.
+  RAG-lite: only the LLM_KB_TOP_K most-similar knowledge entries go
+  into each prompt (fast prefill on the Pi). No keys, no quotas, no
+  network errors, runs indefinitely.
+[vision] Face RECOGNITION: YuNet detection (replaces Haar; Haar kept
+  as fallback) + SFace embeddings (both ONNX in models/vision/),
+  matched against data/faces/ (face_store.py). Voice enrollment:
+  "remember me, my name is Alice" / bare "my name is X". Greets known
+  people by name (speech + on-screen banner + wave), logs sightings
+  to data/face_log.jsonl. DeepFace now opt-in (ENABLE_DEEPFACE=False)
+  — its RAM went to the LLM.
+[scene] "What do you see?" answered offline: live vision state + on-
+  demand YOLOv8n (cv2.dnn, lazy-loaded, models/vision/yolov8n.onnx)
+  → scene description → local LLM (scene_context.py).
+[face] FACE 3 "Aurora" (new default, key 3): EMO/Vector-style solid
+  gradient eyes with catchlights, squash-and-stretch blinks, micro-
+  saccades, slant-top emotion edges, eyes-only at rest. New
+  expressions: curious (asymmetric eyes), annoyed, amazed, boops,
+  giggle. TOUCH: tap an eye → boop, tap the mouth → giggle. Name
+  banner ("Hi Alice!") under the face.
+[stt] Addressed-speech scoring (addressing.py): weighted signals
+  (confidence, name mention, question shape, second person, KB
+  relevance, visible face, continuity) decide "was that meant for
+  Luna" — tunable via ADDR_* in config; old gate via
+  ADDRESSED_SCORING=False.
+[cmd] Voice commands (commands.py): volume up/down/percent (pactl /
+  osascript), go to sleep / wake up, change your face, who am I,
+  who do you know, forget me/<name>, enrollment.
+[behavior] proactive.py: greets recognised faces, smiles back at a
+  held smile, checks in on a sad face — cooldown-limited, never
+  interrupts speech or conversation.
+[config] RUN_MODE = auto|mac|pi drives every platform default (TTS,
+  camera, fullscreen, volume backend) — same config on both machines.
+  Every V2 feature has its own config section + enable flag.
+[deploy] scripts/install_pi.sh (one-shot Pi setup),
+  scripts/download_models.sh (all models, once — offline after),
+  deploy.sh now protects the Pi's data/faces/ + face_log and skips
+  the 1 GB gguf. Mac venv rebuilt (python3.11) — Luna runs on the
+  Mac for development.
+[tests] tests/test_logic.py (19 tests: addressing, face store,
+  expressions, scene description) + scripts/face_screenshot.py
+  (headless PNG render of every expression).
+
+─── 2026-07-23 — Project moved out of iCloud + gesture hold ───────
+
+[move] The project now lives at ~/dev/Luna, a plain local path. It was
+  in ~/Documents/Luna, which is iCloud "Desktop & Documents" sync.
+  That is what caused today's two incidents: the whole project
+  disappearing mid-session, and — far worse — iCloud silently serving
+  OLDER versions of files when they came back, which is how
+  data/knowledge.txt reverted to a 37-line stub and the emotion model
+  weights vanished. Nothing errored; it was only caught by diffing
+  every file against the archive.
+  • Source copied and verified byte-identical by checksum.
+  • The venv was REBUILT, not copied: a venv bakes its absolute path
+    into pyvenv.cfg and into every console-script shebang.
+  • The Moonshine and HuggingFace caches live in ~/Library/Caches,
+    outside the project, so they carried over untouched.
+  • Old copies at ~/Documents/Luna and ~/iCloud Drive (Archive)/ are
+    intentionally left in place for now. Beware editing the old path
+    from habit — changes there are dead, and iCloud may revert them.
+
+[gesture] Reactive gestures (WAVE / THUMBS_UP / PEACE / OPEN_PALM)
+  must now be HELD for GESTURE_REACT_STABLE_FRAMES (6 frames = 1 s at
+  GESTURE_FPS=6). POINT_* keeps the shorter GESTURE_STABLE_FRAMES so
+  eye-following stays responsive.
+
+  This came from measuring the live camera instead of guessing. With
+  nobody gesturing deliberately, a hand resting near the keyboard is
+  detected by MediaPipe with handedness 0.99-1.0 and a span of ~0.28 —
+  it passes every plausibility gate added earlier, because it really
+  IS a hand. It simply isn't doing anything, and it was still being
+  classified POINT_DOWN / OPEN_PALM / WAVE as it drifted. No
+  confidence threshold can fix that case. The property separating a
+  deliberate gesture from a hand that merely happens to be in frame is
+  that a deliberate one is HELD.
+
+  The hold requirement helped but did NOT fix it on its own — a live
+  run still produced one spurious "Thank you! You are awesome!". See
+  the entry below for the actual root cause.
+
+  CAUTION when re-measuring: counting published FRAMES badly
+  overstates the problem. The edge-trigger collapses a run of
+  identical frames into a single reaction, so frame counts are not
+  reaction counts — one probe read "13" where the real answer was ~0.
+  Count edge transitions through be._fires(), as behavior_engine does.
+
+[gesture] ROOT CAUSE of the false THUMBS_UP, found by capturing the
+  geometry of real misfires off the camera rather than reasoning about
+  it. Three earlier attempts missed it:
+    1. tightening the pose maths      — right idea, wrong magnitude
+    2. adding MediaPipe/plausibility gates — irrelevant; the thing in
+       frame genuinely IS a hand (handedness 0.99, span 0.28)
+    3. requiring the pose to be held  — helped, but the false pose was
+       held too
+
+  The real fault: the thumb margins were ABSOLUTE normalised-frame
+  distances. The same pose yields larger values the closer the hand is
+  to the camera, so a threshold tuned at arm's length lets a close-up
+  relaxed hand straight through. Captured misfires measured rise
+  0.087-0.105 against a 0.08 threshold — squeaking over it every time.
+
+  Fix: both margins are now divided by hand span, making them
+  scale-invariant (which is how _finger_states already worked).
+  Measured separation:
+      relaxed hand, thumb happens to sit high : rise/span 0.41 - 0.44
+      deliberate thumbs up                    : rise/span 0.57+
+  THUMB_RISE_RATIO is set to 0.50 — in the gap, not hugging either
+  edge. All six captured misfires are rejected; a deliberate thumbs up
+  still classifies.
+
+─── 2026-07-23 — Arm gestures + mouth/eye rework ──────────────────
+
+[servo] IMPORTANT: ENABLE_SERVOS is still False in config.py, so
+  nothing physically moves — no talking sway, no wave, no handshake.
+  If the arms are wired and still, that flag is the first thing to
+  check. Everything below is implemented and tested, but it is inert
+  until that is True.
+
+[servo] Angles are now recorded in servo.last_angles even when servos
+  are disabled, and _smooth_move honours its timing in simulation.
+  Previously both bailed out immediately, so a "gesture" on a dev box
+  took zero time and left nothing to inspect — the motions could not
+  be tested at all off the Pi. They can now.
+
+[servo] Movements are eased (smoothstep) instead of linearly ramped.
+  A linear ramp starts and stops abruptly, which reads as mechanical;
+  easing in and out reads as deliberate and friendly.
+
+[servo] New wake_up(): both arms rise together, overshoot slightly,
+  settle back and hold, then lower. The overshoot-and-settle is what
+  makes it read as a stretch rather than a salute. Fired from the
+  face's sleeping -> awake transition, so the arms and the face wake
+  in the same moment. WAKE_ARMS turns it off.
+
+[servo] New handshake(): the right arm extends to SERVO_HANDSHAKE_POS,
+  HOLDS for SERVO_HANDSHAKE_WAIT (2.5 s) with the hand offered, then
+  shakes up and down and withdraws. The hold is the whole point — an
+  arm that starts shaking on arrival is shaking at nobody.
+  Triggered from brain.py by "shake my hand", "handshake", "give me
+  your hand", "nice to meet you" and similar. Checked BEFORE the
+  greeting branch, since "hi, shake my hand" contains a greeting and
+  would otherwise just wave. "milkshake" and "shake the tree" do not
+  match.
+
+[servo] Talking sway kept but softened and eased (SERVO_TALK_AMP=14).
+  All hard-coded 90/105/160 angles replaced by SERVO_ARM_* config.
+
+[face] Talking mouth (style 1) rebuilt as a filled "D lying on its
+  back": flat top, half-ELLIPSE bottom that bulges with the audio
+  energy, giving the C -> D -> C cycle while she speaks.
+  • It replaced four discrete shapes (open jaw / oval / pursed / line)
+    that snapped between states — that switching is what made it look
+    disoriented.
+  • Each of those was an outline around a black interior, which is
+    what made it look hollow. The new mouth is solid, with a tongue
+    and a small lip glint. NOTE for future edits: an inset dark shape
+    "for depth" brings the hollow look straight back — I tried it and
+    it did.
+  • The bottom uses sqrt(1-x^2), not sin(pi*x). A sine bulge meets the
+    corners at a shallow angle and gives a pointed V; the ellipse
+    meets them vertically, which is what makes it read as a D.
+
+[face] Sound-wave rings while speaking now start OUTSIDE the mouth
+  (mouth_w/2 + 26) and are shorter-lived and fainter. They used to
+  start at r=20 and die by r=140 — entirely inside the new, much
+  larger mouth — so they looked like a stray circle drawn on her face
+  rather than sound radiating away. Longer rings also grew wide enough
+  to cross the eyes.
+
+[face] New ∩-shaped ("n n") eyes for happy / excited / love, blended
+  in and out rather than swapped. ARC_EYES_HAPPY. Not used while
+  speaking — the mouth carries the expression there.
+
+[face] Both the ∩ eyes and the happy smile are drawn as filled
+  polygons between two ellipse arcs, NOT with pygame.draw.arc. A thick
+  arc renders with ragged, speckled edges at this size; that was the
+  other half of why the mouth looked scruffy.
+
+[face] Waking animation: the eyes squeeze almost shut and stretch wide
+  (a yawn), then spring open while the whole face lifts and settles.
+  wake_yawn decays fast, wake_stretch slower, so the eyes pop before
+  the body finishes rising.
+
+─── 2026-07-23 — Screen: status light moved, new animations ───────
+
+[face] Conversation indicator moved to the top-left and turned red.
+  It was a soft blue dot under the mouth, drawn onto the face surface
+  — which meant it rotated with the head tilt. A status light that
+  swings around is hard to read at a glance, and the only question it
+  answers is "is she still listening?". It is now drawn on the screen
+  AFTER the head-tilt rotation, so it stays pinned to the corner: a
+  red lamp with a halo, a hot centre and a "LISTENING" label, breathing
+  gently so it reads as live rather than a dead pixel.
+  Tunable via CONVO_LIGHT_* in config.py (colour, radius, margin,
+  label on/off).
+
+[face] New: ambient motes. A fixed pool of slow drifting specks behind
+  the face, so the screen has some life when Luna is idle. They wrap at
+  the edges instead of respawning, so the field never visibly thins,
+  and the pool is allocated once — no per-frame allocation on the Pi.
+  Tinted to the eye colour normally, to the zzz colour while asleep so
+  it reads as a night sky. AMBIENT_MOTES / AMBIENT_MOTE_COUNT.
+
+[face] New: thinking orbit. Three dots orbiting a flat ellipse below
+  the face while luna_mode == "processing", fading in and out so they
+  never pop. There was previously NO visual for the processing state,
+  which made the pause between a question and the answer look like she
+  had simply not heard it. Drawn after the head tilt, like the status
+  light, so the orbit stays level. THINKING_DOTS.
+
+[config] SLEEP_AFTER_FRAMES is now derived from SLEEP_AFTER_SECONDS
+  (30) rather than being written as RENDER_FPS * 30 — same behaviour,
+  but the knob says what it means.
+
+[note] Sleep/wake already worked and was left alone: idle_frames
+  accumulates while no face is visible and Luna is not speaking, the
+  renderer sleeps her past the threshold, and any detected face resets
+  it and fires the wake ripple. Verified headless — including that
+  speaking counts as activity, so she cannot doze off mid-sentence.
+  Waking takes one extra frame to become visible because update()
+  syncs visual_state from state at the top of the call; that is ~16 ms
+  at 60 fps and not worth restructuring for.
+
+─── 2026-07-23 — False thumbs-up (round 2) + real interactivity ───
+
+[bug] The thumbs-up reaction still fired occasionally after the
+  earlier pose-maths fix. That fix was aimed one layer too low.
+
+  MediaPipe's Hands() was constructed with no confidence arguments, so
+  min_detection_confidence and min_tracking_confidence both defaulted
+  to 0.5. At that setting MediaPipe reports a "hand" for faces, ears
+  and background objects, and hands back 21 nonsense landmarks. No
+  amount of tightening the THUMBS_UP geometry helps when the geometry
+  is being fed something that was never a hand. Fixed upstream:
+
+[gesture] gesture_module.py
+  • min_detection_confidence 0.5 -> HAND_DETECT_CONF (0.75)
+    min_tracking_confidence  0.5 -> HAND_TRACK_CONF  (0.65)
+  • model_complexity 0 -> HAND_MODEL_COMPLEXITY (1). Markedly better
+    landmarks for ~2-3x the CPU; affordable at GESTURE_FPS=6 on a Pi 5
+    and the single biggest reduction in false gestures.
+  • New _is_plausible_hand(): rejects detections whose bounding box
+    covers less than HAND_MIN_SPAN of the frame (a deliberate gesture
+    is held up close) or whose left/right handedness score is below
+    HAND_MIN_HANDEDNESS (a real hand scores ~0.95+, junk sits near 0.5).
+  • THUMB_RISE_MIN 0.06 -> 0.08, THUMB_ABOVE_INDEX_MIN 0.04 -> 0.06.
+  • Wave history is now reset whenever the hand is lost or rejected.
+    Previously the last wrist x survived the gap, so a hand
+    reappearing elsewhere in frame produced one huge displacement and
+    registered as a wave.
+  • GESTURE_DEBUG in config.py prints each gesture change with the
+    hand's span and handedness score, so a stubborn false trigger can
+    be diagnosed instead of guessed at.
+
+[interactive] Luna now holds a conversation instead of answering once.
+  • brain.py SYSTEM_PROMPT rewritten: keep replies to 1-3 spoken
+    sentences, no markdown, and usually end on a specific follow-up
+    question — but explicitly NOT when the person is saying thanks or
+    goodbye, and ask a clarifying question rather than guessing at an
+    ambiguous request.
+  • The catch that makes this actually work: a follow-up question is
+    useless if Luna stops listening before the answer arrives.
+    CONVO_TIMEOUT is 10 s, which is not long enough to think and
+    reply. brain.py now sets state.awaiting_answer when its reply ends
+    in "?", and speech_to_text.py uses CONVO_TIMEOUT_AFTER_QUESTION
+    (20 s) while that flag is set, reverting as soon as they respond.
+    Without this Luna would ask a question and then ignore the answer.
+
+[brain] GROQ_STARTUP_CHECK (config.py) makes one 1-token call at boot
+  and prints "[brain] Groq LIVE — <model>". A bad key, no network and
+  a retired model previously all looked identical at runtime — Luna
+  just quietly answered from the offline knowledge base with nothing
+  in the log to say why.
+
+─── 2026-07-23 — Fix: mouth animation ran ~3 s ahead of the audio ─
+
+[bug] Reported live: the talking animation starts, then the sound
+  arrives a few seconds later. Luna mouthed silently before speaking.
+
+  Cause: speak() set state.speaking = True (which drove the mouth) and
+  called servo.start_talking() BEFORE handing the text to the TTS
+  engine. Everything after that was synthesis time, and macOS `say`
+  costs a fixed ~0.85 s to load its voice before the first audible
+  sample. Measured on an idle Mac — the cost is identical for a
+  2-word and a 6-word phrase, so it is voice loading, not synthesis:
+
+      say -o (synthesis only):  0.86 / 0.83 / 0.82 s
+      say    (with playback):   1.68 / 2.41 / 2.61 s
+
+  On the Pi, with vision + DeepFace + gestures + a 60 fps face render
+  competing for CPU, that stretches to the ~3 s that was reported.
+  The observed 7.8-8.2 s TTS timings for 5-word gesture replies were
+  the same effect under load.
+
+[state] shared_state.py — added `audio_playing`, true only while sound
+  is actually audible. `speaking` deliberately still goes up early
+  because it is what blocks the microphone during synthesis; the two
+  concerns needed separating rather than merging.
+
+[tts] piper_tts.py — speak() takes an optional `on_audio_start`
+  callback, invoked at the moment playback begins.
+  • Mac path now synthesizes with `say -o` to a temp file and plays it
+    with `afplay`, firing the callback in between. afplay's startup is
+    ~0.25 s versus `say`'s ~0.85 s, so the animation lands far closer
+    to the sound. Both steps still block, so mic echo protection is
+    unchanged.
+  • Piper streaming path fires the callback once the player is reading
+    piper's first chunk — already the moment audio starts there.
+  • Piper file path fires it after synthesis, before the player.
+
+[tts] text_to_speech.py — the mouth energy loop keys off
+  `audio_playing`, and the mouth + arm sway are started from the
+  callback instead of up-front. Measured after the change: animation
+  begins at +0.87 s and +1.17 s into the call (i.e. after synthesis)
+  rather than at +0.00 s.
+
+  Note the total time to speak is ~0.4 s longer than before, because
+  synthesis and playback are now two sequential processes instead of
+  one. That is a deliberate trade: slightly later speech in exchange
+  for the mouth matching it.
+
+─── 2026-07-23 — Fix: random "Thank you! You are awesome!" ────────
+
+[bug] Observed live: Luna repeated the thumbs-up reaction with nobody
+  giving a thumbs up, twice ~7.8 s apart. That spacing was the tell —
+  GESTURE_REACT_COOLDOWN is 8.0, so this was not random at all. One
+  false detection was re-firing every time the cooldown lapsed.
+
+  Three separate faults stacked up:
+
+  1. THUMBS_UP fired on a resting fist. The test was
+       fingers["thumb"] and landmarks[4].y < landmarks[2].y and n_up==1
+     A thumb tip one pixel above its own base satisfied the y-check, and
+     a curled thumb is still farther from the wrist than its IP joint, so
+     fingers["thumb"] was true as well. A closed hand met every condition.
+     Verified with synthesised landmarks: the fist reports
+     thumb_ext=True, tip_above_base=True, n_up=1 — a clean false positive.
+
+  2. No debounce. Every frame's classification went straight to
+     state.gesture, so one jittery MediaPipe frame (model_complexity=0
+     on the Pi) was enough to make her speak.
+
+  3. Reactions were level-triggered, not edge-triggered. _cooled() only
+     rate-limited; it never required the gesture to END. Leaving a hand
+     in frame re-triggered the reaction every 8 s indefinitely.
+
+[gesture] gesture_module.py
+  • THUMBS_UP now needs real margins: the thumb tip must clear its own
+    MCP by THUMB_RISE_MIN and clear the index knuckle by
+    THUMB_ABOVE_INDEX_MIN. A fist cannot fake the second one without
+    actually sticking the thumb up. The fist now classifies as HAND.
+  • Gestures are published only after GESTURE_STABLE_FRAMES consecutive
+    frames agree (3 frames = 0.5 s at GESTURE_FPS=6). Jitter between two
+    poses now reads as "no gesture" instead of firing whichever one the
+    behaviour loop happened to sample.
+
+[behavior] behavior_engine.py
+  • Reactions are edge-triggered via _fires(): one hold = one reaction.
+    To get another you lower the hand and raise it again. The cooldown
+    is kept as a second guard against flicker off/straight-back-on.
+  • _prev_gesture is only advanced while ready and not busy — updating
+    it during a busy spell would consume the transition silently and
+    swallow the reaction entirely.
+
+[config] Added GESTURE_STABLE_FRAMES, THUMB_RISE_MIN,
+  THUMB_ABOVE_INDEX_MIN, all with tuning notes.
+
+─── 2026-07-23 — Replaced Vosk with Moonshine + a VAD noise gate ──
+
+[bug] Two complaints, one root cause: Luna answered things nobody
+  said to her, and misheard things people did say to her. The Vosk
+  small model was hallucinating on non-speech and degrading badly
+  under room noise. Measured on the same clips (M-series Mac):
+
+    pure noise (should be silent)
+      Vosk      -> "huh"   (conf 0.38 — and it passed the gate)
+      Moonshine -> ""
+    "Hey Luna, what is the capital of France?" + added noise
+      Vosk      -> "the marina what is the capital of friends"
+                   (wake word LOST — she could not be woken)
+      Moonshine -> exact, punctuated
+    speed (RTF, lower is faster)
+      Vosk 0.07-0.24   Moonshine 0.01-0.12
+
+  Filtering the output of a model that invents words was never going
+  to work; the fix is a model that returns nothing when it hears
+  nothing.
+
+[stt] speech_to_text.py — rewritten around moonshine-voice.
+  • Two-stage pipeline. A cheap adaptive-RMS VAD finds the start/end
+    of each utterance, and only complete utterances are transcribed.
+    Between turns the Pi does no ASR work at all (the old code ran
+    the recognizer over silence 4x a second).
+  • The VAD keeps a 300 ms pre-roll. Without it the gate opens a
+    frame or two into the first word, clipping "Hey" off "Hey Luna"
+    and costing the wake word.
+  • Transcription uses transcribe_without_streaming, NOT Moonshine's
+    streaming mode. Streaming is lower latency but works from partial
+    context and rendered "Hey Luna" as "Hailina" in testing, which
+    would defeat wake-word matching outright.
+  • Mic blocks are now 30 ms (were 250 ms) — 250 ms is far too coarse
+    to find the edges of an utterance.
+
+[stt] Wake-word matching now normalises case and punctuation.
+  Moonshine emits "Hey Luna, what is …" where Vosk emitted bare
+  lowercase tokens, so the old exact-token compare would never have
+  matched "luna," against "luna". Easy to miss; breaks everything.
+
+[config] STT_CONFIDENCE_MIN removed. It gated on Vosk's per-word
+  confidence. Moonshine reports confidence too, but always as exactly
+  1.00 — a placeholder. Keeping it would have looked like a working
+  filter while doing nothing. Replaced by STT_STRICT_FOLLOWUPS
+  (require a knowledge-base match for in-conversation follow-ups —
+  for crowded rooms) and the VAD_* tuning knobs.
+
+[config] VOSK_MODEL_PATH/VOSK_SAMPLE_RATE -> MOONSHINE_MODEL_ARCH /
+  MOONSHINE_LANGUAGE / STT_SAMPLE_RATE. Default model is
+  SMALL_STREAMING (237 MB) — the only one that got the noisy clip
+  exactly right. Drop to TINY_STREAMING (80 MB) if the Pi 5 struggles.
+
+[deps] vosk -> moonshine-voice. Note for anyone re-pinning: the
+  ONNX-based Moonshine packages (useful-moonshine-onnx) and silero-vad
+  must NOT be used here — they pull onnxruntime, which forces
+  protobuf >= 4.25.8 and breaks this project's tensorflow 2.15 /
+  protobuf 3.20.3 pin (and torchaudio 2.11 against torch 2.3.1).
+  moonshine-voice bundles its own runtime and installs only itself
+  plus platformdirs.
+
+[deps] The vosk-model-small-en-us-0.15/ folder is now unused —
+  delete it. Moonshine downloads its model to the OS cache on first
+  run, so there is no longer a manual model download step in setup.
+
+─── 2026-07-15 — Fix: Luna hearing/replying to her own voice ─────
+
+[bug] Real feedback loop observed live: Luna would finish an answer,
+  the mic would pick up her own voice through the speaker, Vosk would
+  transcribe it (sometimes verbatim, sometimes badly garbled), and
+  she'd reply to herself — spiraling into nonsense over several turns.
+  Root cause: the previous mic-blocking rewrite (see below) trusted
+  state.speaking to cover the whole physical speech duration. On
+  macOS, pyttsx3's "nsss" driver can return from runAndWait() BEFORE
+  the audio has actually finished playing — especially with a
+  persistent/reused engine called repeatedly from a background
+  thread, which is exactly this project's setup. state.speaking flips
+  False (and the mic unblocks) while Luna is still audibly talking.
+
+[speech] text_to_speech.py
+  • speak() now measures wall-clock elapsed time against the expected
+    speech duration. If the engine returned suspiciously early
+    (elapsed < TTS_EARLY_RETURN_RATIO × expected), the mic block is
+    padded with the remaining expected playback time on top of the
+    normal MIC_BLOCK_AFTER_SPEAK guard — restores real protection
+    without permanently re-adding the old flat "block for the whole
+    reply regardless" tax on platforms where the driver blocks
+    correctly (Pi espeak subprocess, Windows SAPI5).
+  • Records state.last_spoken_text / state.last_spoken_time on every
+    utterance for the new echo filter (below).
+
+[core] main.py
+  • Second, independent layer of defense: _is_self_echo() compares
+    newly heard text against Luna's last spoken reply and discards it
+    if BOTH the longest contiguous word-run AND overall word overlap
+    clear a threshold (ECHO_RUN_THRESH / ECHO_OVERLAP_THRESH in
+    config.py). Requiring both (not either) keeps it high-precision —
+    tested against the real transcript that exposed this bug plus a
+    battery of plausible new short questions sharing common words
+    ("can", "you", "i"...) with Luna's reply, with no false positives.
+    Catches near-verbatim echo; heavily garbled multi-generation
+    echoes are left to the timing fix above, which prevents most of
+    them from reaching the recognizer in the first place.
+
+[config] config.py — new TTS_EARLY_RETURN_RATIO, ECHO_GUARD_WINDOW,
+  ECHO_RUN_THRESH, ECHO_OVERLAP_THRESH.
+
+[state] shared_state.py — new last_spoken_text, last_spoken_time.
+
+─── 2026-07-15 — Conversation-flow + face-style update ───────────
+
+[speech] text_to_speech.py
+  • speak() is now serialized with a lock:
+      speak(text)                → waits its turn — a brain answer is
+                                   NEVER silently dropped (old code
+                                   returned if already speaking, so a
+                                   gesture reaction could eat the answer)
+      speak(text, can_drop=True) → optional chatter (gestures), skipped
+                                   if Luna is busy.
+  • FIXED double mic block: the mic was re-blocked for the full
+    estimated speech length AFTER the (synchronous) speech already
+    played — up to ~10 s of dead mic per long reply. Now a short
+    MIC_BLOCK_AFTER_SPEAK echo-guard (0.6 s) is used; speech itself
+    is covered by state.speaking.
+  • FIXED duplicate talking-mouth drivers: a per-call energy thread
+    fought the module-level one, both writing audio_energy every
+    16 ms → jittery mouth. Single driver remains.
+  • Conversation window now refreshes when Luna FINISHES speaking —
+    her own reply no longer eats the user's CONVO_TIMEOUT.
+
+[speech] speech_to_text.py
+  • KaldiRecognizer created once and Reset() per turn (was allocated
+    every listen cycle — needless CPU/alloc churn on the Pi).
+  • POST_SPEAK_DELAY (0.8 s) now only applies right after Luna spoke;
+    it used to be added to EVERY listen cycle, even silent ones.
+  • Conversation timeout is also detected mid-listen (silence chunks
+    and queue idle), not only at the start of a cycle; expiry stamps
+    state.convo_expired_time so the face can show the rest cue.
+  • Wake word heard alone ("Luna!") returns WAKE_ACK — main.py answers
+    with a short random acknowledgement (WAKE_REPLIES in config)
+    instead of doing nothing. Also fixes luna_mode getting stuck on
+    "processing" in that path.
+  • Wake phrases match longest-first: "hey luna what time is it" now
+    strips the whole "hey luna", not just "luna" (no stray "hey" sent
+    to the brain).
+  • Empty recognition results keep the same listen cycle going instead
+    of restarting it.
+  • "listening" (blue face pulse) now means attentive conversation
+    mode only; passively waiting for a wake word stays visually idle.
+
+[core] main.py
+  • voice_loop no longer drops recognised text while Luna is speaking
+    (speak() serializes) — every response gets spoken.
+  • Speaks a short acknowledgement on bare wake words.
+  • Guards against luna_mode sticking on "processing".
+
+[behavior] behavior_engine.py
+  • Gestures can NEVER interrupt an answer: ignored entirely while
+    Luna is processing or speaking (the old check missed the 1-2 s
+    Groq "processing" gap — a wave there killed the answer).
+  • During an open conversation window gestures react silently
+    (face + servos only) so they don't talk over the user.
+  • FIXED: wave/open-palm wrote state.emotion directly, which the
+    vision loop overwrote within ~125 ms — the happy face never
+    showed. Now uses face_override like the other reactions.
+
+[face] robot_face.py
+  • FACE STYLES — config FACE_STYLE, or press 1 / 2 on the window:
+      1 = Luna classic (purple, rounded, organic mouth) — unchanged
+      2 = Robo (cyan, sharp corners, square sensor pupils,
+          equalizer-bar talking mouth — modern-robot look)
+    Switching back to 1 restores the exact original face.
+  • Conversation indicator: small breathing dot below the mouth while
+    the wake window is open; on timeout the eyes dim briefly and play
+    one slow blink — subtle "say the wake word again" cue.
+  • Slightly brighter eye tint while the conversation window is open.
+  • Pi performance: glow surfaces now cached (were rebuilt every
+    frame), zzz font cached (SysFont was created per particle per
+    frame), full-screen Surface allocated once instead of per frame.
+  • Window close now raises SystemExit so main.py's clean shutdown
+    (servo centering, GPIO release) actually runs.
+
+[cleanup]
+  • gesture_module.py — removed unused numpy + mp_drawing imports.
+  • face_renderer.py  — removed unused pygame/RENDER_FPS imports.
+  • brain.py          — history trim is a proper while-loop.
+  • camera_thread.py  — ESP32 path now sets state.camera_ok too.
+  • config.py         — removed dead WAKE_WORD; new MIC_BLOCK_AFTER_SPEAK,
+                        WAKE_REPLIES, FACE_STYLE.
+  • shared_state.py   — new convo_expired_time field.
+  • .gitignore        — verified venv/ + .venv/ already ignored (no
+                        change needed).
+
+─── 2026-07-15 — Big robustness + expression update ──────────────
+
+[security] config.py
+  • GROQ_API_KEY no longer hardcoded — loaded from environment or
+    the git-ignored .env file. Old key moved into .env.
+    ⚠ The old key was previously committed in plaintext — rotate it
+    at https://console.groq.com when convenient.
+
+[project] .gitignore  (new)
+  • Ignores __pycache__, .DS_Store, venv, .env, vosk model dir,
+    *.pth model weights, editor folders.
+
+[project] .env / .env.example  (new)
+  • .env holds the real GROQ_API_KEY (git-ignored).
+  • .env.example is the safe template to commit.
+
+[speech] speech_to_text.py  (rewritten)
+  • Persistent mic stream — opened once at startup instead of
+    reopened on every listen() call → lower latency, no device
+    re-open glitches between turns.
+  • Auto-detects mic sample rate (MIC_SAMPLE_RATE=None in config);
+    resamples any rate (44.1k/48k/32k…) to 16 kHz for Vosk via
+    numpy interpolation — old code only worked with exact
+    integer-multiple rates.
+  • MIC NOT FOUND is now handled: Luna keeps running (face, vision,
+    gestures) and retries the mic every 5 s with help printed once.
+  • Multiple wake words: WAKE_WORDS = ["hello", "luna", "hey luna"],
+    matched on word boundaries (old code did substring match).
+  • Fixed bare `except:` in queue flush (now catches queue.Empty).
+  • listen() aborts cleanly if Luna starts speaking mid-listen.
+
+[speech] text_to_speech.py
+  • macOS fallback: uses the built-in `say` command when pyttsx3
+    fails (espeak doesn't exist on Mac).
+  • Arm sway now repeats every 3.5 s for the whole reply instead of
+    a single sway at the start.
+  • No-speaker case never crashes — falls through with a console
+    message.
+
+[vision] camera_thread.py
+  • CAMERA NOT FOUND handled: tries configured CAMERA_ID then
+    indices 0/1/2, retries every 5 s forever, sets state.camera_ok.
+  • Local camera now auto-reopens if it stops delivering frames
+    (~3 s of failures) — previously the thread just died silently
+    when the camera was missing at startup.
+
+[brain] brain.py
+  • Fixed greeting bug: "hi" was matched as a substring, so words
+    like "this"/"chill" made Luna wave. Now whole-word matching.
+  • Works fully offline when no GROQ_API_KEY is set (local knowledge
+    base only) instead of crashing at import.
+  • Compliments ("love you", "good job", "cute", "awesome"…) now
+    trigger the new heart-eyes "love" face.
+
+[gestures] gesture_module.py
+  • New gestures from the SAME MediaPipe hand model (zero extra CPU):
+      THUMBS_UP  — thumb up, fingers folded
+      PEACE      — index + middle up
+      OPEN_PALM  — all five fingers extended
+    (existing: WAVE, POINT_LEFT/RIGHT/UP/DOWN, HAND)
+
+[behavior] behavior_engine.py  (rewritten)
+  • Thumbs up → excited face + both servo arms up + "Thank you!"
+  • Peace     → excited face + right arm up + "Peace!"
+  • Open palm → silent happy face
+  • Per-gesture cooldown (GESTURE_REACT_COOLDOWN = 8 s) and never
+    talks while Luna is speaking or listening.
+
+[servos] servo_module.py
+  • New actions: arm_up("left"/"right"), arm_down("left"/"right"),
+    arms_up() (both arms celebration). All smooth-move based,
+    safe in simulation mode (ENABLE_SERVOS=False).
+
+[face] robot_face.py + face_renderer.py
+  • Two new face states:
+      excited — wide sparkly eyes, starbursts keep sprinkling
+      love    — heart particles float up, strong blush, soft smile
+  • Smooth two-phase blink (animated close AND open with easing,
+    occasional double-blink) — replaces the old instant snap-shut.
+  • Cute decaying bounce when Luna turns happy/excited/love.
+  • Sound-wave rings from the mouth while talking re-enabled and
+    tuned — nicer talking animation.
+  • face_override in shared_state lets gestures/compliments drive
+    the face for FACE_OVERRIDE_SECS then auto-expire.
+
+[core] main.py
+  • Clean shutdown on Ctrl+C / SIGTERM / window close: servos
+    centered + GPIO released (servo.cleanup() was never called
+    before) and pygame quit properly.
+
+[core] shared_state.py
+  • New fields: face_override, face_override_until, mic_ok,
+    camera_ok.
+
+[docs] README.md  (new)
+  • Full setup for macOS / Windows / Raspberry Pi, architecture
+    overview, troubleshooting for mic/speaker/camera not found,
+    device + sample-rate configuration guide.
+
+[config] config.py
+  • AUDIO_INPUT_DEVICE default changed 1 → None (auto-detect; the
+    new detection verifies devices actually work before using them).
+    Set it back to an index if auto-detect picks the wrong mic.
+  • MIC_SAMPLE_RATE default changed 32000 → None (auto-detect).
+  • New: WAKE_WORDS, GESTURE_REACT_COOLDOWN, FACE_OVERRIDE_SECS.
+
+══════════════════════════════════════════════════════════════════
+(add new entries above this line, newest first within a date block)
