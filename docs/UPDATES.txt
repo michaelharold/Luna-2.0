@@ -4,6 +4,35 @@
   Format: date · area · what changed · why
 ══════════════════════════════════════════════════════════════════
 
+─── 2026-09-30 — Date/time, live weather, Wikipedia general-knowledge fallback ──
+
+[commands] commands.py: "what day/time is it" answered from the system clock,
+  no LLM, no network. "how's the weather" is a live, free, no-key Open-Meteo
+  lookup for the campus location — the one voice command that needs the
+  internet moment-to-moment. Both were previously in persona.py's decline
+  list ("outside what I can help with"); that stays as the fallback for any
+  phrasing the new regexes miss, so an edge case still degrades to an honest
+  decline instead of the LLM guessing.
+[rag] wiki_rag.py: live (uncached) Wikipedia search + summary for genuine
+  general-knowledge questions, in the same (source, text, score) shape as
+  web_rag.retrieve() so brain.py's persona.format_context treats both the
+  same way. Only ever called when the knowledge base found NOTHING relevant
+  (_top_k_kb empty) and, as a second independent guard, refuses to look
+  anything up if the question mentions campus vocabulary at all (department,
+  college, HOD, ...) — otherwise a made-up local entity ("P.K.M. college")
+  would match some real but unrelated Wikipedia article and get answered as
+  if it were a real college fact. Also fixed: stripping a question's
+  interrogative wrapper before searching ("What is the capital of France?"
+  -> "capital of France") measurably improves Wikipedia's keyword-search
+  relevance — the unstripped query matched the unrelated article "Closed-
+  ended question" ahead of "France" in testing.
+[data] knowledge.txt: fixed a self-referential landmark distance ("450 meters
+  from college" -> "...from Kilikollur railway station"), and added the
+  Senior Advisor title for Dr. Dimple A Shajahan and Dr. Thushara (previously
+  listed only as Professor).
+[tests] tests/test_wiki_rag.py, tests/test_commands_realtime.py — pure-logic,
+  fake local HTTP server, no real network.
+
 ─── 2026-09-24 — LUNA 2.0: Ollama brain, attention, recognition, learning ──
 
 [llm] Ollama backend (llm_ollama.py; llm_local.py dispatches). Default model

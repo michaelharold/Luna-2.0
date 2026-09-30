@@ -4,7 +4,7 @@ What is the full name of the college:thangal Kunju musaliar college of engineeri
 
 Where is the college located:tkm college of engineering is located at karikode,kollam,kerala,india
 
-What are the nearby landmarks of the college:the college is located at a distance of 450 meter from college
+What are the nearby landmarks of the college:the college is located at a distance of 450 meters from Kilikollur railway station
 
 What is the PIN code of the college:691005
 
@@ -30,13 +30,17 @@ who is the head of computer science department:dr Aneesh g nath is the head of c
 
 who is the advisor of computer science with ai department:Dr thushara is the advisor of computer science with ai
 
-Who is Dr. Dimple A Shajahan?: Dr. Dimple A Shajahan is a Professor in the Department of Computer Science. She obtained her PhD from IIT Madras.
+who is the senior advisor of computer science department:Dr Dimple A Shajahan is the Senior Advisor of the Computer Science Department
+
+who is the senior advisor of computer science with ai department:Dr Thushara is the Senior Advisor of the Computer Science with AI Department
+
+Who is Dr. Dimple A Shajahan?: Dr. Dimple A Shajahan is a Professor and Senior Advisor in the Department of Computer Science. She obtained her PhD from IIT Madras.
 
 Who is Dr. Manu J Pillai?: Dr. Manu J Pillai is an Associate Professor in the Department of Computer Science. He obtained his PhD from NIT Calicut.
 
 Who is Dr. Aneesh G Nath?: Dr. Aneesh G Nath is the head of  the Department of Computer Science. He obtained his PhD from IIT (BHU) Varanasi.
 
-Who is Dr. Thushara A?: Dr. Thushara A is a Professor in the Department of Computer Science. She obtained her PhD from APJ Abdul Kalam Technological University (KTU).
+Who is Dr. Thushara A?: Dr. Thushara A is a Professor and Senior Advisor of the Computer Science with AI Department. She obtained her PhD from APJ Abdul Kalam Technological University (KTU).
 
 Who is B. Mohammed Siyad?: B. Mohammed Siyad is an Assistant Professor in the Department of Computer Science.
 

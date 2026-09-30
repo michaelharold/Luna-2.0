@@ -12,8 +12,8 @@ for learning.py: rewards that arrive after a turn are appended to it.
 Format: data/logs/conversation_YYYY-MM-DD.jsonl (local day), append-only.
   • a turn:    {"turn_id", "ts", "mode", "heard_raw", "heard_clean", "conf",
                 "loudness", "addressed", "addr_reason", "person", "path",
-                "kb_matches", "web_matches", "reply", "timings", "style_arm",
-                "context", "reward", "reward_signals"}
+                "kb_matches", "web_matches", "wiki_matches", "reply", "timings",
+                "style_arm", "context", "reward", "reward_signals"}
   • an update: {"update": turn_id, "ts", ...changed fields} — never rewrite a
                 line; iter_day() merges updates into their turn.
   • ignored:   a turn record with path "ignored", addressed False and the
@@ -56,7 +56,7 @@ _DEFAULTS = (
     ("heard_raw", None), ("heard_clean", None), ("conf", None),
     ("loudness", None), ("addressed", True), ("addr_reason", None),
     ("person", None), ("path", None), ("kb_matches", []),
-    ("web_matches", []), ("reply", None), ("timings", {}),
+    ("web_matches", []), ("wiki_matches", []), ("reply", None), ("timings", {}),
     ("style_arm", None), ("context", None), ("reward", None),
     ("reward_signals", []),
 )

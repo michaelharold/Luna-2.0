@@ -54,6 +54,7 @@ from config import (
     SCENE_MEMORY_IN_PROMPT,
     WEB_RAG_ENABLED,
     WEB_RAG_URL,
+    WIKI_RAG_ENABLED,
 )
 
 # Website retrieval (web_rag.py) is optional: it only does anything when
@@ -63,6 +64,15 @@ try:
 except Exception as _e:                      # missing module / import error
     print(f"[brain] web_rag unavailable ({_e}) — website retrieval off")
     web_rag = None
+
+# Live Wikipedia fallback for genuine general-knowledge questions — see
+# wiki_rag.py's module docstring for why this only ever runs when the
+# knowledge base found nothing relevant at all (_turn_context below).
+try:
+    import wiki_rag
+except Exception as _e:                      # missing module / import error
+    print(f"[brain] wiki_rag unavailable ({_e}) — general-knowledge fallback off")
+    wiki_rag = None
 
 # ── Knowledge base (hot-reloadable) ───────────────────────────────────────────
 # Loaded at startup AND re-read automatically whenever data/knowledge.txt changes
@@ -215,12 +225,21 @@ def _turn_context(text, scene=None, with_kb=True):
             scene = f"(Background — mention only if it helps.) {memory}"
     kb_snippets = _top_k_kb(text) if with_kb else ()
     web_snippets = _top_k_web(text)
+    # Wikipedia is only ever tried when the knowledge base found NOTHING —
+    # otherwise a loosely campus-flavored question (even one about something
+    # that doesn't exist, like a made-up college) would risk pulling in a
+    # real but irrelevant article alongside genuine KB context. See
+    # wiki_rag.py's module docstring.
+    wiki_snippets = _top_k_wiki(text) if not kb_snippets else ()
     _turn["kb_matches"] = [[q, round(float(s), 3)] for q, _, s in kb_snippets]
     _turn["web_matches"] = [[src, round(float(s), 3)]
                             for src, _, s in web_snippets]
+    _turn["wiki_matches"] = [[src, round(float(s), 3)]
+                             for src, _, s in wiki_snippets]
     return dict(
         kb_snippets=kb_snippets,
         web_snippets=web_snippets,
+        wiki_snippets=wiki_snippets,
         scene=scene,
         person=person,
         **_learning_context(text, person),
@@ -241,8 +260,8 @@ def _begin_turn(text):
     _turn.clear()
     _turn.update(t0=time.time(), text=text, person=person, loudness=loud,
                  heard_raw=heard if text.lower() in heard.lower() else text,
-                 kb_matches=[], web_matches=[], style_arm=None, context=None,
-                 ttft=None)
+                 kb_matches=[], web_matches=[], wiki_matches=[], style_arm=None,
+                 context=None, ttft=None)
 
 
 def _set_learning_context(text, kb_score):
@@ -298,7 +317,8 @@ def _log_turn(path, reply=None):
             heard_raw=_turn.get("heard_raw"), heard_clean=_turn.get("text"),
             loudness=_turn.get("loudness"), person=_turn.get("person"),
             path=path, kb_matches=_turn.get("kb_matches") or [],
-            web_matches=_turn.get("web_matches") or [], reply=reply,
+            web_matches=_turn.get("web_matches") or [],
+            wiki_matches=_turn.get("wiki_matches") or [], reply=reply,
             timings={"ttft_s": round(ttft, 3) if ttft is not None else None,
                      "total_s": round(now - _turn["t0"], 3)},
             # a style only shaped LLM-written replies (kb / fallback are
@@ -453,6 +473,21 @@ def _top_k_web(text):
         return web_rag.retrieve(text)
     except Exception as e:
         print(f"[brain] web_rag retrieve failed: {e}")
+        return []
+
+
+def _top_k_wiki(text):
+    """The one relevant Wikipedia extract as (source, text, score) from
+    wiki_rag — empty when disabled, the question looks campus-specific, the
+    device is offline, or the module is missing. Never raises: a broken
+    lookup must not break answers. Caller (_turn_context) only invokes this
+    when the knowledge base found nothing at all — see wiki_rag.py."""
+    if wiki_rag is None or not WIKI_RAG_ENABLED:
+        return []
+    try:
+        return wiki_rag.retrieve(text)
+    except Exception as e:
+        print(f"[brain] wiki_rag retrieve failed: {e}")
         return []
 
 

@@ -35,10 +35,14 @@ Multi-turn state (asked-for-name, confirming-the-name) follows the same
 module-level pattern as speech_to_text's _awaiting_terminate.
 """
 
+import datetime
 import random
 import re
 import subprocess
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 
 import face
 import face_store
@@ -47,7 +51,10 @@ from config import (ENABLE_VOICE_COMMANDS, ENABLE_FACE_RECOGNITION,
                     VOLUME_STEP, VOLUME_MIN, VOLUME_MAX,
                     ENROLL_TIMEOUT, IS_MAC,
                     ENROLL_GUIDED_POSES, ENROLL_POSES,
-                    ENROLL_FRAMES_PER_POSE, ENROLL_CONFIRM_NAME)
+                    ENROLL_FRAMES_PER_POSE, ENROLL_CONFIRM_NAME,
+                    ENABLE_DATETIME_COMMAND, ENABLE_WEATHER_COMMAND,
+                    WEATHER_LOCATION_NAME, WEATHER_LAT, WEATHER_LON,
+                    WEATHER_TIMEOUT)
 
 # Guided registration timing. The pose prompt itself (speak blocks) is most of
 # each capture window; after it ends Luna waits at least ENROLL_POSE_SETTLE so
@@ -155,6 +162,77 @@ def _volume_command(lower, words):
         return True
 
     return False
+
+
+# ── Date, time, weather ────────────────────────────────────────────────────────
+# persona.py tells the LLM to decline these ("outside what I can help with")
+# because an ungrounded base-model guess at today's date or the weather would
+# just be a confident-sounding invention — the thing the whole KB/RAG design
+# exists to avoid. These two are handled here instead, deterministically and
+# before the LLM ever sees the question. Any phrasing this regex doesn't catch
+# still falls through to the LLM's honest decline, rather than a wrong guess.
+
+_DATE_RE = re.compile(r"\b(what('?s| is) the )?(date|day)\b", re.IGNORECASE)
+_TIME_RE = re.compile(r"\bwhat('?s| is) the time\b|\bwhat time\b|\band (the )?time\b",
+                      re.IGNORECASE)
+_WEATHER_RE = re.compile(r"\bweather\b|\bis it raining\b|\bhow(’|')?s it "
+                         r"(looking|outside)\b", re.IGNORECASE)
+
+# WMO weather codes used by Open-Meteo's current_weather field, collapsed to
+# plain spoken descriptions. https://open-meteo.com/en/docs has the full table.
+_WMO_WEATHER = {
+    0: "clear sky", 1: "mostly clear", 2: "partly cloudy", 3: "overcast",
+    45: "foggy", 48: "foggy with frost",
+    51: "light drizzle", 53: "drizzle", 55: "dense drizzle",
+    61: "light rain", 63: "rain", 65: "heavy rain",
+    66: "light freezing rain", 67: "freezing rain",
+    71: "light snow", 73: "snow", 75: "heavy snow", 77: "snow grains",
+    80: "light rain showers", 81: "rain showers", 82: "violent rain showers",
+    85: "light snow showers", 86: "heavy snow showers",
+    95: "thunderstorm", 96: "thunderstorm with light hail",
+    99: "thunderstorm with heavy hail",
+}
+
+
+def _datetime_command(lower, words):
+    if not ENABLE_DATETIME_COMMAND:
+        return False
+    wants_date = bool(_DATE_RE.search(lower))
+    wants_time = bool(_TIME_RE.search(lower))
+    if not (wants_date or wants_time):
+        return False
+    now = datetime.datetime.now()
+    if wants_time and not wants_date:
+        _speak(f"It's {now.strftime('%I:%M %p').lstrip('0')}.")
+    elif wants_date and not wants_time:
+        _speak(f"It's {now.strftime('%A, %B %d')}.")
+    else:
+        _speak(f"It's {now.strftime('%A, %B %d')}, "
+              f"{now.strftime('%I:%M %p').lstrip('0')}.")
+    return True
+
+
+def _weather_command(lower, words):
+    """Live current-weather lookup for the campus location via Open-Meteo
+    (free, no API key) — stdlib urllib only, matching llm_ollama.py's "no new
+    dependency on the Pi" rule. This is the one voice command that needs the
+    internet; on any failure she says so honestly instead of guessing."""
+    if not ENABLE_WEATHER_COMMAND or not _WEATHER_RE.search(lower):
+        return False
+    try:
+        url = ("https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode(
+            {"latitude": WEATHER_LAT, "longitude": WEATHER_LON, "current_weather": "true"}))
+        with urllib.request.urlopen(url, timeout=WEATHER_TIMEOUT) as resp:
+            import json
+            current = json.loads(resp.read().decode("utf-8"))["current_weather"]
+        description = _WMO_WEATHER.get(current["weathercode"], "unclear conditions")
+        temp_c = round(current["temperature"])
+        _speak(f"It's currently {temp_c} degrees in {WEATHER_LOCATION_NAME}, "
+              f"with {description}.")
+    except (urllib.error.URLError, OSError, ValueError, KeyError) as e:
+        print(f"[cmd] weather lookup failed: {e}")
+        _speak("Sorry, I couldn't reach the weather service right now.")
+    return True
 
 
 # ── Enrollment / recognition ──────────────────────────────────────────────────
@@ -621,6 +699,12 @@ def handle(text):
         return True
 
     if _volume_command(lower, words):
+        return True
+
+    if _datetime_command(lower, words):
+        return True
+
+    if _weather_command(lower, words):
         return True
 
     if "go to sleep" in lower or "sleep now" in lower or "good night" in lower \

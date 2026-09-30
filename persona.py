@@ -77,12 +77,16 @@ def system_prompt(knowledge_text=None):
     return PERSONALITY + "\n\n" + _KNOWLEDGE_HEADER + "\n" + "\n".join(lines)
 
 
-def format_context(kb_snippets=(), web_snippets=(), scene=None, person=None,
-                   style=None, exemplars=(), profile=None, diary=None):
+def format_context(kb_snippets=(), web_snippets=(), wiki_snippets=(), scene=None,
+                   person=None, style=None, exemplars=(), profile=None, diary=None):
     """The per-turn context block, or "" when there is nothing to add.
 
-    kb_snippets  — [(question, answer, score)] from brain's RAG-lite retrieval
-    web_snippets — [(source, chunk_text, score)] from web_rag.retrieve()
+    kb_snippets   — [(question, answer, score)] from brain's RAG-lite retrieval
+    web_snippets  — [(source, chunk_text, score)] from web_rag.retrieve()
+    wiki_snippets — [(source, chunk_text, score)] from wiki_rag.retrieve(), only
+                    ever populated when kb_snippets is empty (see brain.py) —
+                    a live Wikipedia lookup for genuine general knowledge, not
+                    anything about the college.
     scene        — live camera description (vision questions)
     person       — recognised person's name, if any
     profile      — one sentence about that person (learning.profile_context)
@@ -108,6 +112,10 @@ def format_context(kb_snippets=(), web_snippets=(), scene=None, person=None,
         ext = "\n".join(f"- (from {src}) {txt}" for src, txt, _ in web_snippets)
         parts.append("Extracts from the college website that may be relevant:\n"
                      + ext)
+    if wiki_snippets:
+        wiki = "\n".join(f"- (from {src}) {txt}" for src, txt, _ in wiki_snippets)
+        parts.append("General knowledge from Wikipedia — NOT about the college, "
+                     "just background for a general question:\n" + wiki)
     if scene:
         parts.append("What your camera sees RIGHT NOW (answer from this, in "
                      f"your own warm words):\n{scene}")

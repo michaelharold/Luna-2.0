@@ -71,13 +71,16 @@ fullscreen, volume backend, servo simulation, and log retention.
 
 **Thinking**
 - `brain.py`: the answer pipeline, in priority order:
-  1. `commands.py`: volume, sleep, style, registration, feedback, teaching.
+  1. `commands.py`: volume, sleep, style, registration, feedback, teaching,
+     date/time (offline), weather (the one live network call, Open-Meteo).
   2. vision questions: live scene description (+ on-demand YOLOv8n) → LLM.
   3. KB direct match ≥ `LOCAL_ANSWER_THRESH` → the verbatim KB answer.
   4. local LLM with retrieval: top-K KB entries, website chunks, scene
      memory, the learned reply style, liked past answers, the person's
      profile and diary context, all in the user turn. The static system
-     prompt is prefix-cached by Ollama.
+     prompt is prefix-cached by Ollama. When the KB found nothing at all,
+     a live Wikipedia lookup (`wiki_rag.py`) joins the context too — see
+     below for why that only happens then.
   5. KB fallback when the LLM is unavailable.
   Every answered turn goes to the conversation log.
 - `persona.py`: the one system prompt (voice + scope rules) shared by brain,
@@ -86,6 +89,12 @@ fullscreen, volume backend, servo simulation, and log retention.
   in-process llama.cpp path. Same `warmup/available/stream/ask` contract.
 - `web_rag.py`: optional website crawl → chunks → embeddings → on-disk cache;
   answers offline from the cache.
+- `wiki_rag.py`: live (no cache, no index) Wikipedia search + summary for
+  genuine general-knowledge questions. Only called when `_top_k_kb` found
+  nothing relevant, and refuses to even try when the question itself
+  mentions campus vocabulary (department, college, HOD, ...) — otherwise a
+  made-up local entity ("P.K.M. college") would match some unrelated real
+  article and be answered as if it were a real fact about the college.
 
 **Seeing**
 - `vision_module.py`: YuNet detection on a half-scale frame, emotion model,

@@ -330,6 +330,16 @@ WEB_RAG_REFRESH_HOURS  = 24            # re-crawl when online and older than thi
 WEB_RAG_FETCH_TIMEOUT  = 8.0           # seconds per page
 WEB_RAG_ONLINE_TIMEOUT = 1.5           # seconds for the "are we online?" probe
 
+# ── Wiki RAG (live, only when online, no cache) ───────────────────────────────
+# Unlike web_rag (one trusted, pre-indexed site), wiki_rag.py does a live
+# Wikipedia search + summary fetch per question — only for genuine general
+# knowledge, and only when the knowledge base found nothing relevant at all
+# (brain.py never calls it otherwise). See wiki_rag.py's module docstring for
+# why a campus-flavored question never reaches it even then.
+WIKI_RAG_ENABLED = True
+WIKI_RAG_TIMEOUT = 5.0        # seconds per request (search + summary, two calls)
+WIKI_RAG_LANG    = "en"       # Wikipedia language edition (subdomain)
+
 # ── Audio devices ─────────────────────────────────────────────────────────────
 # Capture through PIPEWIRE, not the raw USB device. Direct-hw capture on this
 # dongle exclusively locks the card, so PipeWire/paplay can't play Luna's reply
@@ -605,6 +615,22 @@ ADDR_W_CONTINUITY   = 0.7   # Luna just asked a question — this is likely the 
 ENABLE_VOICE_COMMANDS = True
 VOLUME_STEP           = 10     # percent per "volume up"/"volume down"
 VOLUME_MIN, VOLUME_MAX = 20, 100
+
+# Date & time: answered straight from the system clock, no LLM, no network.
+# persona.py still tells the LLM to decline these — that's the fallback for
+# any phrasing this command's regex doesn't catch, so an edge case degrades to
+# an honest "outside what I can help with" instead of the LLM guessing.
+ENABLE_DATETIME_COMMAND = True
+
+# Weather: the ONE voice command that needs the internet (a live Open-Meteo
+# call, free, no API key). Hardcoded to the campus location rather than doing
+# a geocoding round-trip; update the coordinates if Luna ever moves campuses.
+# On any failure (offline, API down) she says so honestly rather than
+# guessing — see commands.py's _weather_command.
+ENABLE_WEATHER_COMMAND = True
+WEATHER_LOCATION_NAME  = "Kollam"
+WEATHER_LAT, WEATHER_LON = 8.8932, 76.6141
+WEATHER_TIMEOUT        = 5.0
 
 # ── Proactive behaviour (EMO-style liveliness) ────────────────────────────────
 # Luna acts on what she sees, without being spoken to first: greets people she

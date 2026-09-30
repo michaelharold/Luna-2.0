@@ -10,6 +10,8 @@ What she does:
 - **Understands the scene** ("what do you see?") and remembers who came and went, so conversation carries context.
 - **Learns from daily life**: which reply style people like, who asks about what, answers that worked, and facts people teach her (after approval).
 - **Reads a website** (optional). When online, she indexes one site and answers from a cached copy, which also works offline.
+- **Knows the date, time and weather.** Date/time come straight from the clock (no network); weather is a live, free, no-key lookup for the campus location — the one thing that needs the internet moment-to-moment, everything else stays offline-forever.
+- **Looks things up on Wikipedia** for genuine general-knowledge questions the knowledge base has nothing on — never for anything that sounds like it's about the college itself, to avoid confidently answering about a made-up department or a college that doesn't exist.
 
 No cloud APIs, keys or accounts are needed at runtime.
 
@@ -148,6 +150,8 @@ Every setting lives in **`config.py`**, grouped by section and commented. `RUN_M
 | `AUDIO_INPUT_DEVICE` | Mac: default, Pi: `"pipewire"` | your microphone has a different name |
 | `CAMERA_SOURCE` | Mac: `"usb"`, Pi: `"picam"` | you use a USB camera on the Pi |
 | `WEB_RAG_URL` | `""` (off) | you want her to read a website |
+| `WEATHER_LOCATION_NAME`, `WEATHER_LAT`, `WEATHER_LON` | Kollam | the campus moves |
+| `WIKI_RAG_ENABLED` | `True` | you want to turn off the Wikipedia general-knowledge fallback |
 | `ROBOT_NAME`, `WAKE_WORDS` | `Luna`, hello / luna / hey luna | you rename her |
 | `ENABLE_SERVOS` | `True` | no servos attached (it falls back to simulation anyway) |
 | `ADDR_*`, `LOUDNESS_*` | see comments | she answers too much or too little |
@@ -187,7 +191,7 @@ venv/bin/python scripts/approve_facts.py            # list pending facts
 venv/bin/python scripts/approve_facts.py --approve 1 "when does the library close"
 ```
 
-**Other commands.** "Volume up / down / fifty percent", "go to sleep", "wake up", "change your face", "what do you see?". To shut down, say "exit", then "exit" again as the password.
+**Other commands.** "Volume up / down / fifty percent", "go to sleep", "wake up", "change your face", "what do you see?", "what day is it", "what time is it", "how's the weather". To shut down, say "exit", then "exit" again as the password.
 
 **Website knowledge (optional).** Set `WEB_RAG_URL = "https://your-college.example/"` in `config.py`. When online, Luna crawls up to `WEB_RAG_MAX_PAGES` pages of that site once a day and caches them in `data/rag_cache/`. You can also build the index by hand:
 
@@ -277,6 +281,7 @@ Luna-2.0/
 ├── robot_face.py, face_renderer.py, face.py, expressions.py, face_parts.py, face_particles.py, face_style.py
 ├── conversation_log.py, learning.py                          logs + learning
 ├── web_rag.py               optional website index
+├── wiki_rag.py               live Wikipedia fallback for general knowledge
 ├── data/knowledge.txt       the college facts Luna answers from
 ├── models/                  emotion model, vision ONNX models (LLM lives in Ollama)
 ├── scripts/                 install, deploy, models, benchmarks, training, tools
