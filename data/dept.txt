@@ -1,0 +1,83 @@
+What is the name of the college: TKM College of Engineering, Kollam
+What is the full name of the college: Thangal Kunju Musaliar College of Engineering
+Where is the college located: TKM College of Engineering is located at Karikode, Kollam, Kerala, India
+What are the nearby landmarks of the college: The college is located at a distance of 450 meters from Kilikollur railway station.
+What is the PIN code of the college: 691005
+When was the college established: TKM College of Engineering was established in 1958.
+Who founded the college: TKM College of Engineering was founded by Janab A. Thangal Kunju Musaliar.
+Is the college autonomous: Yes, TKM College of Engineering has been autonomous since May 2022.
+What is the NAAC accreditation grade: The college has been NAAC accredited with an A grade.
+What is the NBA accreditation status: Several undergraduate engineering (B.Tech) programs are accredited, including Mechanical, Electrical & Electronics, Electronics & Communication, and Computer Science and Engineering.
+What is the KIRF ranking of the college: The college is ranked second in Kerala among engineering colleges by the Kerala Institutional Ranking Framework.
+
+who are you: I am Luna, a voice-controlled robotics assistant powered by Raspberry Pi 5.
+what are you: I am Luna, a voice-controlled robotics assistant.
+what can you do: I can answer basic questions, assist with robotics-related queries, and process voice commands locally.
+who developed you: Luna was developed by Michael Harold Sony, Sreenandana, and Devadathan.
+who made you: Luna was made and developed by Michael Harold Sony, Sreenandana, and Devadathan.
+who created you: Luna was created by Michael Harold Sony, Sreenandana, and Devadathan.
+do you need internet: No, I do not require an internet connection. I run fully offline.
+where can you run: I can be deployed on Raspberry Pi and other small computing systems.
+what is raspberry pi: Raspberry Pi is a small single-board computer widely used for robotics and embedded systems.
+how are you: I am functioning normally and working properly.
+hello: Hello. I am Luna. How can I assist you today?
+hi: Hi there. I am ready to help you.
+good morning: Good morning. I hope you have a productive day ahead.
+good afternoon: Good afternoon. I hope your day is going well.
+good evening: Good evening. Hope you are having a pleasant time.
+thank you: You are welcome.
+what is your purpose: My purpose is to act as an offline voice-controlled robotics assistant.
+how do you work: I process voice commands locally using speech recognition and respond using a knowledge-based system.
+
+What is the vision of the computer science department: The vision of the department is to be a centre of excellence imparting quality education in Computer Science and Engineering and transforming students into critical thinkers and lifelong learners capable of developing environment-friendly and economically feasible solutions to real-world problems.
+What is the mission of the computer science department: The mission of the department is to provide a strong foundation in Computer Science and Engineering, prepare students for professional careers and higher education, inculcate research interest, stay abreast of technological advances, and impart skills to create socially acceptable solutions upholding ethical values.
+
+who is the head of computer science department: Dr. Aneesh G Nath is the Head of the Computer Science Department.
+who is the senior advisor of computer science department: Dr. Dimple A Shajahan is the Senior Advisor of the Computer Science Department.
+who is the advisor of computer science with ai department: Dr. Thushara is the Advisor of the Computer Science with AI Department.
+who is the senior advisor of computer science with ai department: Dr. Thushara is the Senior Advisor of the Computer Science with AI Department.
+
+Who is Dr. Dimple A Shajahan?: Dr. Dimple A Shajahan is a Professor and Senior Advisor in the Department of Computer Science. She obtained her PhD from IIT Madras.
+Who is Dr. Manu J Pillai?: Dr. Manu J Pillai is an Associate Professor in the Department of Computer Science. He obtained his PhD from NIT Calicut.
+Who is Dr. Aneesh G Nath?: Dr. Aneesh G Nath is the Head of the Department of Computer Science. He obtained his PhD from IIT (BHU) Varanasi.
+Who is Dr. Thushara A?: Dr. Thushara A is a Professor and Senior Advisor of the Computer Science with AI Department. She obtained her PhD from APJ Abdul Kalam Technological University (KTU).
+Who is B. Mohammed Siyad?: B. Mohammed Siyad is an Assistant Professor in the Department of Computer Science.
+Who is Nisa A K?: Nisa A K is an Assistant Professor in the Department of Computer Science.
+Who is Dr. Shameem Ansar?: Dr. Shameem Ansar is an Assistant Professor in the Department of Computer Science. He obtained his PhD from NIT Tiruchirappalli (NIT Trichy). His research focuses on the application of wireless networks.
+Who is Dr. Anantha Padmanabhan N K?: Dr. Anantha Padmanabhan N K is an Assistant Professor in the Department of Computer Science. He obtained his PhD from IIT (BHU) Varanasi.
+Who is Dr. Shyna A?: Dr. Shyna A is an Assistant Professor in the Department of Computer Science. She obtained her PhD from APJ Abdul Kalam Technological University (KTU).
+Who is Dr. Reshma Sheik?: Dr. Reshma Sheik is an Assistant Professor in the Department of Computer Science. She holds a PhD.
+Who is Reena Mary George?: Reena Mary George is an Assistant Professor in the Department of Computer Science.
+Who is Rehannara Begum T?: Rehannara Begum T is an Assistant Professor in the Department of Computer Science.
+Who is Dr. Jini Raju?: Dr. Jini Raju is an Assistant Professor in the Department of Computer Science. She obtained her PhD from APJ Abdul Kalam Technological University (KTU).
+
+Where is the AI Lab located?: The AI Lab is located on the second floor of the Computer Science Department.
+Where is the Operating Systems Lab located?: The Operating Systems Lab is located on the ground floor of the Computer Science Department.
+Where is the Systems Software Lab located?: The Systems Software Lab is located on the second floor of the Computer Science Department.
+Where is the Computing Lab located?: The Computing Lab is located on the second floor of the Computer Science Department.
+where is HOD's room: The HOD's room is located on the ground floor.
+where is faculty room: The faculty room is located on the second floor.
+where is KTU office: The KTU office is on the first floor of the Computer Science Department.
+where is seminar hall: The seminar hall is on the ground floor of the Computer Science Department.
+where is jubilee hall: Jubilee hall is on the first floor.
+where is ladies' common room: The ladies' common room is at the backside of the college canteen.
+where is principal's room: The principal's room is on the first floor of the administrative block.
+where is the college canteen and store: The college canteen and store are opposite the Somanathan Centre near the back gate.
+where is the campus doctor: The campus doctor is located near the college store, near the back gate.
+where can i take a print out: Printout facilities are available at the college store.
+which is the nearest railway station to TKM college of engineering: Kollam railway station is at a distance of 7 kilometers, and Kilikollur railway station is at a distance of 500 meters from the college.
+
+which all are the best technical clubs and societies for computer science students: The best technical clubs and societies include Coding Club, CSI, IEEE, ISTE, IEI, and Civil Service Aspirants Club.
+which clubs for extracurricular activities: Extracurricular clubs include Dance Club, Music Club, TKM Photography Club, Film and Drama Club, Literary and Debate Club, Fine Arts Club, and College Sports Council.
+What is Hestia?: Hestia is the annual techno-cultural festival of TKM College of Engineering, bringing together students to participate in technical and cultural events.
+
+What is the placement rate of TKM College of Engineering?: TKM College of Engineering has a placement rate of approximately 90%.
+How many companies visit TKM College of Engineering for placements?: More than 100 companies visit TKM College of Engineering for campus placements every year.
+What is the highest package offered at TKM College of Engineering?: The highest package offered is ₹21 LPA.
+What is the average package offered at TKM College of Engineering?: The average package offered is ₹5.03 LPA.
+Does TKM College of Engineering have a placement cell?: Yes. TKM College of Engineering has a Career Guidance and Placement Unit (CGPU).
+What is the Career Guidance and Placement Unit (CGPU)?: The Career Guidance and Placement Unit (CGPU) is responsible for career guidance, placement training, and campus recruitment activities.
+Does TKM College of Engineering provide placement training?: Yes, TKM College of Engineering provides placement training to prepare students for campus recruitment.
+Does TKM College of Engineering conduct campus placements?: Yes, TKM College of Engineering conducts campus placement drives with leading companies.
+What facilities are available for placement activities?: The placement unit has air-conditioned halls, computer laboratories, and interview rooms for recruitment activities.
+is the campus ragging free: Yes, the campus is strictly ragging free.

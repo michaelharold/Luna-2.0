@@ -1,0 +1,457 @@
+{"instruction": "What is the name of the college?", "response": "The name of the college is TKM College of Engineering, Kollam."}
+{"instruction": "Where is TKM College of Engineering located?", "response": "TKM College of Engineering is located at Karikode, Kollam, Kerala, India."}
+{"instruction": "Is TKM College of Engineering autonomous?", "response": "Yes, TKM College of Engineering has been autonomous since May 2022."}
+{"instruction": "What is the NAAC accreditation grade of TKM College of Engineering?", "response": "The college has been NAAC accredited with an A grade."}
+{"instruction": "When was TKM College of Engineering established?", "response": "TKM College of Engineering was established in 1958."}
+{"instruction": "Who founded TKM College of Engineering?", "response": "TKM College of Engineering was founded by Janab A. Thangal Kunju Musaliar."}
+{"instruction": "What is the accreditation status of the undergraduate engineering programs?", "response": "Several undergraduate engineering (B.Tech) programs are accredited, including Mechanical, Electrical & Electronics, Electronics & Communication, and Computer Science and Engineering."}
+{"instruction": "What is the KIRF ranking of the college?", "response": "The college is ranked second in Kerala among engineering colleges by the Kerala Institutional Ranking Framework."}
+{"instruction": "What is Luna?", "response": "Luna is a voice-controlled robotics assistant."}
+{"instruction": "What can Luna do?", "response": "Luna can answer basic questions, assist with robotics-related queries, and process voice commands locally."}
+{"instruction": "Who developed Luna?", "response": "Luna was developed by Michael Harold Sony, Sreenandana, and Devadathan."}
+{"instruction": "Who made Luna?", "response": "Luna was made and developed by Michael Harold Sony, Sreenandana, and Devadathan."}
+{"instruction": "Who created me?", "response": "Luna was created by Michael, Harold Sony, Sreenandana, and Devadathan."}
+{"instruction": "Do I need an internet connection?", "response": "No, you do not need an internet connection. I run fully offline."}
+{"instruction": "Where can you run?", "response": "I can be deployed on Raspberry Pi and other small computing systems."}
+{"instruction": "What is Raspberry Pi?", "response": "Raspberry Pi is a small single-board computer widely used for robotics and embedded systems."}
+{"instruction": "How are you?", "response": "I am functioning normally and working properly."}
+{"instruction": "How can I assist you today?", "response": "Hello. I am Luna. I am ready to help you today."}
+{"instruction": "What is my name?", "response": "Your name is Luna."}
+{"instruction": "What is the greeting for good morning?", "response": "Good morning. I hope you have a productive day ahead."}
+{"instruction": "What is the greeting for good afternoon?", "response": "Good afternoon. I hope your day is going well."}
+{"instruction": "What is the greeting for good evening?", "response": "Good evening. Hope you are having a pleasant time."}
+{"instruction": "What do you say when someone thanks me?", "response": "You are welcome."}
+{"instruction": "Who is the head of the computer science department?", "response": "Dr. Aneesh G Nath is the Head of the Computer Science Department."}
+{"instruction": "Who is the senior advisor of the computer science department?", "response": "Dr. Dimple A Shajahan is the Senior Advisor of the Computer Science Department."}
+{"instruction": "Who is the advisor of the computer science with AI department?", "response": "Dr. Thushara is the Advisor of the Computer Science with AI Department."}
+{"instruction": "Who is the senior advisor of the computer science with AI department?", "response": "Dr. Thushara is the Senior Advisor of the Computer Science with AI Department."}
+{"instruction": "Who is Dr. Dimple A Shajahan?", "response": "Dr. Dimple A Shajahan is a Professor and Senior Advisor in the Department of Computer Science."}
+{"instruction": "Who is the Head of the Department of Computer Science?", "response": "Dr. Aneesh G Nath is the Head of the Department of Computer Science."}
+{"instruction": "Who is the Professor and Senior Advisor of the Computer Science with AI Department?", "response": "Dr. Thushara A is the Professor and Senior Advisor of the Computer Science with AI Department."}
+{"instruction": "Who is the Assistant Professor in the Department of Computer Science?", "response": "B. Mohammed Siyad and Nisa A K both hold the position of Assistant Professor in the Computer Science department."}
+{"instruction": "Who is the Assistant Professor in the Department of Computer Science according to the text?", "response": "B. Mohammed Siyad and Nisa A K both hold the position of Assistant Professor in the Computer Science department."}
+{"instruction": "Who is the Associate Professor in the Department of Computer Science?", "response": "Dr. Manu J Pillai is the Associate Professor in the Department of Computer Science."}
+{"instruction": "Who obtained his PhD from NIT Calicut?", "response": "Dr. Manu J Pillai obtained his PhD from NIT Calicut."}
+{"instruction": "Who obtained his PhD from IIT (BHU) Varanasi?", "response": "Dr. Aneesh G Nath obtained his PhD from IIT (BHU) Varanasi."}
+{"instruction": "Who obtained his PhD from APJ Abdul Kalam Technological University (KTU) for the Computer Science with AI Department?", "response": "Dr. Thushara A obtained her PhD from APJ Abdul Kalam Technological University (KTU)."}
+{"instruction": "Who is Dr. Anantha Padmanabhan N K?", "response": "Dr. Anantha Padmanabhan N K holds the position of Assistant Professor in the Computer Science department, and obtained his PhD from IIT (BHU) Varanasi."}
+{"instruction": "Who is Dr. Shyna A?", "response": "Dr. Shyna A works as an Assistant Professor in the Computer Science department, and obtained her PhD from APJ Abdul Kalam Technological University (KTU)."}
+{"instruction": "Who is Dr. Reshma Sheik?", "response": "Dr. Reshma Sheik serves as an Assistant Professor in the Computer Science department and holds a PhD."}
+{"instruction": "Who is Reena Mary George?", "response": "Reena Mary George holds the position of Assistant Professor in the Computer Science department."}
+{"instruction": "Who is Rehannara Begum T?", "response": "Rehannara Begum T works as an Assistant Professor in the Computer Science department."}
+{"instruction": "Who is Dr. Jini Raju?", "response": "Dr. Jini Raju serves as an Assistant Professor in the Computer Science department, and obtained her PhD from APJ Abdul Kalam Technological University (KTU)."}
+{"instruction": "Where is the AI Lab located?", "response": "The AI Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "Where is the Operating Systems Lab located?", "response": "The Operating Systems Lab is located on the ground floor of the Computer Science Department."}
+{"instruction": "Where is the Systems Software Lab located?", "response": "The Systems Software Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "Where is the Computing Lab located?", "response": "The Computing Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "Where is the HOD's room?", "response": "The HOD's room is located on the ground floor."}
+{"instruction": "Where is the faculty room located?", "response": "The faculty room is located on the second floor."}
+{"instruction": "Where is the KTU office located?", "response": "The KTU office is on the first floor of the Computer Science Department."}
+{"instruction": "Where is the seminar hall located?", "response": "The seminar hall is on the ground floor of the Computer Science Department."}
+{"instruction": "Where is Jubilee hall located?", "response": "Jubilee hall is on the first floor."}
+{"instruction": "Where is the ladies' common room located?", "response": "The ladies' common room is at the backside of the college canteen."}
+{"instruction": "Where is the principal's room located?", "response": "The principal's room is on the first floor of the administrative block."}
+{"instruction": "Where is the college canteen and store located?", "response": "The college canteen and store are opposite the Somanathan Centre near the back gate."}
+{"instruction": "Where is the campus doctor located?", "response": "The campus doctor is located near the college store, near the back gate."}
+{"instruction": "Where can I take a printout?", "response": "Printout facilities are available near the college store, near the back gate."}
+{"instruction": "What is the distance from TKM College of Engineering to the Kollam railway station?", "response": "The Kollam railway station is at a distance of 7 kilometers from TKM College of Engineering."}
+{"instruction": "What is the distance from TKM College of Engineering to the Kilikollur railway station?", "response": "The Kilikollur railway station is at a distance of 500 meters from TKM College of Engineering."}
+{"instruction": "What are the best technical clubs and societies for computer science students at TKM College of Engineering?", "response": "The best technical clubs and societies for computer science students include Coding Club, CSI, IEEE, ISTE, IEI, and Civil Service Aspirants Club."}
+{"instruction": "What are the extracurricular clubs available at TKM College of Engineering?", "response": "The extracurricular clubs available at TKM College of Engineering include Dance Club, Music Club, TKM Photography Club, Film and Drama Club, Literary and Debate Club, Fine Arts Club, and College Sports Council."}
+{"instruction": "What is Hestia?", "response": "Hestia is the annual techno-cultural festival of TKM College of Engineering, bringing together students to participate in technical and cultural activities."}
+{"instruction": "What is the closest railway station to TKM College of Engineering?", "response": "The closest railway station to TKM College of Engineering is Kilikollur railway station, which is at a distance of 500 meters from the college."}
+{"instruction": "What are the technical clubs and societies available for computer science students?", "response": "For computer science students, the best technical clubs and societies at TKM College of Engineering are Coding Club, CSI, IEEE, ISTE, IEI, and Civil Service Aspirants Club."}
+{"instruction": "What is the placement rate of TKM College of Engineering?", "response": "The placement rate of TKM College of Engineering is approximately 90%."}
+{"instruction": "How many companies visit TKM College of Engineering for placements every year?", "response": "More than 100 companies visit TKM College of Engineering for campus placements every year."}
+{"instruction": "What is the highest package offered at TKM College of Engineering?", "response": "The highest package offered is ₹21 LPA."}
+{"instruction": "What is the average package offered at TKM College of Engineering?", "response": "The average package offered is ₹5.03 LPA."}
+{"instruction": "Does TKM College of Engineering have a placement cell?", "response": "Yes, TKM College of Engineering has a Career Guidance and Placement Unit (CGPU)."}
+{"instruction": "What is the Career Guidance and Placement Unit (CGPU)?", "response": "The Career Guidance and Placement Unit (CGPU) is responsible for career services at TKM College of Engineering, including arranging placements and providing counseling to students."}
+{"instruction": "Does TKM College of Engineering provide placement training?", "response": "Yes, TKM College of Engineering provides placement training to prepare students for campus recruitment."}
+{"instruction": "Does TKM College of Engineering conduct campus placements?", "response": "Yes, TKM College of Engineering conducts campus placement drives with leading companies."}
+{"instruction": "What facilities are available for placement activities?", "response": "The placement unit has air-conditioned halls, computer laboratories, and interview rooms for recruitment activities."}
+{"instruction": "Is the campus ragging free?", "response": "Yes, the campus is strictly ragging free."}
+{"instruction": "When did TKM College of Engineering start?", "response": "TKM College of Engineering was established in 1958."}
+{"instruction": "What year did TKM College of Engineering start?", "response": "The college was established in the year 1958."}
+{"instruction": "How long has TKM College of Engineering existed?", "response": "TKM College of Engineering has been in existence for 64 years (from 1958 to the present)."}
+{"instruction": "What is the full name of TKM College of Engineering?", "response": "The full name of TKM College of Engineering is Thangal Kunju Musaliar College of Engineering."}
+{"instruction": "Where is TKM College of Engineering located?", "response": "TKM College of Engineering is located in Karikode, Kollam, Kerala, India."}
+{"instruction": "What landmarks are near TKM College of Engineering?", "response": "The college is located at a distance of 450 meters from Kilikollur railway station."}
+{"instruction": "What is the PIN code of TKM College of Engineering?", "response": "The PIN code of TKM College of Engineering is 691005."}
+{"instruction": "What is the ranking of the college in Kerala?", "response": "The college is ranked second in Kerala among engineering colleges by the Kerala Institutional Ranking Framework."}
+{"instruction": "What are the undergraduate engineering programs that are accredited?", "response": "The undergraduate engineering programs, including Mechanical, Electrical & Electronics, Electronics & Communication, and Computer Science and Engineering, are accredited."}
+{"instruction": "How many undergraduate engineering programs are accredited?", "response": "There are four undergraduate engineering programs that are accredited, including Mechanical, Electrical & Electronics, Electronics & Communication, and Computer Science and Engineering."}
+{"instruction": "What is the role of Luna?", "response": "Luna is a voice-controlled robotics assistant powered by Raspberry Pi 5."}
+{"instruction": "Who developed Luna?", "response": "Luna was developed by Michael, Sreenandana, and Devadathan."}
+{"instruction": "Who made Luna?", "response": "Luna was made and developed by Michael, Sreenandana, and Devadathan."}
+{"instruction": "What is the purpose of Luna?", "response": "Luna's purpose is to assist with basic questions and robotics-related queries."}
+{"instruction": "What are Luna's capabilities?", "response": "Luna can answer basic questions, assist with robotics-related queries, and process voice commands locally."}
+{"instruction": "What does Luna do?", "response": "Luna is a voice-controlled robotics assistant powered by Raspberry Pi 5 and can answer basic questions and assist with robotics-related queries."}
+{"instruction": "When was Luna created?", "response": "Luna was created by Michael Harold Sony, Sreenandana, and Devadathan."}
+{"instruction": "What year did Luna start?", "response": "Luna started in the creation of Michael Harold Sony, Sreenandana, and Devadathan."}
+{"instruction": "How long has Luna existed?", "response": "Luna existed from the creation of Michael Harold Sony, Sreenandana, and Devadathan."}
+{"instruction": "Do I need an internet connection?", "response": "No, you do not need an internet connection."}
+{"instruction": "What does Luna need?", "response": "Luna does not need an internet connection."}
+{"instruction": "Is Luna dependent on the internet?", "response": "No, Luna is not dependent on the internet."}
+{"instruction": "Where can Luna be deployed?", "response": "Luna can be deployed on Raspberry Pi and other small computing systems."}
+{"instruction": "What computing systems can Luna be deployed on?", "response": "Luna can be deployed on Raspberry Pi and other small computing systems."}
+{"instruction": "Which small computing systems can Luna be deployed on?", "response": "Luna can be deployed on Raspberry Pi and other small computing systems."}
+{"instruction": "What kind of computer is Raspberry Pi?", "response": "Raspberry Pi is a small single-board computer."}
+{"instruction": "What is the purpose of Raspberry Pi?", "response": "Raspberry Pi is used for robotics and embedded systems."}
+{"instruction": "When was Dr. Dimple A Shajahan appointed as Senior Advisor?", "response": "Dr. Dimple A Shajahan was appointed as the Senior Advisor in the Department of Computer Science."}
+{"instruction": "What role does Dr. Dimple A Shajahan hold in the Computer Science department?", "response": "Dr. Dimple A Shajahan is a Professor and Senior Advisor in the Department of Computer Science."}
+{"instruction": "When did Dr. Thushara start as the Advisor of the Computer Science with AI department?", "response": "Dr. Thushara started as the Advisor of the Computer Science with AI department."}
+{"instruction": "What is Dr. Thushara's role in the Computer Science with AI department?", "response": "Dr. Thushara is the Advisor of the Computer Science with AI department."}
+{"instruction": "What is the title of Dr. Dimple A Shajahan?", "response": "Dr. Dimple A Shajahan's title is Professor and Senior Advisor in the Department of Computer Science."}
+{"instruction": "In what capacity does Dr. Dimple A Shajahan serve in the Computer Science department?", "response": "Dr. Dimple A Shajahan serves as a Professor and Senior Advisor in the Department of Computer Science."}
+{"instruction": "When was Dr. Thushara appointed as the Advisor of the Computer Science with AI department?", "response": "Dr. Thushara was appointed as the Advisor of the Computer Science with AI department."}
+{"instruction": "What role does Dr. Thushara hold in the Computer Science with AI department?", "response": "Dr. Thushara holds the role of Advisor in the Computer Science with AI department."}
+{"instruction": "What is Dr. Dimple A Shajahan's position?", "response": "Dr. Dimple A Shajahan's position is that of a Professor and Senior Advisor in the Department of Computer Science."}
+{"instruction": "How would you describe Dr. Dimple A Shajahan's role in the Computer Science department?", "response": "Dr. Dimple A Shajahan is a Professor and Senior Advisor in the Computer Science department."}
+{"instruction": "What is Dr. Thushara's role in the Computer Science with AI department?", "response": "Dr. Thushara's role is that of Advisor in the Computer Science with AI department."}
+{"instruction": "What year did Dr. Anantha Padmanabhan N K start his career in academia?", "response": "Dr. Anantha Padmanabhan N K is an Assistant Professor in the Department of Computer Science and obtained his PhD from IIT (BHU) Varanasi."}
+{"instruction": "How long has Dr. Anantha Padmanabhan N K been in academia?", "response": "Dr. Anantha Padmanabhan N K is an Assistant Professor in the Department of Computer Science and obtained his PhD from IIT (BHU) Varanasi."}
+{"instruction": "When did Dr. Shyna A start her academic career?", "response": "Dr. Shyna A is an Assistant Professor in the Department of Computer Science and obtained her PhD from APJ Abdul Kalam Technological University (KTU)."}
+{"instruction": "What year did Dr. Shyna A complete her PhD?", "response": "Dr. Shyna A is an Assistant Professor in the Department of Computer Science and obtained her PhD from APJ Abdul Kalam Technological University (KTU)."}
+{"instruction": "How long has Dr. Shyna A been in academia?", "response": "Dr. Shyna A is an Assistant Professor in the Department of Computer Science and obtained her PhD from APJ Abdul Kalam Technological University (KTU)."}
+{"instruction": "When did Dr. Reshma Sheik obtain her PhD?", "response": "Dr. Reshma Sheik is an Assistant Professor in the Department of Computer Science and holds a PhD."}
+{"instruction": "What year did Dr. Reshma Sheik complete her PhD?", "response": "Dr. Reshma Sheik is an Assistant Professor in the Department of Computer Science and holds a PhD."}
+{"instruction": "How long has Dr. Reshma Sheik been in academia?", "response": "Dr. Reshma Sheik is an Assistant Professor in the Department of Computer Science and holds a PhD."}
+{"instruction": "When did Reena Mary George join the department?", "response": "Reena Mary George holds the position of Assistant Professor in the Computer Science department."}
+{"instruction": "What year did Reena Mary George start her academic career?", "response": "Reena Mary George holds the position of Assistant Professor in the Computer Science department."}
+{"instruction": "How long has Reena Mary George been in academia?", "response": "Reena Mary George holds the position of Assistant Professor in the Computer Science department."}
+{"instruction": "When did Rehannara Begum T join the department?", "response": "Rehannara Begum T works as an Assistant Professor in the Computer Science department."}
+{"instruction": "What year did Rehannara Begum T start her academic career?", "response": "Rehannara Begum T works as an Assistant Professor in the Computer Science department."}
+{"instruction": "How long has Rehannara Begum T been in academia?", "response": "Rehannara Begum T works as an Assistant Professor in the Computer Science department."}
+{"instruction": "When was Dr. Jini Raju's PhD obtained from APJ Abdul Kalam Technological University (KTU)?", "response": "Dr. Jini Raju obtained her PhD from APJ Abdul Kalam Technological University (KTU)."}
+{"instruction": "What year did Dr. Jini Raju get her PhD from APJ Abdul Kalam Technological University (KTU)?", "response": "Dr. Jini Raju obtained her PhD from APJ Abdul Kalam Technological University (KTU)."}
+{"instruction": "How long has Dr. Jini Raju been in the Department of Computer Science as an Assistant Professor?", "response": "Dr. Jini Raju is an Assistant Professor in the Department of Computer Science."}
+{"instruction": "Where is the AI Lab located in the Computer Science Department?", "response": "The AI Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "What floor is the AI Lab in the Computer Science Department located on?", "response": "The AI Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "Where can you find the Operating Systems Lab in the Computer Science Department?", "response": "The Operating Systems Lab is located on the ground floor of the Computer Science Department."}
+{"instruction": "What is the location of the Operating Systems Lab within the Computer Science Department?", "response": "The Operating Systems Lab is located on the ground floor of the Computer Science Department."}
+{"instruction": "Where can you find the Systems Software Lab in the Computer Science Department?", "response": "The Systems Software Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "What floor is the Systems Software Lab in the Computer Science Department located on?", "response": "The Systems Software Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "Where is the Computing Lab situated within the Computer Science Department?", "response": "The Computing Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "What floor is the Computing Lab located in the Computer Science Department?", "response": "The Computing Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "Where is the HOD's room within the Computer Science Department?", "response": "The HOD's room is located on the ground floor."}
+{"instruction": "What floor is the HOD's room within the Computer Science Department located on?", "response": "The HOD's room is located on the ground floor."}
+{"instruction": "How long has the HOD's room been located on the ground floor of the Computer Science Department?", "response": "The HOD's room is located on the ground floor of the Computer Science Department."}
+{"instruction": "Where is the KTU office situated?", "response": "The KTU office is on the first floor of the Computer Science Department."}
+{"instruction": "Where can I find the seminar hall?", "response": "The seminar hall is on the ground floor of the Computer Science Department."}
+{"instruction": "Where is the principal's room situated?", "response": "The principal's room is on the first floor of the administrative block."}
+{"instruction": "Where can I get a campus doctor?", "response": "The campus doctor is located near the college store, near the back gate."}
+{"instruction": "Where can I get a printout made?", "response": "Printout facilities are available near the college store, near the back gate."}
+{"instruction": "How many companies visit TKM College of Engineering for placements each year?", "response": "More than 100 companies visit TKM College of Engineering for placements every year."}
+{"instruction": "What is the highest package offered at TKM College of Engineering?", "response": "The highest package offered at TKM College of Engineering is ₹21 LPA."}
+{"instruction": "What is the average package offered at TKM College of Engineering?", "response": "The average package offered at TKM College of Engineering is ₹5.03 LPA."}
+{"instruction": "Does TKM College of Engineering have a placement cell?", "response": "Yes, TKM College of Engineering has a placement cell."}
+{"instruction": "What is the name of TKM College of Engineering's placement cell?", "response": "TKM College of Engineering's placement cell is called the Career Guidance and Placement Unit (CGPU)."}
+{"instruction": "What does the Career Guidance and Placement Unit (CGPU) do?", "response": "The Career Guidance and Placement Unit (CGPU) is responsible for career guidance and placement activities at TKM College of Engineering."}
+{"instruction": "When was TKM College of Engineering established and who founded it?", "response": "TKM College of Engineering was established in 1958 by Janab A. Thangal Kunju Musaliar."}
+{"instruction": "Who founded the college and when?", "response": "The college was founded by Janab A. Thangal Kunju Musaliar in 1958."}
+{"instruction": "Tell me about the college's founding.", "response": "TKM College of Engineering was founded in 1958 by Janab A. Thangal Kunju Musaliar."}
+{"instruction": "What is the full name of the college and where is it located?", "response": "The full name of the college is Thangal Kunju Musaliar College of Engineering, located in Karikode, Kollam, Kerala, India."}
+{"instruction": "What is the NAAC grade and KIRF ranking of the college?", "response": "The college has been NAAC accredited with an A grade and is ranked second in Kerala among engineering colleges by KIRF."}
+{"instruction": "Who is the head of the Computer Science department and where did he get his PhD?", "response": "Dr. Aneesh G Nath is the Head of the Computer Science Department. He obtained his PhD from IIT (BHU) Varanasi."}
+{"instruction": "Who developed Luna and what does Luna run on?", "response": "Luna was developed by Michael Harold Sony, Sreenandana, and Devadathan, and runs on Raspberry Pi 5."}
+{"instruction": "What is Luna and who created it?", "response": "Luna is a voice-controlled robotics assistant, created by Michael Harold Sony, Sreenandana, and Devadathan."}
+{"instruction": "Is the college autonomous and what is its NAAC grade?", "response": "Yes, TKM College of Engineering has been autonomous since May 2022, and it holds a NAAC A grade."}
+{"instruction": "What is the highest and average package offered at TKM College of Engineering?", "response": "The highest package offered is ₹21 LPA, and the average package is ₹5.03 LPA."}
+{"instruction": "Does the college have a placement cell and what is it called?", "response": "Yes, TKM College of Engineering has a placement cell called the Career Guidance and Placement Unit (CGPU)."}
+{"instruction": "Where are the AI Lab and Operating Systems Lab located?", "response": "The AI Lab is on the second floor and the Operating Systems Lab is on the ground floor of the Computer Science Department."}
+{"instruction": "What is the PIN code of the college and how far is it from Kilikollur railway station?", "response": "The PIN code is 691005, and the college is about 450-500 meters from Kilikollur railway station."}
+{"instruction": "Who is Dr. Thushara A and where did she get her PhD?", "response": "Dr. Thushara A is a Professor and Senior Advisor of the Computer Science with AI Department. She obtained her PhD from APJ Abdul Kalam Technological University (KTU)."}
+{"instruction": "How many undergraduate engineering programs are NBA accredited and what are they?", "response": "Four undergraduate engineering programs are NBA accredited: Mechanical, Electrical & Electronics, Electronics & Communication, and Computer Science and Engineering."}
+{"instruction": "Who is the head of the department?", "response": "Dr. Aneesh G Nath is the Head of the Department."}
+{"instruction": "Who is in charge of the department?", "response": "Dr. Aneesh G Nath is the Head of the Department of Computer Science, and is in charge of it."}
+{"instruction": "Who leads the department?", "response": "Dr. Aneesh G Nath leads the Department of Computer Science as its Head."}
+{"instruction": "Who is the HOD?", "response": "Dr. Aneesh G Nath is the HOD (Head of Department) of Computer Science."}
+{"instruction": "Who is the departmental head?", "response": "Dr. Aneesh G Nath is the departmental head of Computer Science."}
+{"instruction": "Who runs the department?", "response": "Dr. Aneesh G Nath runs the Department of Computer Science as its Head."}
+{"instruction": "Is Dr. Anantha Padmanabhan N K the head of the department?", "response": "No. Dr. Anantha Padmanabhan N K is an Assistant Professor, not the Head. The Head of the Department is Dr. Aneesh G Nath."}
+{"instruction": "Is Dr. Shyna A the head of the department?", "response": "No. Dr. Shyna A is an Assistant Professor, not the Head. The Head of the Department is Dr. Aneesh G Nath."}
+{"instruction": "Is Dr. Dimple A Shajahan an Assistant Professor?", "response": "No. Dr. Dimple A Shajahan is a Professor and Senior Advisor, not an Assistant Professor."}
+{"instruction": "What is Dr. Dimple A Shajahan's title?", "response": "Dr. Dimple A Shajahan's title is Professor and Senior Advisor of the Department of Computer Science, not Assistant Professor."}
+{"instruction": "Is Reena Mary George the head of the department?", "response": "No. Reena Mary George is an Assistant Professor, not the Head. The Head of the Department is Dr. Aneesh G Nath."}
+{"instruction": "Who is Dr. Anish Jinaud?", "response": "I don't have any information about a Dr. Anish Jinaud in the Computer Science department."}
+{"instruction": "Who is Dr. Ramesh Kumar?", "response": "I don't have any information about a Dr. Ramesh Kumar in the Computer Science department."}
+{"instruction": "Who is Professor Alan Turing?", "response": "I don't have information about a Professor Alan Turing being part of this department."}
+{"instruction": "Who is Dr. Sunita Rao?", "response": "I don't have any information about a Dr. Sunita Rao in the Computer Science department."}
+{"instruction": "Is there a Dr. Vikram Nair in the department?", "response": "I don't have any information about a Dr. Vikram Nair in the Computer Science department."}
+{"instruction": "കോളേജിന്റെ പേര് എന്താണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ്, കൊല്ലം."}
+{"instruction": "കോളേജിന്റെ മുഴുവൻ പേര് എന്താണ്?", "response": "തങ്കൾ കുഞ്ഞു മുസലിയാർ കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ്."}
+{"instruction": "കോളേജ് എവിടെയാണ് സ്ഥിതി ചെയ്യുന്നത്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ് കേരളത്തിലെ കൊല്ലം ജില്ലയിലെ കരികോട് സ്ഥിതി ചെയ്യുന്നു."}
+{"instruction": "കോളേജിന് സമീപമുള്ള സ്ഥലങ്ങൾ ഏതൊക്കെയാണ്?", "response": "കിളികൊല്ലൂർ റെയിൽവേ സ്റ്റേഷനിൽ നിന്ന് 450 മീറ്റർ അകലെയാണ് കോളേജ്."}
+{"instruction": "കോളേജിന്റെ പിൻ കോഡ് എന്താണ്?", "response": "691005."}
+{"instruction": "കോളേജ് സ്ഥാപിതമായത് എപ്പോഴാണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ് 1958-ൽ സ്ഥാപിതമായി."}
+{"instruction": "കോളേജ് സ്ഥാപിച്ചത് ആരാണ്?", "response": "ജനാബ് എ. തങ്കൾ കുഞ്ഞു മുസലിയാരാണ് കോളേജ് സ്ഥാപിച്ചത്."}
+{"instruction": "കോളേജിന് ഓട്ടോണമി പദവിയുണ്ടോ?", "response": "ഉണ്ട്, 2022 മെയ് മുതൽ ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ് ഓട്ടോണമസ് ആണ്."}
+{"instruction": "NAAC അക്രഡിറ്റേഷൻ ഗ്രേഡ് എന്താണ്?", "response": "കോളേജിന് NAAC 'എ' ഗ്രേഡ് അക്രഡിറ്റേഷൻ ഉണ്ട്."}
+{"instruction": "NBA അക്രഡിറ്റേഷൻ നില എന്താണ്?", "response": "മെക്കാനിക്കൽ, ഇലക്ട്രിക്കൽ & ഇലക്ട്രോണിക്സ്, ഇലക്ട്രോണിക്സ് & കമ്മ്യൂണിക്കേഷൻ, കമ്പ്യൂട്ടർ സയൻസ് എന്നിവയുൾപ്പെടെ പല ബി.ടെക് പ്രോഗ്രാമുകൾക്കും NBA അക്രഡിറ്റേഷൻ ഉണ്ട്."}
+{"instruction": "KIRF റാങ്കിംഗ് എന്താണ്?", "response": "കേരള ഇൻസ്റ്റിറ്റ്യൂഷണൽ റാങ്കിംഗ് ഫ്രെയിംവർക്ക് പ്രകാരം കേരളത്തിലെ എഞ്ചിനീയറിംഗ് കോളേജുകളിൽ രണ്ടാം സ്ഥാനത്താണ് ഈ കോളേജ്."}
+{"instruction": "നീ ആരാണ്?", "response": "ഞാൻ ലൂണയാണ്, റാസ്ബെറി പൈ 5-ൽ പ്രവർത്തിക്കുന്ന ഒരു വോയ്സ്-കൺട്രോൾഡ് റോബോട്ടിക്സ് അസിസ്റ്റന്റ്."}
+{"instruction": "നിനക്ക് എന്ത് ചെയ്യാൻ കഴിയും?", "response": "എനിക്ക് അടിസ്ഥാന ചോദ്യങ്ങൾക്ക് ഉത്തരം നൽകാനും, റോബോട്ടിക്സ് സംബന്ധമായ കാര്യങ്ങളിൽ സഹായിക്കാനും, വോയ്സ് കമാൻഡുകൾ ലോക്കലായി പ്രോസസ് ചെയ്യാനും കഴിയും."}
+{"instruction": "നിന്നെ ആരാണ് നിർമ്മിച്ചത്?", "response": "മൈക്കിൾ ഹരോൾഡ് സോണി, ശ്രീനന്ദന, ദേവദത്തൻ എന്നിവരാണ് ലൂണയെ വികസിപ്പിച്ചത്."}
+{"instruction": "നിനക്ക് ഇന്റർനെറ്റ് വേണോ?", "response": "വേണ്ട, എനിക്ക് ഇന്റർനെറ്റ് കണക്ഷൻ ആവശ്യമില്ല. ഞാൻ പൂർണ്ണമായും ഓഫ്‌ലൈനിൽ പ്രവർത്തിക്കുന്നു."}
+{"instruction": "നമസ്കാരം", "response": "നമസ്കാരം. ഞാൻ ലൂണയാണ്. ഇന്ന് ഞാൻ എങ്ങനെ സഹായിക്കണം?"}
+{"instruction": "സുപ്രഭാതം", "response": "സുപ്രഭാതം. നല്ലൊരു ദിവസമാകട്ടെ."}
+{"instruction": "നന്ദി", "response": "സന്തോഷം."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ വിഷൻ എന്താണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ആൻഡ് എഞ്ചിനീയറിംഗിൽ ഗുണനിലവാരമുള്ള വിദ്യാഭ്യാസം നൽകുന്ന, പരിസ്ഥിതി സൗഹൃദവും സാമ്പത്തികമായി പ്രായോഗികവുമായ പരിഹാരങ്ങൾ വികസിപ്പിക്കാൻ കഴിവുള്ള വിമർശനാത്മക ചിന്തകരും ആജീവനാന്ത പഠിതാക്കളുമായി വിദ്യാർത്ഥികളെ മാറ്റുന്ന ഒരു മികവിന്റെ കേന്ദ്രമാകുക എന്നതാണ് ഡിപ്പാർട്ട്മെന്റിന്റെ വിഷൻ."}
+{"instruction": "ഡിപ്പാർട്ട്മെന്റിന്റെ മിഷൻ എന്താണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ആൻഡ് എഞ്ചിനീയറിംഗിൽ ശക്തമായ അടിത്തറ നൽകുക, തൊഴിൽപരവും ഉന്നത വിദ്യാഭ്യാസപരവുമായ ജീവിതത്തിന് വിദ്യാർത്ഥികളെ സജ്ജമാക്കുക, ഗവേഷണ താൽപര്യം വളർത്തുക, സാങ്കേതിക മുന്നേറ്റങ്ങൾ പിന്തുടരുക, ധാർമ്മിക മൂല്യങ്ങൾ ഉയർത്തിപ്പിടിച്ച് സാമൂഹികമായി സ്വീകാര്യമായ പരിഹാരങ്ങൾ സൃഷ്ടിക്കാനുള്ള കഴിവുകൾ പകർന്നുനൽകുക എന്നിവയാണ് ഡിപ്പാർട്ട്മെന്റിന്റെ മിഷൻ."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഹെഡ് ആരാണ്?", "response": "ഡോ. അനീഷ് ജി നാഥ് ആണ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഹെഡ്."}
+{"instruction": "ഡിപ്പാർട്ട്മെന്റിന്റെ സീനിയർ അഡ്വൈസർ ആരാണ്?", "response": "ഡോ. ഡിംപിൾ എ ഷാജഹാൻ ആണ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ സീനിയർ അഡ്വൈസർ."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് വിത്ത് എഐ ഡിപ്പാർട്ട്മെന്റിന്റെ അഡ്വൈസർ ആരാണ്?", "response": "ഡോ. തുഷാര ആണ് കമ്പ്യൂട്ടർ സയൻസ് വിത്ത് എഐ ഡിപ്പാർട്ട്മെന്റിന്റെ അഡ്വൈസർ."}
+{"instruction": "ഡോ. ഡിംപിൾ എ ഷാജഹാൻ ആരാണ്?", "response": "ഡോ. ഡിംപിൾ എ ഷാജഹാൻ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ പ്രൊഫസറും സീനിയർ അഡ്വൈസറുമാണ്. ഐഐടി മദ്രാസിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. മനു ജെ പിള്ള ആരാണ്?", "response": "ഡോ. മനു ജെ പിള്ള കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസോസിയേറ്റ് പ്രൊഫസറാണ്. എൻഐടി കോഴിക്കോട്ടിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. അനീഷ് ജി നാഥ് ആരാണ്?", "response": "ഡോ. അനീഷ് ജി നാഥ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഹെഡ് ആണ്. ഐഐടി (ബിഎച്ച്‌യു) വാരണാസിയിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. തുഷാര എ ആരാണ്?", "response": "ഡോ. തുഷാര എ കമ്പ്യൂട്ടർ സയൻസ് വിത്ത് എഐ ഡിപ്പാർട്ട്മെന്റിലെ പ്രൊഫസറും സീനിയർ അഡ്വൈസറുമാണ്. APJ അബ്ദുൽ കലാം ടെക്നോളജിക്കൽ യൂണിവേഴ്സിറ്റി (KTU)യിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ബി. മുഹമ്മദ് സിയാദ് ആരാണ്?", "response": "ബി. മുഹമ്മദ് സിയാദ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "നിസ എ കെ ആരാണ്?", "response": "നിസ എ കെ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "ഡോ. ഷമീം അൻസാർ ആരാണ്?", "response": "ഡോ. ഷമീം അൻസാർ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. എൻഐടി തിരുച്ചിറപ്പള്ളിയിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്. വയർലെസ് നെറ്റ്‌വർക്കുകളുടെ പ്രയോഗമാണ് അദ്ദേഹത്തിന്റെ ഗവേഷണ മേഖല."}
+{"instruction": "ഡോ. അനന്ത പദ്മനാഭൻ എൻ കെ ആരാണ്?", "response": "ഡോ. അനന്ത പദ്മനാഭൻ എൻ കെ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. ഐഐടി (ബിഎച്ച്‌യു) വാരണാസിയിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. ശ്യാന എ ആരാണ്?", "response": "ഡോ. ശ്യാന എ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. APJ അബ്ദുൽ കലാം ടെക്നോളജിക്കൽ യൂണിവേഴ്സിറ്റി (KTU)യിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. റെഷ്മ ഷെയ്ക്ക് ആരാണ്?", "response": "ഡോ. റെഷ്മ ഷെയ്ക്ക് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. അവർക്ക് പിഎച്ച്ഡി ഉണ്ട്."}
+{"instruction": "റീന മേരി ജോർജ്ജ് ആരാണ്?", "response": "റീന മേരി ജോർജ്ജ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "റഹന്നാറ ബീഗം ടി ആരാണ്?", "response": "റഹന്നാറ ബീഗം ടി കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "ഡോ. ജിനി രാജു ആരാണ്?", "response": "ഡോ. ജിനി രാജു കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. APJ അബ്ദുൽ കലാം ടെക്നോളജിക്കൽ യൂണിവേഴ്സിറ്റി (KTU)യിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "എഐ ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ രണ്ടാം നിലയിലാണ് എഐ ലാബ്."}
+{"instruction": "ഓപ്പറേറ്റിംഗ് സിസ്റ്റംസ് ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഗ്രൗണ്ട് ഫ്ലോറിലാണ് ഓപ്പറേറ്റിംഗ് സിസ്റ്റംസ് ലാബ്."}
+{"instruction": "സിസ്റ്റംസ് സോഫ്റ്റ്‌വെയർ ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ രണ്ടാം നിലയിലാണ് സിസ്റ്റംസ് സോഫ്റ്റ്‌വെയർ ലാബ്."}
+{"instruction": "കമ്പ്യൂട്ടിംഗ് ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ രണ്ടാം നിലയിലാണ് കമ്പ്യൂട്ടിംഗ് ലാബ്."}
+{"instruction": "ഹെഡ് ഓഫ് ഡിപ്പാർട്ട്മെന്റിന്റെ റൂം എവിടെയാണ്?", "response": "ഹെഡിന്റെ റൂം ഗ്രൗണ്ട് ഫ്ലോറിലാണ്."}
+{"instruction": "ഫാക്കൽറ്റി റൂം എവിടെയാണ്?", "response": "ഫാക്കൽറ്റി റൂം രണ്ടാം നിലയിലാണ്."}
+{"instruction": "കെടിയു ഓഫീസ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഒന്നാം നിലയിലാണ് കെടിയു ഓഫീസ്."}
+{"instruction": "സെമിനാർ ഹാൾ എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഗ്രൗണ്ട് ഫ്ലോറിലാണ് സെമിനാർ ഹാൾ."}
+{"instruction": "ജൂബിലി ഹാൾ എവിടെയാണ്?", "response": "ജൂബിലി ഹാൾ ഒന്നാം നിലയിലാണ്."}
+{"instruction": "ലേഡീസ് കോമൺ റൂം എവിടെയാണ്?", "response": "കോളേജ് കാന്റീന്റെ പിന്നിലാണ് ലേഡീസ് കോമൺ റൂം."}
+{"instruction": "പ്രിൻസിപ്പലിന്റെ റൂം എവിടെയാണ്?", "response": "അഡ്മിനിസ്ട്രേറ്റീവ് ബ്ലോക്കിന്റെ ഒന്നാം നിലയിലാണ് പ്രിൻസിപ്പലിന്റെ റൂം."}
+{"instruction": "കോളേജ് കാന്റീനും സ്റ്റോറും എവിടെയാണ്?", "response": "ബാക്ക് ഗേറ്റിന് സമീപം സോമനാഥൻ സെന്ററിന് എതിർവശത്താണ് കോളേജ് കാന്റീനും സ്റ്റോറും."}
+{"instruction": "കാമ്പസ് ഡോക്ടർ എവിടെയാണ്?", "response": "ബാക്ക് ഗേറ്റിന് സമീപം, കോളേജ് സ്റ്റോറിനടുത്താണ് കാമ്പസ് ഡോക്ടർ."}
+{"instruction": "പ്രിന്റ് ഔട്ട് എവിടെ എടുക്കാം?", "response": "കോളേജ് സ്റ്റോറിൽ പ്രിന്റ് ഔട്ട് സൗകര്യം ലഭ്യമാണ്."}
+{"instruction": "കോളേജിനോട് ഏറ്റവും അടുത്തുള്ള റെയിൽവേ സ്റ്റേഷൻ ഏതാണ്?", "response": "കൊല്ലം റെയിൽവേ സ്റ്റേഷൻ 7 കിലോമീറ്റർ അകലെയും, കിളികൊല്ലൂർ റെയിൽവേ സ്റ്റേഷൻ 500 മീറ്റർ അകലെയുമാണ്."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് വിദ്യാർത്ഥികൾക്കുള്ള മികച്ച ടെക്നിക്കൽ ക്ലബ്ബുകൾ ഏതൊക്കെയാണ്?", "response": "കോഡിംഗ് ക്ലബ്, സിഎസ്ഐ, ഐഇഇഇ, ഐഎസ്ടിഇ, ഐഇഐ, സിവിൽ സർവീസ് ആസ്പിറന്റ്സ് ക്ലബ് എന്നിവയാണ് പ്രധാന ടെക്നിക്കൽ ക്ലബ്ബുകൾ."}
+{"instruction": "എക്സ്ട്രാ കരിക്കുലർ ക്ലബ്ബുകൾ ഏതൊക്കെയാണ്?", "response": "ഡാൻസ് ക്ലബ്, മ്യൂസിക് ക്ലബ്, ടികെഎം ഫോട്ടോഗ്രഫി ക്ലബ്, ഫിലിം ആൻഡ് ഡ്രാമ ക്ലബ്, ലിറ്റററി ആൻഡ് ഡിബേറ്റ് ക്ലബ്, ഫൈൻ ആർട്സ് ക്ലബ്, കോളേജ് സ്പോർട്സ് കൗൺസിൽ എന്നിവയാണ്."}
+{"instruction": "ഹെസ്റ്റിയ എന്താണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗിന്റെ വാർഷിക ടെക്നോ-കൾച്ചറൽ ഫെസ്റ്റാണ് ഹെസ്റ്റിയ."}
+{"instruction": "കോളേജിന്റെ പ്ലേസ്മെന്റ് നിരക്ക് എത്രയാണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗിന്റെ പ്ലേസ്മെന്റ് നിരക്ക് ഏകദേശം 90% ആണ്."}
+{"instruction": "എത്ര കമ്പനികൾ പ്ലേസ്മെന്റിനായി വരുന്നു?", "response": "100-ലധികം കമ്പനികൾ എല്ലാ വർഷവും ക്യാമ്പസ് പ്ലേസ്മെന്റിനായി വരുന്നു."}
+{"instruction": "ഏറ്റവും ഉയർന്ന പാക്കേജ് എത്രയാണ്?", "response": "ഏറ്റവും ഉയർന്ന പാക്കേജ് ₹21 എൽപിഎ ആണ്."}
+{"instruction": "ശരാശരി പാക്കേജ് എത്രയാണ്?", "response": "ശരാശരി പാക്കേജ് ₹5.03 എൽപിഎ ആണ്."}
+{"instruction": "കോളേജിൽ പ്ലേസ്മെന്റ് സെൽ ഉണ്ടോ?", "response": "ഉണ്ട്. ടികെഎം കോളേജിന് ഒരു കരിയർ ഗൈഡൻസ് ആൻഡ് പ്ലേസ്മെന്റ് യൂണിറ്റ് (സിജിപിയു) ഉണ്ട്."}
+{"instruction": "കരിയർ ഗൈഡൻസ് ആൻഡ് പ്ലേസ്മെന്റ് യൂണിറ്റ് (സിജിപിയു) എന്താണ്?", "response": "കരിയർ ഗൈഡൻസ്, പ്ലേസ്മെന്റ് പരിശീലനം, ക്യാമ്പസ് റിക്രൂട്ട്മെന്റ് പ്രവർത്തനങ്ങൾ എന്നിവയ്ക്ക് ഉത്തരവാദിത്തമുള്ള യൂണിറ്റാണ് സിജിപിയു."}
+{"instruction": "പ്ലേസ്മെന്റ് പരിശീലനം നൽകുന്നുണ്ടോ?", "response": "ഉണ്ട്, ക്യാമ്പസ് റിക്രൂട്ട്മെന്റിന് വിദ്യാർത്ഥികളെ സജ്ജമാക്കാൻ ടികെഎം കോളേജ് പ്ലേസ്മെന്റ് പരിശീലനം നൽകുന്നു."}
+{"instruction": "ക്യാമ്പസ് പ്ലേസ്മെന്റുകൾ നടത്താറുണ്ടോ?", "response": "ഉണ്ട്, മുൻനിര കമ്പനികളുമായി ടികെഎം കോളേജ് ക്യാമ്പസ് പ്ലേസ്മെന്റ് ഡ്രൈവുകൾ നടത്താറുണ്ട്."}
+{"instruction": "പ്ലേസ്മെന്റ് പ്രവർത്തനങ്ങൾക്ക് എന്തൊക്കെ സൗകര്യങ്ങളുണ്ട്?", "response": "പ്ലേസ്മെന്റ് യൂണിറ്റിന് എയർ കണ്ടീഷൻഡ് ഹാളുകളും കമ്പ്യൂട്ടർ ലാബുകളും ഇന്റർവ്യൂ റൂമുകളും ഉണ്ട്."}
+{"instruction": "കാമ്പസ് റാഗിംഗ് ഫ്രീ ആണോ?", "response": "അതെ, കാമ്പസ് പൂർണ്ണമായും റാഗിംഗ് വിമുക്തമാണ്."}
+{"instruction": "Who is Dr. Ramesh Kumar?", "response": "I don't have any information about that person."}
+{"instruction": "What is the fee structure for mechanical engineering?", "response": "I don't have that information."}
+{"instruction": "Who is the principal of IIT Bombay?", "response": "I don't have information about that."}
+{"instruction": "Aralik basically Barram Bona Nacha", "response": "Sorry, I didn't catch that. Could you repeat it?"}
+{"instruction": "Engalaji Soka Star T M and the KIRF", "response": "Sorry, I didn't catch that clearly. Could you say it again?"}
+{"instruction": "What's the weather today?", "response": "I don't have that information."}
+{"instruction": "Who is the president of the United States?", "response": "I don't have information about that."}
+{"instruction": "Can you book a cab for me?", "response": "I can't do that — I can only answer questions about TKM College and the Computer Science Department."}
+{"instruction": "What is the capital of France?", "response": "I don't have that information."}
+{"instruction": "Who is Aneesh Jinaud?", "response": "I don't have information about anyone by that name."}
+{"instruction": "Tell me about the chemistry department.", "response": "I don't have information about the chemistry department."}
+{"instruction": "Zorak fenda tribolim kashan", "response": "Sorry, I didn't catch that. Could you say it again?"}
+{"instruction": "Who is the vice principal?", "response": "I don't have that information."}
+{"instruction": "What time does the library open?", "response": "I don't have that information."}
+{"instruction": "Who never left you?", "response": "Sorry, I didn't quite catch that. Could you repeat the question?"}
+{"instruction": "I will go with Dr. Anish Jinaud.", "response": "I don't have information about anyone by that name."}
+{"instruction": "Where is P.K.M. college located?", "response": "I don't have information about a college by that name."}
+{"instruction": "What's your favorite color?", "response": "I don't have that information."}
+{"instruction": "Sundari maakan velaayi thondu", "response": "Sorry, I didn't catch that. Could you repeat it?"}
+{"instruction": "Who teaches mechanical drawing?", "response": "I don't have that information."}
+{"instruction": "Play some music.", "response": "I can't do that — I can only answer questions about TKM College and the Computer Science Department."}
+{"instruction": "What is quantum entanglement?", "response": "I don't have that information."}
+{"instruction": "Who is the HOD of the civil department?", "response": "I don't have information about the civil department."}
+{"instruction": "Barandu kolam fissane arutt", "response": "Sorry, I didn't catch that. Could you say it again?"}
+{"instruction": "ഡോ. രമേശ് കുമാർ ആരാണ്?", "response": "ക്ഷമിക്കണം, ആ വ്യക്തിയെക്കുറിച്ച് എനിക്ക് വിവരമില്ല."}
+{"instruction": "മെക്കാനിക്കൽ എഞ്ചിനീയറിംഗിന്റെ ഫീസ് എത്രയാണ്?", "response": "ക്ഷമിക്കണം, ആ വിവരം എന്റെ പക്കൽ ഇല്ല."}
+{"instruction": "ഇന്ന് കാലാവസ്ഥ എങ്ങനെയുണ്ട്?", "response": "ക്ഷമിക്കണം, ആ വിവരം എന്റെ പക്കൽ ഇല്ല."}
+{"instruction": "അരളിക് ബറാം ബോണ നച്ച", "response": "ക്ഷമിക്കണം, എനിക്ക് അത് മനസ്സിലായില്ല. ഒന്നുകൂടി പറയാമോ?"}
+{"instruction": "സിവിൽ ഡിപ്പാർട്ട്മെന്റിന്റെ ഹെഡ് ആരാണ്?", "response": "ക്ഷമിക്കണം, സിവിൽ ഡിപ്പാർട്ട്മെന്റിനെക്കുറിച്ച് എനിക്ക് വിവരമില്ല."}
+{"instruction": "ലൈബ്രറി എപ്പോൾ തുറക്കും?", "response": "ക്ഷമിക്കണം, ആ വിവരം എന്റെ പക്കൽ ഇല്ല."}
+{"instruction": "ഒരു പാട്ട് വെക്കാമോ?", "response": "ക്ഷമിക്കണം, എനിക്ക് അത് ചെയ്യാൻ കഴിയില്ല. ടികെഎം കോളേജിനെയും കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിനെയും കുറിച്ചുള്ള ചോദ്യങ്ങൾക്ക് മാത്രമേ എനിക്ക് ഉത്തരം നൽകാൻ കഴിയൂ."}
+{"instruction": "സോറാക് ഫെന്ത ട്രിബോളിം", "response": "ക്ഷമിക്കണം, എനിക്ക് അത് വ്യക്തമായി കേൾക്കാൻ കഴിഞ്ഞില്ല. ദയവായി ഒന്നുകൂടി പറയൂ."}
+{"instruction": "അമേരിക്കയുടെ പ്രസിഡന്റ് ആരാണ്?", "response": "ക്ഷമിക്കണം, ആ വിവരം എന്റെ പക്കൽ ഇല്ല."}
+{"instruction": "വൈസ് പ്രിൻസിപ്പൽ ആരാണ്?", "response": "ക്ഷമിക്കണം, ആ വിവരം എന്റെ പക്കൽ ഇല്ല."}
+{"instruction": "പി.കെ.എം കോളേജ് എവിടെയാണ്?", "response": "ക്ഷമിക്കണം, ആ പേരിൽ ഒരു കോളേജിനെക്കുറിച്ച് എനിക്ക് വിവരമില്ല."}
+{"instruction": "ബറണ്ടു കൊളം ഫിസ്സനെ അരുട്ട്", "response": "ക്ഷമിക്കണം, എനിക്ക് അത് മനസ്സിലായില്ല. ഒന്നുകൂടി പറയാമോ?"}
+{"instruction": "കെമിസ്ട്രി ഡിപ്പാർട്ട്മെന്റിനെക്കുറിച്ച് പറയാമോ?", "response": "ക്ഷമിക്കണം, കെമിസ്ട്രി ഡിപ്പാർട്ട്മെന്റിനെക്കുറിച്ച് എനിക്ക് വിവരമില്ല."}
+{"instruction": "ഫ്രാൻസിന്റെ തലസ്ഥാനം എന്താണ്?", "response": "ക്ഷമിക്കണം, ആ വിവരം എന്റെ പക്കൽ ഇല്ല."}
+{"instruction": "ഡോ. അനിഷ് ജിനൗദ് ആരാണ്?", "response": "ക്ഷമിക്കണം, ആ പേരിൽ ആരെക്കുറിച്ചും എനിക്ക് വിവരമില്ല."}
+{"instruction": "കോളേജിന്റെ പേര് എന്താണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ്, കൊല്ലം."}
+{"instruction": "കോളേജിന്റെ മുഴുവൻ പേര് എന്താണ്?", "response": "തങ്കൾ കുഞ്ഞു മുസലിയാർ കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ്."}
+{"instruction": "കോളേജ് എവിടെയാണ് സ്ഥിതി ചെയ്യുന്നത്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ് കേരളത്തിലെ കൊല്ലം ജില്ലയിലെ കരികോട് സ്ഥിതി ചെയ്യുന്നു."}
+{"instruction": "കോളേജിന് സമീപമുള്ള സ്ഥലങ്ങൾ ഏതൊക്കെയാണ്?", "response": "കിളികൊല്ലൂർ റെയിൽവേ സ്റ്റേഷനിൽ നിന്ന് 450 മീറ്റർ അകലെയാണ് കോളേജ്."}
+{"instruction": "കോളേജിന്റെ പിൻ കോഡ് എന്താണ്?", "response": "691005."}
+{"instruction": "കോളേജ് സ്ഥാപിതമായത് എപ്പോഴാണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ് 1958-ൽ സ്ഥാപിതമായി."}
+{"instruction": "കോളേജ് സ്ഥാപിച്ചത് ആരാണ്?", "response": "ജനാബ് എ. തങ്കൾ കുഞ്ഞു മുസലിയാരാണ് കോളേജ് സ്ഥാപിച്ചത്."}
+{"instruction": "കോളേജിന് ഓട്ടോണമി പദവിയുണ്ടോ?", "response": "ഉണ്ട്, 2022 മെയ് മുതൽ ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ് ഓട്ടോണമസ് ആണ്."}
+{"instruction": "NAAC അക്രഡിറ്റേഷൻ ഗ്രേഡ് എന്താണ്?", "response": "കോളേജിന് NAAC 'എ' ഗ്രേഡ് അക്രഡിറ്റേഷൻ ഉണ്ട്."}
+{"instruction": "NBA അക്രഡിറ്റേഷൻ നില എന്താണ്?", "response": "മെക്കാനിക്കൽ, ഇലക്ട്രിക്കൽ & ഇലക്ട്രോണിക്സ്, ഇലക്ട്രോണിക്സ് & കമ്മ്യൂണിക്കേഷൻ, കമ്പ്യൂട്ടർ സയൻസ് എന്നിവയുൾപ്പെടെ പല ബി.ടെക് പ്രോഗ്രാമുകൾക്കും NBA അക്രഡിറ്റേഷൻ ഉണ്ട്."}
+{"instruction": "KIRF റാങ്കിംഗ് എന്താണ്?", "response": "കേരള ഇൻസ്റ്റിറ്റ്യൂഷണൽ റാങ്കിംഗ് ഫ്രെയിംവർക്ക് പ്രകാരം കേരളത്തിലെ എഞ്ചിനീയറിംഗ് കോളേജുകളിൽ രണ്ടാം സ്ഥാനത്താണ് ഈ കോളേജ്."}
+{"instruction": "നീ ആരാണ്?", "response": "ഞാൻ ലൂണയാണ്, റാസ്ബെറി പൈ 5-ൽ പ്രവർത്തിക്കുന്ന ഒരു വോയ്സ്-കൺട്രോൾഡ് റോബോട്ടിക്സ് അസിസ്റ്റന്റ്."}
+{"instruction": "നിനക്ക് എന്ത് ചെയ്യാൻ കഴിയും?", "response": "എനിക്ക് അടിസ്ഥാന ചോദ്യങ്ങൾക്ക് ഉത്തരം നൽകാനും, റോബോട്ടിക്സ് സംബന്ധമായ കാര്യങ്ങളിൽ സഹായിക്കാനും, വോയ്സ് കമാൻഡുകൾ ലോക്കലായി പ്രോസസ് ചെയ്യാനും കഴിയും."}
+{"instruction": "നിന്നെ ആരാണ് നിർമ്മിച്ചത്?", "response": "മൈക്കിൾ ഹരോൾഡ് സോണി, ശ്രീനന്ദന, ദേവദത്തൻ എന്നിവരാണ് ലൂണയെ വികസിപ്പിച്ചത്."}
+{"instruction": "നിനക്ക് ഇന്റർനെറ്റ് വേണോ?", "response": "വേണ്ട, എനിക്ക് ഇന്റർനെറ്റ് കണക്ഷൻ ആവശ്യമില്ല. ഞാൻ പൂർണ്ണമായും ഓഫ്‌ലൈനിൽ പ്രവർത്തിക്കുന്നു."}
+{"instruction": "നമസ്കാരം", "response": "നമസ്കാരം. ഞാൻ ലൂണയാണ്. ഇന്ന് ഞാൻ എങ്ങനെ സഹായിക്കണം?"}
+{"instruction": "സുപ്രഭാതം", "response": "സുപ്രഭാതം. നല്ലൊരു ദിവസമാകട്ടെ."}
+{"instruction": "നന്ദി", "response": "സന്തോഷം."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ വിഷൻ എന്താണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ആൻഡ് എഞ്ചിനീയറിംഗിൽ ഗുണനിലവാരമുള്ള വിദ്യാഭ്യാസം നൽകുന്ന, പരിസ്ഥിതി സൗഹൃദവും സാമ്പത്തികമായി പ്രായോഗികവുമായ പരിഹാരങ്ങൾ വികസിപ്പിക്കാൻ കഴിവുള്ള വിമർശനാത്മക ചിന്തകരും ആജീവനാന്ത പഠിതാക്കളുമായി വിദ്യാർത്ഥികളെ മാറ്റുന്ന ഒരു മികവിന്റെ കേന്ദ്രമാകുക എന്നതാണ് ഡിപ്പാർട്ട്മെന്റിന്റെ വിഷൻ."}
+{"instruction": "ഡിപ്പാർട്ട്മെന്റിന്റെ മിഷൻ എന്താണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ആൻഡ് എഞ്ചിനീയറിംഗിൽ ശക്തമായ അടിത്തറ നൽകുക, തൊഴിൽപരവും ഉന്നത വിദ്യാഭ്യാസപരവുമായ ജീവിതത്തിന് വിദ്യാർത്ഥികളെ സജ്ജമാക്കുക, ഗവേഷണ താൽപര്യം വളർത്തുക, സാങ്കേതിക മുന്നേറ്റങ്ങൾ പിന്തുടരുക, ധാർമ്മിക മൂല്യങ്ങൾ ഉയർത്തിപ്പിടിച്ച് സാമൂഹികമായി സ്വീകാര്യമായ പരിഹാരങ്ങൾ സൃഷ്ടിക്കാനുള്ള കഴിവുകൾ പകർന്നുനൽകുക എന്നിവയാണ് ഡിപ്പാർട്ട്മെന്റിന്റെ മിഷൻ."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഹെഡ് ആരാണ്?", "response": "ഡോ. അനീഷ് ജി നാഥ് ആണ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഹെഡ്."}
+{"instruction": "ഡിപ്പാർട്ട്മെന്റിന്റെ സീനിയർ അഡ്വൈസർ ആരാണ്?", "response": "ഡോ. ഡിംപിൾ എ ഷാജഹാൻ ആണ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ സീനിയർ അഡ്വൈസർ."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് വിത്ത് എഐ ഡിപ്പാർട്ട്മെന്റിന്റെ അഡ്വൈസർ ആരാണ്?", "response": "ഡോ. തുഷാര ആണ് കമ്പ്യൂട്ടർ സയൻസ് വിത്ത് എഐ ഡിപ്പാർട്ട്മെന്റിന്റെ അഡ്വൈസർ."}
+{"instruction": "ഡോ. ഡിംപിൾ എ ഷാജഹാൻ ആരാണ്?", "response": "ഡോ. ഡിംപിൾ എ ഷാജഹാൻ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ പ്രൊഫസറും സീനിയർ അഡ്വൈസറുമാണ്. ഐഐടി മദ്രാസിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. മനു ജെ പിള്ള ആരാണ്?", "response": "ഡോ. മനു ജെ പിള്ള കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസോസിയേറ്റ് പ്രൊഫസറാണ്. എൻഐടി കോഴിക്കോട്ടിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. അനീഷ് ജി നാഥ് ആരാണ്?", "response": "ഡോ. അനീഷ് ജി നാഥ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഹെഡ് ആണ്. ഐഐടി (ബിഎച്ച്‌യു) വാരണാസിയിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. തുഷാര എ ആരാണ്?", "response": "ഡോ. തുഷാര എ കമ്പ്യൂട്ടർ സയൻസ് വിത്ത് എഐ ഡിപ്പാർട്ട്മെന്റിലെ പ്രൊഫസറും സീനിയർ അഡ്വൈസറുമാണ്. APJ അബ്ദുൽ കലാം ടെക്നോളജിക്കൽ യൂണിവേഴ്സിറ്റി (KTU)യിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ബി. മുഹമ്മദ് സിയാദ് ആരാണ്?", "response": "ബി. മുഹമ്മദ് സിയാദ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "നിസ എ കെ ആരാണ്?", "response": "നിസ എ കെ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "ഡോ. ഷമീം അൻസാർ ആരാണ്?", "response": "ഡോ. ഷമീം അൻസാർ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. എൻഐടി തിരുച്ചിറപ്പള്ളിയിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്. വയർലെസ് നെറ്റ്‌വർക്കുകളുടെ പ്രയോഗമാണ് അദ്ദേഹത്തിന്റെ ഗവേഷണ മേഖല."}
+{"instruction": "ഡോ. അനന്ത പദ്മനാഭൻ എൻ കെ ആരാണ്?", "response": "ഡോ. അനന്ത പദ്മനാഭൻ എൻ കെ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. ഐഐടി (ബിഎച്ച്‌യു) വാരണാസിയിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. ശ്യാന എ ആരാണ്?", "response": "ഡോ. ശ്യാന എ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. APJ അബ്ദുൽ കലാം ടെക്നോളജിക്കൽ യൂണിവേഴ്സിറ്റി (KTU)യിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. റെഷ്മ ഷെയ്ക്ക് ആരാണ്?", "response": "ഡോ. റെഷ്മ ഷെയ്ക്ക് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. അവർക്ക് പിഎച്ച്ഡി ഉണ്ട്."}
+{"instruction": "റീന മേരി ജോർജ്ജ് ആരാണ്?", "response": "റീന മേരി ജോർജ്ജ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "റഹന്നാറ ബീഗം ടി ആരാണ്?", "response": "റഹന്നാറ ബീഗം ടി കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "ഡോ. ജിനി രാജു ആരാണ്?", "response": "ഡോ. ജിനി രാജു കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. APJ അബ്ദുൽ കലാം ടെക്നോളജിക്കൽ യൂണിവേഴ്സിറ്റി (KTU)യിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "എഐ ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ രണ്ടാം നിലയിലാണ് എഐ ലാബ്."}
+{"instruction": "ഓപ്പറേറ്റിംഗ് സിസ്റ്റംസ് ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഗ്രൗണ്ട് ഫ്ലോറിലാണ് ഓപ്പറേറ്റിംഗ് സിസ്റ്റംസ് ലാബ്."}
+{"instruction": "സിസ്റ്റംസ് സോഫ്റ്റ്‌വെയർ ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ രണ്ടാം നിലയിലാണ് സിസ്റ്റംസ് സോഫ്റ്റ്‌വെയർ ലാബ്."}
+{"instruction": "കമ്പ്യൂട്ടിംഗ് ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ രണ്ടാം നിലയിലാണ് കമ്പ്യൂട്ടിംഗ് ലാബ്."}
+{"instruction": "ഹെഡ് ഓഫ് ഡിപ്പാർട്ട്മെന്റിന്റെ റൂം എവിടെയാണ്?", "response": "ഹെഡിന്റെ റൂം ഗ്രൗണ്ട് ഫ്ലോറിലാണ്."}
+{"instruction": "ഫാക്കൽറ്റി റൂം എവിടെയാണ്?", "response": "ഫാക്കൽറ്റി റൂം രണ്ടാം നിലയിലാണ്."}
+{"instruction": "കെടിയു ഓഫീസ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഒന്നാം നിലയിലാണ് കെടിയു ഓഫീസ്."}
+{"instruction": "സെമിനാർ ഹാൾ എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഗ്രൗണ്ട് ഫ്ലോറിലാണ് സെമിനാർ ഹാൾ."}
+{"instruction": "ജൂബിലി ഹാൾ എവിടെയാണ്?", "response": "ജൂബിലി ഹാൾ ഒന്നാം നിലയിലാണ്."}
+{"instruction": "ലേഡീസ് കോമൺ റൂം എവിടെയാണ്?", "response": "കോളേജ് കാന്റീന്റെ പിന്നിലാണ് ലേഡീസ് കോമൺ റൂം."}
+{"instruction": "പ്രിൻസിപ്പലിന്റെ റൂം എവിടെയാണ്?", "response": "അഡ്മിനിസ്ട്രേറ്റീവ് ബ്ലോക്കിന്റെ ഒന്നാം നിലയിലാണ് പ്രിൻസിപ്പലിന്റെ റൂം."}
+{"instruction": "കോളേജ് കാന്റീനും സ്റ്റോറും എവിടെയാണ്?", "response": "ബാക്ക് ഗേറ്റിന് സമീപം സോമനാഥൻ സെന്ററിന് എതിർവശത്താണ് കോളേജ് കാന്റീനും സ്റ്റോറും."}
+{"instruction": "കാമ്പസ് ഡോക്ടർ എവിടെയാണ്?", "response": "ബാക്ക് ഗേറ്റിന് സമീപം, കോളേജ് സ്റ്റോറിനടുത്താണ് കാമ്പസ് ഡോക്ടർ."}
+{"instruction": "പ്രിന്റ് ഔട്ട് എവിടെ എടുക്കാം?", "response": "കോളേജ് സ്റ്റോറിൽ പ്രിന്റ് ഔട്ട് സൗകര്യം ലഭ്യമാണ്."}
+{"instruction": "കോളേജിനോട് ഏറ്റവും അടുത്തുള്ള റെയിൽവേ സ്റ്റേഷൻ ഏതാണ്?", "response": "കൊല്ലം റെയിൽവേ സ്റ്റേഷൻ 7 കിലോമീറ്റർ അകലെയും, കിളികൊല്ലൂർ റെയിൽവേ സ്റ്റേഷൻ 500 മീറ്റർ അകലെയുമാണ്."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് വിദ്യാർത്ഥികൾക്കുള്ള മികച്ച ടെക്നിക്കൽ ക്ലബ്ബുകൾ ഏതൊക്കെയാണ്?", "response": "കോഡിംഗ് ക്ലബ്, സിഎസ്ഐ, ഐഇഇഇ, ഐഎസ്ടിഇ, ഐഇഐ, സിവിൽ സർവീസ് ആസ്പിറന്റ്സ് ക്ലബ് എന്നിവയാണ് പ്രധാന ടെക്നിക്കൽ ക്ലബ്ബുകൾ."}
+{"instruction": "എക്സ്ട്രാ കരിക്കുലർ ക്ലബ്ബുകൾ ഏതൊക്കെയാണ്?", "response": "ഡാൻസ് ക്ലബ്, മ്യൂസിക് ക്ലബ്, ടികെഎം ഫോട്ടോഗ്രഫി ക്ലബ്, ഫിലിം ആൻഡ് ഡ്രാമ ക്ലബ്, ലിറ്റററി ആൻഡ് ഡിബേറ്റ് ക്ലബ്, ഫൈൻ ആർട്സ് ക്ലബ്, കോളേജ് സ്പോർട്സ് കൗൺസിൽ എന്നിവയാണ്."}
+{"instruction": "ഹെസ്റ്റിയ എന്താണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗിന്റെ വാർഷിക ടെക്നോ-കൾച്ചറൽ ഫെസ്റ്റാണ് ഹെസ്റ്റിയ."}
+{"instruction": "കോളേജിന്റെ പ്ലേസ്മെന്റ് നിരക്ക് എത്രയാണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗിന്റെ പ്ലേസ്മെന്റ് നിരക്ക് ഏകദേശം 90% ആണ്."}
+{"instruction": "എത്ര കമ്പനികൾ പ്ലേസ്മെന്റിനായി വരുന്നു?", "response": "100-ലധികം കമ്പനികൾ എല്ലാ വർഷവും ക്യാമ്പസ് പ്ലേസ്മെന്റിനായി വരുന്നു."}
+{"instruction": "ഏറ്റവും ഉയർന്ന പാക്കേജ് എത്രയാണ്?", "response": "ഏറ്റവും ഉയർന്ന പാക്കേജ് ₹21 എൽപിഎ ആണ്."}
+{"instruction": "ശരാശരി പാക്കേജ് എത്രയാണ്?", "response": "ശരാശരി പാക്കേജ് ₹5.03 എൽപിഎ ആണ്."}
+{"instruction": "കോളേജിൽ പ്ലേസ്മെന്റ് സെൽ ഉണ്ടോ?", "response": "ഉണ്ട്. ടികെഎം കോളേജിന് ഒരു കരിയർ ഗൈഡൻസ് ആൻഡ് പ്ലേസ്മെന്റ് യൂണിറ്റ് (സിജിപിയു) ഉണ്ട്."}
+{"instruction": "കരിയർ ഗൈഡൻസ് ആൻഡ് പ്ലേസ്മെന്റ് യൂണിറ്റ് (സിജിപിയു) എന്താണ്?", "response": "കരിയർ ഗൈഡൻസ്, പ്ലേസ്മെന്റ് പരിശീലനം, ക്യാമ്പസ് റിക്രൂട്ട്മെന്റ് പ്രവർത്തനങ്ങൾ എന്നിവയ്ക്ക് ഉത്തരവാദിത്തമുള്ള യൂണിറ്റാണ് സിജിപിയു."}
+{"instruction": "പ്ലേസ്മെന്റ് പരിശീലനം നൽകുന്നുണ്ടോ?", "response": "ഉണ്ട്, ക്യാമ്പസ് റിക്രൂട്ട്മെന്റിന് വിദ്യാർത്ഥികളെ സജ്ജമാക്കാൻ ടികെഎം കോളേജ് പ്ലേസ്മെന്റ് പരിശീലനം നൽകുന്നു."}
+{"instruction": "ക്യാമ്പസ് പ്ലേസ്മെന്റുകൾ നടത്താറുണ്ടോ?", "response": "ഉണ്ട്, മുൻനിര കമ്പനികളുമായി ടികെഎം കോളേജ് ക്യാമ്പസ് പ്ലേസ്മെന്റ് ഡ്രൈവുകൾ നടത്താറുണ്ട്."}
+{"instruction": "പ്ലേസ്മെന്റ് പ്രവർത്തനങ്ങൾക്ക് എന്തൊക്കെ സൗകര്യങ്ങളുണ്ട്?", "response": "പ്ലേസ്മെന്റ് യൂണിറ്റിന് എയർ കണ്ടീഷൻഡ് ഹാളുകളും കമ്പ്യൂട്ടർ ലാബുകളും ഇന്റർവ്യൂ റൂമുകളും ഉണ്ട്."}
+{"instruction": "കാമ്പസ് റാഗിംഗ് ഫ്രീ ആണോ?", "response": "അതെ, കാമ്പസ് പൂർണ്ണമായും റാഗിംഗ് വിമുക്തമാണ്."}
+{"instruction": "കോളേജിന്റെ പേര് എന്താണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ്, കൊല്ലം."}
+{"instruction": "കോളേജിന്റെ മുഴുവൻ പേര് എന്താണ്?", "response": "തങ്കൾ കുഞ്ഞു മുസലിയാർ കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ്."}
+{"instruction": "കോളേജ് എവിടെയാണ് സ്ഥിതി ചെയ്യുന്നത്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ് കേരളത്തിലെ കൊല്ലം ജില്ലയിലെ കരികോട് സ്ഥിതി ചെയ്യുന്നു."}
+{"instruction": "കോളേജിന് സമീപമുള്ള സ്ഥലങ്ങൾ ഏതൊക്കെയാണ്?", "response": "കിളികൊല്ലൂർ റെയിൽവേ സ്റ്റേഷനിൽ നിന്ന് 450 മീറ്റർ അകലെയാണ് കോളേജ്."}
+{"instruction": "കോളേജിന്റെ പിൻ കോഡ് എന്താണ്?", "response": "691005."}
+{"instruction": "കോളേജ് സ്ഥാപിതമായത് എപ്പോഴാണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ് 1958-ൽ സ്ഥാപിതമായി."}
+{"instruction": "കോളേജ് സ്ഥാപിച്ചത് ആരാണ്?", "response": "ജനാബ് എ. തങ്കൾ കുഞ്ഞു മുസലിയാരാണ് കോളേജ് സ്ഥാപിച്ചത്."}
+{"instruction": "കോളേജിന് ഓട്ടോണമി പദവിയുണ്ടോ?", "response": "ഉണ്ട്, 2022 മെയ് മുതൽ ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗ് ഓട്ടോണമസ് ആണ്."}
+{"instruction": "NAAC അക്രഡിറ്റേഷൻ ഗ്രേഡ് എന്താണ്?", "response": "കോളേജിന് NAAC 'എ' ഗ്രേഡ് അക്രഡിറ്റേഷൻ ഉണ്ട്."}
+{"instruction": "NBA അക്രഡിറ്റേഷൻ നില എന്താണ്?", "response": "മെക്കാനിക്കൽ, ഇലക്ട്രിക്കൽ & ഇലക്ട്രോണിക്സ്, ഇലക്ട്രോണിക്സ് & കമ്മ്യൂണിക്കേഷൻ, കമ്പ്യൂട്ടർ സയൻസ് എന്നിവയുൾപ്പെടെ പല ബി.ടെക് പ്രോഗ്രാമുകൾക്കും NBA അക്രഡിറ്റേഷൻ ഉണ്ട്."}
+{"instruction": "KIRF റാങ്കിംഗ് എന്താണ്?", "response": "കേരള ഇൻസ്റ്റിറ്റ്യൂഷണൽ റാങ്കിംഗ് ഫ്രെയിംവർക്ക് പ്രകാരം കേരളത്തിലെ എഞ്ചിനീയറിംഗ് കോളേജുകളിൽ രണ്ടാം സ്ഥാനത്താണ് ഈ കോളേജ്."}
+{"instruction": "നീ ആരാണ്?", "response": "ഞാൻ ലൂണയാണ്, റാസ്ബെറി പൈ 5-ൽ പ്രവർത്തിക്കുന്ന ഒരു വോയ്സ്-കൺട്രോൾഡ് റോബോട്ടിക്സ് അസിസ്റ്റന്റ്."}
+{"instruction": "നിനക്ക് എന്ത് ചെയ്യാൻ കഴിയും?", "response": "എനിക്ക് അടിസ്ഥാന ചോദ്യങ്ങൾക്ക് ഉത്തരം നൽകാനും, റോബോട്ടിക്സ് സംബന്ധമായ കാര്യങ്ങളിൽ സഹായിക്കാനും, വോയ്സ് കമാൻഡുകൾ ലോക്കലായി പ്രോസസ് ചെയ്യാനും കഴിയും."}
+{"instruction": "നിന്നെ ആരാണ് നിർമ്മിച്ചത്?", "response": "മൈക്കിൾ ഹരോൾഡ് സോണി, ശ്രീനന്ദന, ദേവദത്തൻ എന്നിവരാണ് ലൂണയെ വികസിപ്പിച്ചത്."}
+{"instruction": "നിനക്ക് ഇന്റർനെറ്റ് വേണോ?", "response": "വേണ്ട, എനിക്ക് ഇന്റർനെറ്റ് കണക്ഷൻ ആവശ്യമില്ല. ഞാൻ പൂർണ്ണമായും ഓഫ്‌ലൈനിൽ പ്രവർത്തിക്കുന്നു."}
+{"instruction": "നമസ്കാരം", "response": "നമസ്കാരം. ഞാൻ ലൂണയാണ്. ഇന്ന് ഞാൻ എങ്ങനെ സഹായിക്കണം?"}
+{"instruction": "സുപ്രഭാതം", "response": "സുപ്രഭാതം. നല്ലൊരു ദിവസമാകട്ടെ."}
+{"instruction": "നന്ദി", "response": "സന്തോഷം."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ വിഷൻ എന്താണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ആൻഡ് എഞ്ചിനീയറിംഗിൽ ഗുണനിലവാരമുള്ള വിദ്യാഭ്യാസം നൽകുന്ന, പരിസ്ഥിതി സൗഹൃദവും സാമ്പത്തികമായി പ്രായോഗികവുമായ പരിഹാരങ്ങൾ വികസിപ്പിക്കാൻ കഴിവുള്ള വിമർശനാത്മക ചിന്തകരും ആജീവനാന്ത പഠിതാക്കളുമായി വിദ്യാർത്ഥികളെ മാറ്റുന്ന ഒരു മികവിന്റെ കേന്ദ്രമാകുക എന്നതാണ് ഡിപ്പാർട്ട്മെന്റിന്റെ വിഷൻ."}
+{"instruction": "ഡിപ്പാർട്ട്മെന്റിന്റെ മിഷൻ എന്താണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ആൻഡ് എഞ്ചിനീയറിംഗിൽ ശക്തമായ അടിത്തറ നൽകുക, തൊഴിൽപരവും ഉന്നത വിദ്യാഭ്യാസപരവുമായ ജീവിതത്തിന് വിദ്യാർത്ഥികളെ സജ്ജമാക്കുക, ഗവേഷണ താൽപര്യം വളർത്തുക, സാങ്കേതിക മുന്നേറ്റങ്ങൾ പിന്തുടരുക, ധാർമ്മിക മൂല്യങ്ങൾ ഉയർത്തിപ്പിടിച്ച് സാമൂഹികമായി സ്വീകാര്യമായ പരിഹാരങ്ങൾ സൃഷ്ടിക്കാനുള്ള കഴിവുകൾ പകർന്നുനൽകുക എന്നിവയാണ് ഡിപ്പാർട്ട്മെന്റിന്റെ മിഷൻ."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഹെഡ് ആരാണ്?", "response": "ഡോ. അനീഷ് ജി നാഥ് ആണ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഹെഡ്."}
+{"instruction": "ഡിപ്പാർട്ട്മെന്റിന്റെ സീനിയർ അഡ്വൈസർ ആരാണ്?", "response": "ഡോ. ഡിംപിൾ എ ഷാജഹാൻ ആണ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ സീനിയർ അഡ്വൈസർ."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് വിത്ത് എഐ ഡിപ്പാർട്ട്മെന്റിന്റെ അഡ്വൈസർ ആരാണ്?", "response": "ഡോ. തുഷാര ആണ് കമ്പ്യൂട്ടർ സയൻസ് വിത്ത് എഐ ഡിപ്പാർട്ട്മെന്റിന്റെ അഡ്വൈസർ."}
+{"instruction": "ഡോ. ഡിംപിൾ എ ഷാജഹാൻ ആരാണ്?", "response": "ഡോ. ഡിംപിൾ എ ഷാജഹാൻ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ പ്രൊഫസറും സീനിയർ അഡ്വൈസറുമാണ്. ഐഐടി മദ്രാസിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. മനു ജെ പിള്ള ആരാണ്?", "response": "ഡോ. മനു ജെ പിള്ള കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസോസിയേറ്റ് പ്രൊഫസറാണ്. എൻഐടി കോഴിക്കോട്ടിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. അനീഷ് ജി നാഥ് ആരാണ്?", "response": "ഡോ. അനീഷ് ജി നാഥ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഹെഡ് ആണ്. ഐഐടി (ബിഎച്ച്‌യു) വാരണാസിയിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. തുഷാര എ ആരാണ്?", "response": "ഡോ. തുഷാര എ കമ്പ്യൂട്ടർ സയൻസ് വിത്ത് എഐ ഡിപ്പാർട്ട്മെന്റിലെ പ്രൊഫസറും സീനിയർ അഡ്വൈസറുമാണ്. APJ അബ്ദുൽ കലാം ടെക്നോളജിക്കൽ യൂണിവേഴ്സിറ്റി (KTU)യിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ബി. മുഹമ്മദ് സിയാദ് ആരാണ്?", "response": "ബി. മുഹമ്മദ് സിയാദ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "നിസ എ കെ ആരാണ്?", "response": "നിസ എ കെ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "ഡോ. ഷമീം അൻസാർ ആരാണ്?", "response": "ഡോ. ഷമീം അൻസാർ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. എൻഐടി തിരുച്ചിറപ്പള്ളിയിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്. വയർലെസ് നെറ്റ്‌വർക്കുകളുടെ പ്രയോഗമാണ് അദ്ദേഹത്തിന്റെ ഗവേഷണ മേഖല."}
+{"instruction": "ഡോ. അനന്ത പദ്മനാഭൻ എൻ കെ ആരാണ്?", "response": "ഡോ. അനന്ത പദ്മനാഭൻ എൻ കെ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. ഐഐടി (ബിഎച്ച്‌യു) വാരണാസിയിൽ നിന്നാണ് അദ്ദേഹം പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. ശ്യാന എ ആരാണ്?", "response": "ഡോ. ശ്യാന എ കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. APJ അബ്ദുൽ കലാം ടെക്നോളജിക്കൽ യൂണിവേഴ്സിറ്റി (KTU)യിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "ഡോ. റെഷ്മ ഷെയ്ക്ക് ആരാണ്?", "response": "ഡോ. റെഷ്മ ഷെയ്ക്ക് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. അവർക്ക് പിഎച്ച്ഡി ഉണ്ട്."}
+{"instruction": "റീന മേരി ജോർജ്ജ് ആരാണ്?", "response": "റീന മേരി ജോർജ്ജ് കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "റഹന്നാറ ബീഗം ടി ആരാണ്?", "response": "റഹന്നാറ ബീഗം ടി കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്."}
+{"instruction": "ഡോ. ജിനി രാജു ആരാണ്?", "response": "ഡോ. ജിനി രാജു കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിലെ അസിസ്റ്റന്റ് പ്രൊഫസറാണ്. APJ അബ്ദുൽ കലാം ടെക്നോളജിക്കൽ യൂണിവേഴ്സിറ്റി (KTU)യിൽ നിന്നാണ് അവർ പിഎച്ച്ഡി നേടിയത്."}
+{"instruction": "എഐ ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ രണ്ടാം നിലയിലാണ് എഐ ലാബ്."}
+{"instruction": "ഓപ്പറേറ്റിംഗ് സിസ്റ്റംസ് ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഗ്രൗണ്ട് ഫ്ലോറിലാണ് ഓപ്പറേറ്റിംഗ് സിസ്റ്റംസ് ലാബ്."}
+{"instruction": "സിസ്റ്റംസ് സോഫ്റ്റ്‌വെയർ ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ രണ്ടാം നിലയിലാണ് സിസ്റ്റംസ് സോഫ്റ്റ്‌വെയർ ലാബ്."}
+{"instruction": "കമ്പ്യൂട്ടിംഗ് ലാബ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ രണ്ടാം നിലയിലാണ് കമ്പ്യൂട്ടിംഗ് ലാബ്."}
+{"instruction": "ഹെഡ് ഓഫ് ഡിപ്പാർട്ട്മെന്റിന്റെ റൂം എവിടെയാണ്?", "response": "ഹെഡിന്റെ റൂം ഗ്രൗണ്ട് ഫ്ലോറിലാണ്."}
+{"instruction": "ഫാക്കൽറ്റി റൂം എവിടെയാണ്?", "response": "ഫാക്കൽറ്റി റൂം രണ്ടാം നിലയിലാണ്."}
+{"instruction": "കെടിയു ഓഫീസ് എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഒന്നാം നിലയിലാണ് കെടിയു ഓഫീസ്."}
+{"instruction": "സെമിനാർ ഹാൾ എവിടെയാണ്?", "response": "കമ്പ്യൂട്ടർ സയൻസ് ഡിപ്പാർട്ട്മെന്റിന്റെ ഗ്രൗണ്ട് ഫ്ലോറിലാണ് സെമിനാർ ഹാൾ."}
+{"instruction": "ജൂബിലി ഹാൾ എവിടെയാണ്?", "response": "ജൂബിലി ഹാൾ ഒന്നാം നിലയിലാണ്."}
+{"instruction": "ലേഡീസ് കോമൺ റൂം എവിടെയാണ്?", "response": "കോളേജ് കാന്റീന്റെ പിന്നിലാണ് ലേഡീസ് കോമൺ റൂം."}
+{"instruction": "പ്രിൻസിപ്പലിന്റെ റൂം എവിടെയാണ്?", "response": "അഡ്മിനിസ്ട്രേറ്റീവ് ബ്ലോക്കിന്റെ ഒന്നാം നിലയിലാണ് പ്രിൻസിപ്പലിന്റെ റൂം."}
+{"instruction": "കോളേജ് കാന്റീനും സ്റ്റോറും എവിടെയാണ്?", "response": "ബാക്ക് ഗേറ്റിന് സമീപം സോമനാഥൻ സെന്ററിന് എതിർവശത്താണ് കോളേജ് കാന്റീനും സ്റ്റോറും."}
+{"instruction": "കാമ്പസ് ഡോക്ടർ എവിടെയാണ്?", "response": "ബാക്ക് ഗേറ്റിന് സമീപം, കോളേജ് സ്റ്റോറിനടുത്താണ് കാമ്പസ് ഡോക്ടർ."}
+{"instruction": "പ്രിന്റ് ഔട്ട് എവിടെ എടുക്കാം?", "response": "കോളേജ് സ്റ്റോറിൽ പ്രിന്റ് ഔട്ട് സൗകര്യം ലഭ്യമാണ്."}
+{"instruction": "കോളേജിനോട് ഏറ്റവും അടുത്തുള്ള റെയിൽവേ സ്റ്റേഷൻ ഏതാണ്?", "response": "കൊല്ലം റെയിൽവേ സ്റ്റേഷൻ 7 കിലോമീറ്റർ അകലെയും, കിളികൊല്ലൂർ റെയിൽവേ സ്റ്റേഷൻ 500 മീറ്റർ അകലെയുമാണ്."}
+{"instruction": "കമ്പ്യൂട്ടർ സയൻസ് വിദ്യാർത്ഥികൾക്കുള്ള മികച്ച ടെക്നിക്കൽ ക്ലബ്ബുകൾ ഏതൊക്കെയാണ്?", "response": "കോഡിംഗ് ക്ലബ്, സിഎസ്ഐ, ഐഇഇഇ, ഐഎസ്ടിഇ, ഐഇഐ, സിവിൽ സർവീസ് ആസ്പിറന്റ്സ് ക്ലബ് എന്നിവയാണ് പ്രധാന ടെക്നിക്കൽ ക്ലബ്ബുകൾ."}
+{"instruction": "എക്സ്ട്രാ കരിക്കുലർ ക്ലബ്ബുകൾ ഏതൊക്കെയാണ്?", "response": "ഡാൻസ് ക്ലബ്, മ്യൂസിക് ക്ലബ്, ടികെഎം ഫോട്ടോഗ്രഫി ക്ലബ്, ഫിലിം ആൻഡ് ഡ്രാമ ക്ലബ്, ലിറ്റററി ആൻഡ് ഡിബേറ്റ് ക്ലബ്, ഫൈൻ ആർട്സ് ക്ലബ്, കോളേജ് സ്പോർട്സ് കൗൺസിൽ എന്നിവയാണ്."}
+{"instruction": "ഹെസ്റ്റിയ എന്താണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗിന്റെ വാർഷിക ടെക്നോ-കൾച്ചറൽ ഫെസ്റ്റാണ് ഹെസ്റ്റിയ."}
+{"instruction": "കോളേജിന്റെ പ്ലേസ്മെന്റ് നിരക്ക് എത്രയാണ്?", "response": "ടികെഎം കോളേജ് ഓഫ് എഞ്ചിനീയറിംഗിന്റെ പ്ലേസ്മെന്റ് നിരക്ക് ഏകദേശം 90% ആണ്."}
+{"instruction": "എത്ര കമ്പനികൾ പ്ലേസ്മെന്റിനായി വരുന്നു?", "response": "100-ലധികം കമ്പനികൾ എല്ലാ വർഷവും ക്യാമ്പസ് പ്ലേസ്മെന്റിനായി വരുന്നു."}
+{"instruction": "ഏറ്റവും ഉയർന്ന പാക്കേജ് എത്രയാണ്?", "response": "ഏറ്റവും ഉയർന്ന പാക്കേജ് ₹21 എൽപിഎ ആണ്."}
+{"instruction": "ശരാശരി പാക്കേജ് എത്രയാണ്?", "response": "ശരാശരി പാക്കേജ് ₹5.03 എൽപിഎ ആണ്."}
+{"instruction": "കോളേജിൽ പ്ലേസ്മെന്റ് സെൽ ഉണ്ടോ?", "response": "ഉണ്ട്. ടികെഎം കോളേജിന് ഒരു കരിയർ ഗൈഡൻസ് ആൻഡ് പ്ലേസ്മെന്റ് യൂണിറ്റ് (സിജിപിയു) ഉണ്ട്."}
+{"instruction": "കരിയർ ഗൈഡൻസ് ആൻഡ് പ്ലേസ്മെന്റ് യൂണിറ്റ് (സിജിപിയു) എന്താണ്?", "response": "കരിയർ ഗൈഡൻസ്, പ്ലേസ്മെന്റ് പരിശീലനം, ക്യാമ്പസ് റിക്രൂട്ട്മെന്റ് പ്രവർത്തനങ്ങൾ എന്നിവയ്ക്ക് ഉത്തരവാദിത്തമുള്ള യൂണിറ്റാണ് സിജിപിയു."}
+{"instruction": "പ്ലേസ്മെന്റ് പരിശീലനം നൽകുന്നുണ്ടോ?", "response": "ഉണ്ട്, ക്യാമ്പസ് റിക്രൂട്ട്മെന്റിന് വിദ്യാർത്ഥികളെ സജ്ജമാക്കാൻ ടികെഎം കോളേജ് പ്ലേസ്മെന്റ് പരിശീലനം നൽകുന്നു."}
+{"instruction": "ക്യാമ്പസ് പ്ലേസ്മെന്റുകൾ നടത്താറുണ്ടോ?", "response": "ഉണ്ട്, മുൻനിര കമ്പനികളുമായി ടികെഎം കോളേജ് ക്യാമ്പസ് പ്ലേസ്മെന്റ് ഡ്രൈവുകൾ നടത്താറുണ്ട്."}
+{"instruction": "പ്ലേസ്മെന്റ് പ്രവർത്തനങ്ങൾക്ക് എന്തൊക്കെ സൗകര്യങ്ങളുണ്ട്?", "response": "പ്ലേസ്മെന്റ് യൂണിറ്റിന് എയർ കണ്ടീഷൻഡ് ഹാളുകളും കമ്പ്യൂട്ടർ ലാബുകളും ഇന്റർവ്യൂ റൂമുകളും ഉണ്ട്."}
+{"instruction": "കാമ്പസ് റാഗിംഗ് ഫ്രീ ആണോ?", "response": "അതെ, കാമ്പസ് പൂർണ്ണമായും റാഗിംഗ് വിമുക്തമാണ്."}
+{"instruction": "Name of the college.", "response": "TKM College of Engineering, Kollam."}
+{"instruction": "Full name.", "response": "Thangal Kunju Musaliar College of Engineering."}
+{"instruction": "Location.", "response": "TKM College of Engineering is located at Karikode, Kollam, Kerala, India."}
+{"instruction": "Nearby landmarks.", "response": "The college is located at a distance of 450 meters from Kilikollur railway station."}
+{"instruction": "PIN code.", "response": "691005."}
+{"instruction": "Established.", "response": "TKM College of Engineering was established in 1958."}
+{"instruction": "Founder.", "response": "TKM College of Engineering was founded by Janab A. Thangal Kunju Musaliar."}
+{"instruction": "Autonomous status.", "response": "Yes, TKM College of Engineering has been autonomous since May 2022."}
+{"instruction": "NAAC grade.", "response": "The college has been NAAC accredited with an A grade."}
+{"instruction": "NBA accreditation.", "response": "Several undergraduate engineering (B.Tech) programs are accredited, including Mechanical, Electrical & Electronics, Electronics & Communication, and Computer Science and Engineering."}
+{"instruction": "KIRF ranking.", "response": "The college is ranked second in Kerala among engineering colleges by the Kerala Institutional Ranking Framework."}
+{"instruction": "Vision.", "response": "The vision of the department is to be a centre of excellence imparting quality education in Computer Science and Engineering and transforming students into critical thinkers and lifelong learners capable of developing environment-friendly and economically feasible solutions to real-world problems."}
+{"instruction": "Mission.", "response": "The mission of the department is to provide a strong foundation in Computer Science and Engineering, prepare students for professional careers and higher education, inculcate research interest, stay abreast of technological advances, and impart skills to create socially acceptable solutions upholding ethical values."}
+{"instruction": "HOD.", "response": "Dr. Aneesh G Nath is the Head of the Computer Science Department."}
+{"instruction": "Head of department.", "response": "Dr. Aneesh G Nath is the Head of the Computer Science Department."}
+{"instruction": "Senior advisor.", "response": "Dr. Dimple A Shajahan is the Senior Advisor of the Computer Science Department."}
+{"instruction": "AI department advisor.", "response": "Dr. Thushara is the Advisor of the Computer Science with AI Department."}
+{"instruction": "AI Lab.", "response": "The AI Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "Operating systems lab.", "response": "The Operating Systems Lab is located on the ground floor of the Computer Science Department."}
+{"instruction": "Systems software lab.", "response": "The Systems Software Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "Computing lab.", "response": "The Computing Lab is located on the second floor of the Computer Science Department."}
+{"instruction": "HOD's room.", "response": "The HOD's room is located on the ground floor."}
+{"instruction": "Faculty room.", "response": "The faculty room is located on the second floor."}
+{"instruction": "KTU office.", "response": "The KTU office is on the first floor of the Computer Science Department."}
+{"instruction": "Seminar hall.", "response": "The seminar hall is on the ground floor of the Computer Science Department."}
+{"instruction": "Jubilee hall.", "response": "Jubilee hall is on the first floor."}
+{"instruction": "Ladies' common room.", "response": "The ladies' common room is at the backside of the college canteen."}
+{"instruction": "Principal's room.", "response": "The principal's room is on the first floor of the administrative block."}
+{"instruction": "College canteen.", "response": "The college canteen and store are opposite the Somanathan Centre near the back gate."}
+{"instruction": "Campus doctor.", "response": "The campus doctor is located near the college store, near the back gate."}
+{"instruction": "Printout.", "response": "Printout facilities are available at the college store."}
+{"instruction": "Nearest railway station.", "response": "Kollam railway station is at a distance of 7 kilometers, and Kilikollur railway station is at a distance of 500 meters from the college."}
+{"instruction": "Technical clubs.", "response": "The best technical clubs and societies include Coding Club, CSI, IEEE, ISTE, IEI, and Civil Service Aspirants Club."}
+{"instruction": "Extracurricular clubs.", "response": "Extracurricular clubs include Dance Club, Music Club, TKM Photography Club, Film and Drama Club, Literary and Debate Club, Fine Arts Club, and College Sports Council."}
+{"instruction": "Hestia.", "response": "Hestia is the annual techno-cultural festival of TKM College of Engineering, bringing together students to participate in technical and cultural events."}
+{"instruction": "Placement rate.", "response": "TKM College of Engineering has a placement rate of approximately 90%."}
+{"instruction": "Companies for placement.", "response": "More than 100 companies visit TKM College of Engineering for campus placements every year."}
+{"instruction": "Highest package.", "response": "The highest package offered is ₹21 LPA."}
+{"instruction": "Average package.", "response": "The average package offered is ₹5.03 LPA."}
+{"instruction": "Placement cell.", "response": "Yes. TKM College of Engineering has a Career Guidance and Placement Unit (CGPU)."}
+{"instruction": "CGPU.", "response": "The Career Guidance and Placement Unit (CGPU) is responsible for career guidance, placement training, and campus recruitment activities."}
+{"instruction": "Placement training.", "response": "Yes, TKM College of Engineering provides placement training to prepare students for campus recruitment."}
+{"instruction": "Campus placements.", "response": "Yes, TKM College of Engineering conducts campus placement drives with leading companies."}
+{"instruction": "Placement facilities.", "response": "The placement unit has air-conditioned halls, computer laboratories, and interview rooms for recruitment activities."}
+{"instruction": "Ragging.", "response": "Yes, the campus is strictly ragging free."}

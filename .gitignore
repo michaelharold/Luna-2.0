@@ -1,0 +1,24 @@
+# Python virtual environment — recreate with `python -m venv venv` + pip install.
+venv/
+__pycache__/
+*.pyc
+
+# Trained/converted model weights and the LoRA adapter — multi-GB binaries, regenerated
+# by scripts/train.py -> scripts/merge.py -> convert_hf_to_gguf.py -> llama-quantize.
+# Keep models/piper/ out of this ignore if you want the TTS voice tracked; it's small
+# (61M) but is a third-party download, not project code, so it's excluded too here.
+models/
+
+# Vendored llama.cpp checkout (build tools + compiled binaries) — clone separately:
+# https://github.com/ggml-org/llama.cpp
+llama.cpp/
+
+# Unsloth's compiled kernel cache — regenerated automatically on first run.
+unsloth_compiled_cache/
+
+# Runtime logs — training run logs (large, mostly progress-bar spam) and
+# voice_session.log (personal conversation transcripts from testing).
+logs/
+
+# Editor-local settings.
+.vscode/
