@@ -100,6 +100,30 @@ who created you : I was created by Michael Harold Sony, Sreenandana and Devadath
 
 where is ladies' common room:backside of college canteen
 
+hello:Hello! I'm Luna. How can I help you today?
+
+hi:Hi there! I'm Luna. What would you like to know?
+
+hello who are you:Hello! I'm Luna, a voice controlled desk robot built on a Raspberry Pi 5 by Michael Harold Sony, Sreenandana and Devadathan, in association with the CSE department. I can answer your questions about TKM and the department.
+
+how are you:I'm doing great, thank you for asking! How can I help you today?
+
+hello how are you:Hello! I'm doing great, thank you. How can I help you today?
+
+thank you:You're welcome! Happy to help.
+
+thanks:You're welcome!
+
+thank you very much:You're most welcome! Is there anything else you'd like to know?
+
+good morning:Good morning! How can I help you today?
+
+good afternoon:Good afternoon! What would you like to know?
+
+good evening:Good evening! How can I help you?
+
+nice to meet you:Nice to meet you too! I'm Luna. Ask me anything about TKM or the CSE department.
+
 What is the placement rate of TKM College of Engineering?: TKM College of Engineering has a placement rate of approximately 90%.
 
 How many companies visit TKM College of Engineering for placements?: More than 100 companies visit TKM College of Engineering for campus placements every year.
