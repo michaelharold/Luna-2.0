@@ -4,6 +4,36 @@
   Format: date · area · what changed · why
 ══════════════════════════════════════════════════════════════════
 
+─── 2026-10-11 — College website facts in the KB, offline boot fix, Pi-safe network calls ──
+
+[data] knowledge.txt grew from 55 to ~330 entries with stable facts from the
+  college website (read 2026-10): principal, vice principals, deans, every HoD,
+  cells and committees, programmes and seat counts, admissions, every
+  department, library, CCF and campus network, hostels and wardens, placement
+  unit, IDEA/FAB labs, research, MoUs, rules, scholarships, alumni. These
+  answer fully offline (web_rag would need the Pi online at least once).
+  Deliberately left out: personal mobile numbers, emails (Cloudflare hides
+  them anyway), dated notices/job adverts, and facts the site contradicts
+  itself on (e.g. two different Controllers of Examinations). Also fixed two
+  existing entries that were split across lines, so their second halves were
+  silently dropped (CS mission, Hestia), and added "who is the HOD" — it used
+  to match "where is HOD's room" and answer "ground floor".
+[boot] config.py now sets HF_HUB_OFFLINE before anything imports
+  huggingface_hub (only when the retrieval model is cached). brain.py set it
+  after the import, where it is ignored: with no internet the sentence
+  transformer took 161.7 s to load (retrying huggingface.co), 0.5 s now.
+[net] connectivity.py: a cached, never-blocking "are we online?" probe (one
+  background TCP connect, re-checked every 30 s). wiki_rag and the weather
+  command consult it first, so an offline or half-up Pi answers at once
+  instead of stalling on DNS/timeouts mid-conversation; brain.py starts the
+  first probe at boot so the first general question can use Wikipedia.
+[commands] date/time now fire only when the WHOLE utterance asks for the
+  current date/time. The substring match answered "what time does the
+  library close" with the clock (and "last date for admission" would have
+  got today's date).
+[tests] test_connectivity.py; offline/HTTP-error cases in test_wiki_rag.py
+  and test_commands_realtime.py; date/time near-miss phrases.
+
 ─── 2026-09-30 — Date/time, live weather, Wikipedia general-knowledge fallback ──
 
 [commands] commands.py: "what day/time is it" answered from the system clock,

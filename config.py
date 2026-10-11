@@ -15,6 +15,41 @@ if os.path.exists(_env_path):
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
 
+# ── Offline model loading (must happen before anything imports huggingface_hub) ──
+# huggingface_hub reads HF_HUB_OFFLINE once, when it is first imported. brain.py
+# used to set it just before loading the sentence transformer — after the import
+# — so it was silently ignored, and a Pi with no internet spent ~2.5 minutes at
+# boot retrying huggingface.co before using its cached copy (measured: 161.7 s
+# with the flag set after the import, 0.5 s before). config.py is the first
+# module everything imports, so the flag goes here. Only set when the retrieval
+# model is already cached, so a fresh install with internet can still fetch it;
+# an explicit HF_HUB_OFFLINE in the environment or .env always wins.
+SENTENCE_MODEL_REPO = "sentence-transformers/all-MiniLM-L6-v2"
+
+
+def _hf_model_cached(repo_id):
+    folder = "models--" + repo_id.replace("/", "--")
+    hf_home = os.environ.get("HF_HOME") or os.path.join(
+        os.path.expanduser("~"), ".cache", "huggingface")
+    for root in (os.environ.get("HF_HUB_CACHE"),
+                 os.environ.get("SENTENCE_TRANSFORMERS_HOME"),
+                 os.path.join(hf_home, "hub")):
+        if not root:
+            continue
+        snaps = os.path.join(root, folder, "snapshots")
+        try:
+            if any(os.path.exists(os.path.join(snaps, s, "modules.json"))
+                   for s in os.listdir(snaps)):
+                return True
+        except OSError:
+            continue
+    return False
+
+
+if _hf_model_cached(SENTENCE_MODEL_REPO):
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 # ── Run mode: one config, two machines ────────────────────────────────────────
 # "auto" — detect: a Mac runs in mac mode, anything else runs in pi mode.
 # "mac"  — force Mac-dev mode  (windowed face, USB/FaceTime camera, `say` TTS,

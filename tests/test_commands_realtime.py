@@ -59,6 +59,30 @@ class TestDateTime(unittest.TestCase):
         self.assertFalse(commands._datetime_command("who are you", set()))
         self.assertEqual(self.speak.said, [])
 
+    def test_questions_that_merely_mention_time_or_date_go_to_the_brain(self):
+        # Each of these once got a clock reading instead of an answer.
+        for q in ("what time does the library close",
+                  "what is the last date for admission",
+                  "how was your day",
+                  "which day is hestia",
+                  "what time does the office open"):
+            self.assertFalse(commands._datetime_command(q, set()), q)
+        self.assertEqual(self.speak.said, [])
+
+    def test_natural_ways_of_asking_the_clock(self):
+        cases = {"luna what time is it": "time",
+                 "can you tell me the date": "date",
+                 "what's the time please": "time",
+                 "what day is it today": "date",
+                 "what is today's date?": "date",
+                 "what's the date and time right now": "both"}
+        for q, kind in cases.items():
+            self.assertEqual(commands._clock_question(q.lower()), kind, q)
+
+    def test_day_of_month_is_not_zero_padded(self):
+        self.assertTrue(commands._datetime_command("what day is it", set()))
+        self.assertNotRegex(self.speak.said[0], r" 0\d\b")
+
     def test_disabled_never_consumes(self):
         old = commands.ENABLE_DATETIME_COMMAND
         commands.ENABLE_DATETIME_COMMAND = False
@@ -102,10 +126,23 @@ class TestWeather(unittest.TestCase):
         def fake_urlopen(url, timeout=None):
             return self._orig_urlopen(base, timeout=timeout)
         commands.urllib.request.urlopen = fake_urlopen
+        # Never let a test start a real connectivity probe.
+        self._orig_state = commands.connectivity.state
+        self._orig_mark = commands.connectivity.mark_offline
+        self.online = True
+        self.marked_offline = 0
+        commands.connectivity.state = lambda: self.online
+        commands.connectivity.mark_offline = self._mark
+
+    def _mark(self):
+        self.marked_offline += 1
 
     def tearDown(self):
         commands._speak = self._orig_speak
         commands.urllib.request.urlopen = self._orig_urlopen
+        commands.connectivity.state = self._orig_state
+        commands.connectivity.mark_offline = self._orig_mark
+        _WeatherHandler.status = 200
         self.srv.shutdown()
         self.srv.server_close()
 
@@ -125,6 +162,26 @@ class TestWeather(unittest.TestCase):
             OSError("connection refused"))
         self.assertTrue(commands._weather_command("what's the weather like", set()))
         self.assertIn("couldn't reach", self.speak.said[0].lower())
+        self.assertEqual(self.marked_offline, 1)
+
+    def test_known_offline_answers_at_once_without_a_request(self):
+        def boom(url, timeout=None):
+            raise AssertionError("must not touch the network when offline")
+        commands.urllib.request.urlopen = boom
+        self.online = False
+        self.assertTrue(commands._weather_command("how is the weather", set()))
+        self.assertIn("not connected", self.speak.said[0])
+
+    def test_unknown_connectivity_still_tries(self):
+        self.online = None                   # not probed yet — they asked, so try
+        self.assertTrue(commands._weather_command("how is the weather", set()))
+        self.assertIn("24 degrees", self.speak.said[0])
+
+    def test_service_error_is_not_treated_as_offline(self):
+        _WeatherHandler.status = 500
+        self.assertTrue(commands._weather_command("how is the weather", set()))
+        self.assertIn("isn't answering", self.speak.said[0])
+        self.assertEqual(self.marked_offline, 0)
 
     def test_disabled_never_consumes(self):
         old = commands.ENABLE_WEATHER_COMMAND

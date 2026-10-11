@@ -95,6 +95,9 @@ fullscreen, volume backend, servo simulation, and log retention.
   mentions campus vocabulary (department, college, HOD, ...) — otherwise a
   made-up local entity ("P.K.M. college") would match some unrelated real
   article and be answered as if it were a real fact about the college.
+- `connectivity.py`: a cached "are we online?" flag from one background TCP
+  probe (never on the voice path). `wiki_rag` and the weather command check it
+  first, so an offline or half-up Pi never stalls a turn on a network timeout.
 
 **Seeing**
 - `vision_module.py`: YuNet detection on a half-scale frame, emotion model,

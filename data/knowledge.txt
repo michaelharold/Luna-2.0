@@ -10,13 +10,11 @@ What is the PIN code of the college:691005
 
 When was the college established:tkm college of engineering was established in 1958
 
-Who founded the college:tkm college of engineering was founded by janab a. thangal Kunju musaliar 
+Who founded the college:tkm college of engineering was founded by janab a. thangal Kunju musaliar in 1958
 
 What is the vision of the computer science department:the vision of the department is To be a centre of excellence imparting quality education in Computer Science and Engineering and transforming students to critical thinkers and lifelong learners capable of developing environment friendly and economically feasible solutions to real world problems.
 
-What is the mission of the computer science department: the mission of the department is To provide strong foundation in Computer Science and Engineering, prepare students for professional career and higher education, and inculcate research interest.
-To be abreast of the technological advances in a rapidly changing world.
-To impart skills to come up with socially acceptable solutions to real world problems, upholding ethical Values
+What is the mission of the computer science department: the mission of the department is To provide strong foundation in Computer Science and Engineering, prepare students for professional career and higher education, and inculcate research interest. To be abreast of the technological advances in a rapidly changing world. To impart skills to come up with socially acceptable solutions to real world problems, upholding ethical Values
 
 Is the college autonomous:yes,tkm college of engineering is autonomous since may 2022
 
@@ -82,8 +80,7 @@ which all are the best technical clubs and societies for computer science studen
 
 which clubs for extracurricular activities:dance club,music club,TKM photography club,film and drama club,literary and debate club,fine arts club,college sports council etc
 
-What is Hestia?: Hestia is the annual techno-cultural festival of TKM College of Engineering. It brings together students from various colleges to participate in technical and cultural 
-events.
+What is Hestia?: Hestia is the annual techno-cultural festival of TKM College of Engineering. It brings together students from various colleges to participate in technical and cultural events.
 
 where is KTU office:KTU office is at the first floor of computer science department
 
@@ -117,7 +114,7 @@ Does TKM College of Engineering provide placement training?: Yes. TKM College of
 
 Does TKM College of Engineering conduct campus placements?: Yes. TKM College of Engineering conducts campus placement drives with leading companies.
 
-What facilities are available for placement activities?: The placement unit has air-conditioned halls, computer laboratories, and interview rooms for recruitment activities.
+What facilities are available for placement activities?: The placement unit has four air-conditioned halls seating about 1400 people, four computer labs with about 300 computers, and fifteen cabins for interviews and group discussions.
 
 where can i take a print out:print out facilities are available at the college store
 
@@ -126,7 +123,580 @@ is the campus ragging free:Yes,the campus is strictly ragging free
 where is principal's room :principal's room is at the first floor of administrative block
 
 
+# ==== Everything below comes from the college website tkmce.ac.in, read in October 2026 ====
+# Left out on purpose - personal mobile numbers, email addresses (the site hides them), dated notices and job adverts.
+# Lines without a colon, like these, are ignored by Luna.
 
+# ---- College overview ----
 
+what kind of college is TKM:TKM College of Engineering is the oldest engineering college in the private sector in Kerala. It was established in 1958 by Janab Thangal Kunju Musaliar under the TKM College Trust, and today it is an autonomous college affiliated to APJ Abdul Kalam Technological University.
 
+how many students study at TKM:The college admits more than 1000 students a year across nine undergraduate programmes, and about 250 students a year across its postgraduate programmes. That is the highest annual intake among peer colleges in Kerala.
 
+how many teachers does the college have:The college has more than 200 faculty members, along with about 150 technical and ministerial staff.
+
+how did the college begin:The college started with 120 students in three basic streams of engineering, and today it has the highest annual student intake among its peer colleges in Kerala.
+
+who laid the foundation stone of the college:Dr. Rajendra Prasad, the first President of India, laid the foundation stone of the college on February 3, 1956.
+
+who inaugurated the college:The college was formally inaugurated on July 3, 1958 by Prof. Humayun Kabir, who was then the Union Minister for Scientific and Cultural Affairs.
+
+what is the vision of the college:The vision of TKM College of Engineering is excellence in education and research with a socio-economic and environmental outlook.
+
+what is the mission of the college:The college's mission is to offer state-of-the-art undergraduate, postgraduate and doctoral programmes, to do cutting-edge research and collaborative projects with industry, to instill ethical, social and environmental perspectives for sustainable development, and to nurture creativity, self-learning and interpersonal skills.
+
+when did the college get autonomy:The UGC conferred autonomous status on the college on 26 May 2022, and APJ Abdul Kalam Technological University formally notified it on 2 September 2022.
+
+which university is the college affiliated to:The college has been affiliated to APJ Abdul Kalam Technological University since 2015. Before that it was affiliated to the University of Kerala.
+
+is the college approved by AICTE:Yes. The college and all its programmes are approved by the All India Council for Technical Education, AICTE.
+
+which programmes have NBA accreditation:All the B.Tech programmes and two M.Tech programmes are accredited by the National Board of Accreditation. B.Tech Civil and Mechanical Engineering have six-year accreditation, which no other engineering college in Kerala has, and the other undergraduate programmes have three-year accreditation.
+
+what is special about the college's NAAC grade:TKM is the only engineering college in the government and aided sector in Kerala to be accredited with an A grade by NAAC.
+
+what is the NIRF ranking of the college:In the National Institutional Ranking Framework, the college was placed in the 201 to 250 band in 2019.
+
+what recognitions has the college received:The college was rated top for value-for-money education in the India Today rating in 2021. Its NPTEL local chapter has a AAA grade, it is one of the few KTU colleges allowed to award B.Tech Honours, and it is one of four institutions in Kerala chosen for the National Doctoral Fellowship.
+
+what is the Margadarshan scheme:AICTE selected TKM College of Engineering as a Margadarshan institute to mentor three neighbouring institutions, two engineering colleges and one polytechnic.
+
+what is SEEDS 97:SEEDS-97, the Startup Enabled Entrepreneurship Development Centre, is a technology business incubation centre set up at the college by the 1997 alumni batch.
+
+what is TEQIP:TEQIP is the World Bank assisted Technical Education Quality Improvement Programme. The college received 12.88 crore rupees under TEQIP-II between 2012 and 2023.
+
+what is RUSA funding:TKM College of Engineering is the only engineering college that became eligible for funding under RUSA.
+
+which institutions does the TKM trust run:The TKM College Trust runs TKM College of Arts and Science, TKM Institute of Technology, TKM Institute of Management, TKM School of Communication and Information Technology, TKM Centenary Public School, TKM High School, TKM Higher Secondary School, the TKM Centre for Advanced Learning and the TKM School of Architecture.
+
+who is the chairman of the TKM trust:Janab T. K. Shahal Hassan Musaliar is the Chairman of the TKM College Trust, and he also chairs the college Governing Body.
+
+who is the treasurer of the TKM trust:Janab T. K. Jalaluddin Musaliar is the Treasurer of the TKM Trust.
+
+who governs the college:The college is governed by its Governing Body under the TKM College Trust, chaired by Janab T. K. Shahal Hassan Musaliar.
+
+who are the members of the governing body:The Governing Body is chaired by Janab Shahal Hassan Musaliar. Its members are T. K. Jalaluddin Musaliar, T. K. Jamaluddin Musaliar, Khalid H. Musaliar and Tariq H. Musaliar of the TKM Trust, Dr. M. Haroon, Sunil Kumar S for the state government, Prof. Gopin G for the university, faculty representatives Prof. Ayyappan K. A. and Dr. Ajukumar V. N., the Principal Dr. Sadiq A, and Administrative Assistant Mini Sreenivasan.
+
+# ---- Founder ----
+
+who was Thangal Kunju Musaliar:Janab A. Thangal Kunju Musaliar was a reformer, philanthropist and businessman, born on 12 January 1897. He formed the TKM educational trust in 1956, founded the college in 1958, and passed away on 19 February 1966.
+
+why was the founder called the cashew king:Thangal Kunju Musaliar transformed Kerala's cashew industry in the 1940s and 50s and was known as the Cashew King. In 1940 the American magazine Fortune described him as the single employer who gave direct work to the largest number of people in the world.
+
+what else did the founder do:He started the newspaper Prabhatham and the Janakshema Samajam, a people's welfare society, and wrote two books, Practical Advaita, the Law of Nature, and Communism, Capitalism and Socialism in the Present Context.
+
+how is the founder remembered:In 1997, his birth centenary, the Postal Department released a stamp in his honour and a Philately Museum was set up at the college. In 2019 Kollam Corporation set up the A. Thangal Kunju Musaliar Park at Asramam.
+
+# ---- Principal and office ----
+
+who is the principal:Dr. Sadiq A. is the Principal in charge of TKM College of Engineering. He has been part of the institution for more than 25 years.
+
+who is the principal of the college:Dr. Sadiq A. is the Principal in charge of TKM College of Engineering. He has been part of the institution for more than 25 years.
+
+tell me about the principal:Dr. Sadiq A. is the Principal in charge. He did his B.Tech in Mechanical Engineering at the University of Kerala, and his M.Tech and PhD at IIT Madras. He developed a surface finishing technology called Magnetorheological Abrasive Honing, received the INAE award for innovative research, and has served as Dean Academic of APJ Abdul Kalam Technological University.
+
+what patents does the principal have:Dr. Sadiq A. holds the most patents in the college, including an ergonomic pen stand, an automatic centre-of-gravity adjusting material handling device, a continuous shear nanobubble generator, and a device for the hearing impaired that works by bone conduction. The first patent ever granted in the name of TKM College of Engineering was developed under his leadership.
+
+what is the principal's motto:The principal's motto for the college is together towards excellence.
+
+who were the previous principals:Before Dr. Sadiq A, the college website mentions Dr. Sajeeb R as principal in 2024 and 2025, Dr. T. A. Shahul Hameed from about 2020 to early 2024, and Dr. S. Ayoob in 2017.
+
+who are the vice principals:Dr. Anu V. Thomas is the Vice Principal for Academics and Research, and Dr. Ayyappan K. A. of the Architecture department is the Vice Principal for Administration.
+
+who is the administrative assistant:Mini Sreenivasan is the Administrative Assistant, at the admission and administration desk.
+
+who is the accounts officer:Najeeba P M is the Accounts Officer of the college.
+
+what are the office timings:The college office works from 10 am to 5 pm, Monday to Saturday. It is closed on second Saturdays, Sundays and government holidays.
+
+what services does the college office provide:The office works under the Principal and handles admissions, withdrawals, transfer and conduct certificates, bus and railway concessions, scholarships, university examination matters, staff matters, and fee collection.
+
+who handles scholarships in the office:In the academic section, Indu Shareef handles B.Arch and E-Grantz general, OBC, NSP and other scholarships, and Farzin Ahamed V A handles MCA and E-Grantz scholarships for SC, ST, OEC and fisheries students.
+
+who handles certificates in the office:Shabanu S of the academic section handles certificates.
+
+what is the address of the college:TKM College of Engineering, Karicode, Kollam 691005, Kerala, India.
+
+what is the phone number of the college:The college office numbers are 0 4 7 4, 2 7 1 2 0 2 2 and 0 4 7 4, 2 7 1 2 0 2 4. The fax number is 0 4 7 4, 2 7 1 2 0 2 3.
+
+what is the admission office phone number:The admission office number is 0 4 7 4, 2 7 1 2 0 2 2.
+
+what is the library phone number:The central library's number is 0 4 7 4, 2 7 1 3 9 3 3.
+
+what is the college email address:Email addresses for each office are listed on the contact page of the college website, tkmce dot ac dot in.
+
+what is the college website:The college website is www dot tkmce dot ac dot in.
+
+who handles RTI requests:Right to Information requests are handled by the State Public Information Officer, Prof. Shabeer S of the Electronics and Communication department. The appellate authority is the Principal, Dr. Sadiq A.
+
+# ---- Deans ----
+
+who are the deans of the college:The deans are Dr. Rijo Jacob Thomas for strategic planning, Dr. Chinsu Mareena Joy for research, Dr. Mathew Skaria for academics, Dr. Manu J. Pillai for training and placement, Dr. Sudheer A. for alumni affairs and international collaboration, Dr. Sabeena Beevi K for administration, Dr. K. E. Reby Roy for corporate connect and business development, Dr. Ramaswamy K. P. for accreditation and ranking, Dr. Shameem Ansar A. for student affairs, and Dr. Nissan Kunju for industry connect and entrepreneurship.
+
+who is the dean:TKM has ten deans, each for a different area, such as Dr. Mathew Skaria for academics and Dr. Shameem Ansar A. for student affairs. Which area would you like to know about?
+
+who is the dean of academics:Dr. Mathew Skaria is the Dean of Academics.
+
+who is the dean of research:Dr. Chinsu Mareena Joy is the Dean of Research.
+
+who is the dean of student affairs:Dr. Shameem Ansar A. is the Dean of Student Affairs.
+
+who is the dean of training and placement:Dr. Manu J. Pillai is the Dean of Training and Placement.
+
+who is the dean of administration:Dr. Sabeena Beevi K is the Dean of Administration.
+
+who is the dean of strategic planning:Dr. Rijo Jacob Thomas is the Dean of Strategic Planning.
+
+who is the dean of alumni affairs:Dr. Sudheer A. is the Dean of Alumni Affairs and International Collaboration.
+
+who is the dean of corporate connect:Dr. K. E. Reby Roy is the Dean of Corporate Connect and Business Development.
+
+who is the dean of accreditation and ranking:Dr. Ramaswamy K. P. is the Dean of Accreditation and Ranking.
+
+who is the dean of industry connect and entrepreneurship:Dr. Nissan Kunju is the Dean of Industry Connect and Entrepreneurship.
+
+# ---- Heads of departments ----
+
+who are the heads of departments:The heads of departments are Dr. Adarsh S for Civil, Dr. Sudheer A for Mechanical, Dr. Mohammed Mansoor O. for Electrical and Electronics, Dr. Nishanth N. for Electronics and Communication, Dr. Aneesh G. Nath for Computer Science, Dr. Fazil A. for Chemical, Dr. Deepa L for Architecture, Prof. Natheera Beevi M. for Computer Applications, Dr. Shemim S. S. for Physics, Dr. Habeeb Muhammed M. A. for Chemistry, Dr. Rajesh Kumar T. J. for Mathematics, Dr. Chinnu Jacob for the Centre for AI, Prof. Ansiya A for the self-financed PG programme, and Dr. Manesh Rasheed for Physical Education.
+
+who is the HOD:Dr. Aneesh G. Nath is the head of the Computer Science department. I can also tell you the head of any other department.
+
+who is the head of department:Dr. Aneesh G. Nath is the head of the Computer Science department. I can also tell you the head of any other department.
+
+who is the head of the AI department:The Centre for Artificial Intelligence is headed by Dr. Chinnu Jacob. For the B.Tech Computer Science with AI branch, Dr. Thushara is the advisor.
+
+who is the head of the civil engineering department:Dr. Adarsh S is the head of the Civil Engineering department.
+
+who is the head of the mechanical engineering department:Dr. Sudheer A is the head of the Mechanical Engineering department.
+
+who is the head of the electrical and electronics department:Dr. Mohammed Mansoor O. is the head of the Electrical and Electronics Engineering department.
+
+who is the head of the electronics and communication department:Dr. Nishanth N. is the head of the Electronics and Communication Engineering department.
+
+who is the head of the chemical engineering department:Dr. Fazil A. is the head of the Chemical Engineering department.
+
+who is the head of the architecture department:Dr. Deepa L is the head of the Architecture department.
+
+who is the head of the MCA department:Prof. Natheera Beevi M. is the head of the Department of Computer Applications, which runs the MCA programme.
+
+who is the head of the physics department:Dr. Shemim S. S. is the head of the Physics department.
+
+who is the head of the chemistry department:Dr. Habeeb Muhammed M. A. is the head of the Chemistry department.
+
+who is the head of the mathematics department:Dr. Rajesh Kumar T. J. is the head of the Mathematics department.
+
+who is the head of the centre for artificial intelligence:Dr. Chinnu Jacob is the head of the Centre for Artificial Intelligence.
+
+who is the head of physical education:Dr. Manesh Rasheed is the head of the Physical Education department.
+
+who is the head of the self financed PG programme:Prof. Ansiya A is the head of the self-financed PG programme.
+
+# ---- Cells and committees ----
+
+who heads the IQAC:Dr. Sabeena Beevi K heads the Internal Quality Assurance Cell.
+
+what does the IQAC do:The Internal Quality Assurance Cell monitors academic and administrative quality, collects feedback from students, parents and other stakeholders, and organises workshops on quality.
+
+who coordinates the research council:Dr. Priya K. L. coordinates the Research Council. The Principal is its convener and Vice Principal Dr. Anu V. Thomas is co-convener.
+
+who is in charge of the anti-ragging committee:Dr. Dili A. S. is in charge of the Anti-Ragging Committee.
+
+who is in charge of the internal complaints cell:Prof. Sajeena A is in charge of the Internal Complaints Cell.
+
+who is in charge of the women cell:Dr. Resmi S. L. is in charge of the Women Cell.
+
+who is in charge of the disciplinary action committee:Dr. Femina A. is in charge of the Disciplinary Action Committee.
+
+who is in charge of the library council:Dr. Annie John is in charge of the Library Council.
+
+who is in charge of the IPR cell:Dr. Anzar S. M. of the Electronics and Communication department coordinates the IPR Cell.
+
+who is in charge of the industry institute interaction cell:Dr. Anzar S. M. is in charge of the Industry Institute Interaction Cell. He also handles the Website Management Committee and the SC ST OBC Committee.
+
+who is in charge of the IT infrastructure cell:Prof. Vaheetha Salam is in charge of the IT Infrastructure Cell.
+
+who is in charge of the environment management cell:Prof. Shabeer S. is in charge of the Environment Management Cell.
+
+who is in charge of the energy management cell:Prof. Baiju R. Naina is in charge of the Energy Management Cell.
+
+who is in charge of the code of conduct and ethics committee:Dr. Resmi S. L. is in charge of the Code of Conduct and Ethics Committee.
+
+who heads the sports council:The Principal, Dr. Sadiq A, heads the Sports Council.
+
+who is in charge of the innovation and entrepreneurship development cell:Dr. Nissan Kunju is in charge of the Innovation and Entrepreneurship Development Cell, IEDC.
+
+how can students raise a grievance:The Student Grievance Redressal Committee is headed by the Principal. Students can also raise grievances in the Student Affairs Committee, convened by the Dean of Student Affairs, which includes faculty and student representatives.
+
+what committees does the college have:The college has cells and committees for examinations, quality assurance, research, intellectual property, placement, internal complaints, discipline, the library, anti-ragging, hostels, entrepreneurship, purchase, women, industry interaction, IT infrastructure, sports, the website, environment, energy, code of conduct, SC ST OBC welfare, student grievances, and universal human values.
+
+who is on the academic council:The Academic Council is chaired by the Principal, Dr. Sadiq A. It has outside academicians and industry experts, university nominees, all heads of departments and deans, faculty representatives, and Dr. Sabeena Beevi K of the IQAC as member secretary.
+
+who are the outside experts on the academic council:They include S. Kasthurirengan, a retired professor of IISc Bangalore, P. H. Kurian, a retired IAS officer, Dr. Sameer S. M. of NIT Calicut, Chandra Koduru of eClinical Solutions, Dr. K. M. Succeendran of TCS, Afsal Musaliar of the Supreme Group, Anwar Musaliar of Ernst and Young, Dr. S. Ayoob and Dr. J. Sreekumar, formerly of KTU, and university nominees Dr. Salim A and Dr. Hari V. S.
+
+who is on the finance committee:The Finance Committee is chaired by the Principal, Dr. Sadiq A, with Dr. Santhosh V. A., Director of TKM Institute of Management, and Vice Principal Dr. Ayyappan K. A. as members and the Accounts Officer as member secretary.
+
+which boards of studies does the college have:The college has Boards of Studies for Architecture, Chemical, Computer Science, Civil, Electrical, Electronics, Mechanical and MCA.
+
+what policies does the college have:The college has written policies on quality, academics, curricular gaps, academic audit, examinations, feedback, placement, research, international collaboration, consultancy, purchase, health and wellness, a green campus, environmental health and safety, hostels, student conduct and intellectual property.
+
+# ---- Courses and seats ----
+
+what undergraduate courses does the college offer:The college offers B.Tech in Civil, Mechanical, Electrical and Electronics, Electrical and Computer, Electronics and Communication, Computer Science and Engineering, Computer Science and Engineering with AI, and Chemical Engineering, and a B.Arch in Architecture.
+
+what postgraduate courses does the college offer:Postgraduate programmes are MCA, M.Plan in Urban Planning, and M.Tech in Structural Engineering and Construction Management, Transportation Engineering, Industrial Refrigeration and Cryogenics, Artificial Intelligence, Electric Vehicle Technology, Communication Systems, Computer Science and Engineering, Industrial Instrumentation and Control, and Industrial Safety and Engineering.
+
+does the college offer PhD:Yes. All departments are approved research centres of APJ Abdul Kalam Technological University, with about 75 research scholars. Civil and Mechanical Engineering are also QIP centres for PhD and research centres under the National Fellowship scheme.
+
+how many seats are there in btech computer science:B.Tech Computer Science and Engineering has 120 seats, and B.Tech Computer Science and Engineering with AI has 60 seats.
+
+how many seats does each btech branch have:Civil has 120 seats, Mechanical 180, Electrical and Electronics 120, Electronics and Communication 120, Computer Science 120, Chemical 60, Electrical and Computer 60, and Computer Science with AI 60. B.Arch has 80 seats.
+
+how many seats are there in MCA:MCA is a two-year programme with 60 seats.
+
+how many seats are there in mtech:Most M.Tech programmes and the M.Plan have 18 seats each. M.Tech Industrial Instrumentation and Control, which is self-financing, has 24 seats.
+
+which syllabus schemes are in use:The college website lists syllabus documents for the 2022, 2023 and 2024 schemes, and a 2026 scheme for M.Plan.
+
+where can I see the academic calendar:Academic calendars for each programme and semester, including 2026 to 27, are published on the college website.
+
+# ---- Admissions ----
+
+how do I get admission for btech:Eighty-five percent of B.Tech seats are government quota, filled from the Commissioner for Entrance Examinations rank list, which combines KEAM and higher secondary marks equally. The other fifteen percent are management quota seats, filled by the TKM College Trust from candidates declared eligible by the Commissioner.
+
+what is the eligibility for btech:You need to pass plus two with physics and mathematics as compulsory subjects and chemistry as an optional subject, with at least 45 percent marks in these subjects together. For SC and ST candidates, a pass in the higher secondary exam is enough.
+
+how do I get admission for barch:B.Arch admission is through the Commissioner for Entrance Examinations rank list, based on NATA and higher secondary marks. You need 50 percent aggregate in plus two with mathematics, or an equivalent diploma, and at least 40 percent in NATA.
+
+how do I get admission for mtech:Seats in government aided M.Tech programmes are allotted centrally by the Directorate of Technical Education, and you need a B.Tech in the relevant branch. Candidates with a valid GATE score are eligible for a scholarship. In self-financing M.Tech programmes, half the seats are on merit and half are management quota.
+
+how do I get admission for MCA:MCA admission is through the centralised allotment of the LBS Centre for Science and Technology, Thiruvananthapuram. You need a three-year degree with at least 50 percent marks, with mathematics, statistics, computer science, computer applications or engineering as a main or subsidiary subject. The minimum is 45 percent for SEBC and physically challenged candidates.
+
+what is the management quota:Fifteen percent of the seats are management quota, filled by the TKM College Trust from applicants declared eligible by the Commissioner for Entrance Examinations.
+
+are there seats for students from abroad:Yes. Up to fifteen percent extra seats, over the sanctioned intake, are for children of Indian workers in Gulf countries, people of Indian origin, and foreign students. There is also a Government of India quota for students from places like Andaman and Nicobar and Lakshadweep.
+
+what is the fee for btech:Fees follow the government and university orders, and the college admits students from the Kerala government rank list at a nominal fee. I don't have the exact amounts, so please check with the admission office on 0 4 7 4, 2 7 1 2 0 2 2.
+
+what is the btech lateral entry admission process:For B.Tech lateral entry, report at the admission help desk at the APJ Hall entrance to get a token, finish the e-TLAB portal registration, get your certificates verified, pay the admission fee by debit card or UPI at the PTA Hall, and collect your admission slip. Hostel admission has a separate help desk.
+
+does the college keep original certificates:The college keeps students' documents only until the university completes its verification, and does not retain them after that.
+
+how do I apply for the hostel:Hostel application forms are in the downloads section of the college website, and new students can complete hostel admission at the hostel help desk during admission.
+
+# ---- Computer Science department ----
+
+tell me about the computer science department:The Department of Computer Science and Engineering was established in 1984 and was the first CSE department in Kerala. It offers B.Tech, M.Tech and PhD programmes and is a research centre of APJ Abdul Kalam Technological University.
+
+when was the computer science department started:The Computer Science and Engineering department was started in 1984. It was the first CSE department introduced in Kerala.
+
+what research does the computer science department do:Research in the CSE department covers artificial intelligence and machine learning, computer vision and image processing, networks and network security, responsible and ethical AI, natural language processing, big data and cloud computing, embedded systems and IoT, computer architecture, cyber security, and cryptography and blockchain.
+
+how many research scholars are there in computer science:The Computer Science department has 16 research scholars.
+
+who are the PhD guides in computer science:The PhD research supervisors in Computer Science are Dr. Ansamma John, Dr. Manu J Pillai, Dr. Dimple A Shajahan, Dr. Aneesh G Nath and Dr. Shameem Ansar.
+
+Who is Dr. Ansamma John?: Dr. Ansamma John is a PhD research supervisor in the Computer Science and Engineering department. She works on image processing and mining, biomedical image processing, applied and theoretical computer science, and computer vision, and four of her PhD scholars have completed.
+
+what is Dr Aneesh G Nath's research area:Dr. Aneesh G Nath works on machine learning, time series analysis, and fault prediction and diagnosis. He guides six PhD scholars and leads a funded project on an AI-based machinery fault diagnosis system using thermal images.
+
+what is Dr Dimple A Shajahan's research area:Dr. Dimple A Shajahan works on computer vision and artificial intelligence, and guides two PhD scholars.
+
+what is Dr Manu J Pillai's research area:Dr. Manu J Pillai works on computer networking, mobile computing and intelligent computing, and guides three PhD scholars.
+
+what other roles does Dr Manu J Pillai have:Dr. Manu J Pillai is also the Dean of Training and Placement, heads the Career Guidance and Placement Unit, and is the faculty in charge of the Central Computing Facility.
+
+what is Dr Shameem Ansar's research area:Dr. Shameem Ansar works on applications of wireless networks, machine learning and AI based remote sensing and geospatial applications, IoT and cyber physical systems, and guides three PhD scholars.
+
+what other roles does Dr Shameem Ansar have:Dr. Shameem Ansar is also the Dean of Student Affairs and the faculty in charge of the Campus Networking Centre.
+
+what other roles does Dr Thushara A have:Dr. Thushara A represents Computer Science on the college Research Council.
+
+what other roles does Dr Reshma Sheik have:Dr. Reshma Sheik is the deputy warden of A Block in the UGC hostel.
+
+what other roles does Dr Shyna A have:Dr. Shyna A is the warden of the Working Women's Hostel.
+
+what other roles does Dr Jini Raju have:Dr. Jini Raju is a member of the college IPR Cell.
+
+what research projects is the computer science department doing:Current funded projects include an AI-based machinery fault diagnosis system using thermal images by Dr. Aneesh G Nath, better cerebral blood flow measurement in brain MRI by Dr. Shyna A, and new ways to estimate IVIM parameters for clinical diagnosis by Dr. Jini Raju, all funded by CERD.
+
+what earlier projects has the computer science department done:Earlier projects include IoT with cloud computing for a smart and sustainable campus by Dr. Thushara A, image dehazing by Nisa A K and Reena Mary George, incremental path planning by Dr. Anantha Padmanabhan N K and Dr. Jini Raju, and a real-time coffee bean grading system using CNNs by Dr. Shyna A and Reena Mary George.
+
+which companies has the computer science department signed MoUs with:The CSE department has MoUs with the Centre for Innovation at IIT Madras, IITM Pravartak Technologies, DCUBE AI Systems, Reflections Info Systems, the Kerala State Remote Sensing and Environment Centre, Sree Chitra Tirunal Institute for Medical Sciences and Technology, PMS College of Dental Science, Machinser Technologies, Edify DataScience, OSPYN Technologies, Menerva Software, Yatra Mantra Holidays and CLAP Research.
+
+what other collaborations does the computer science department have:The department also works with C-DIT on internships and faculty programmes, CLAS Training Academy on GATE coaching, SEDS Kochi on internships, TCS and UST Global on projects, IIIT Hyderabad, IIT Madras, IIT BHU and NIT Trichy on projects and internships, and Sedai on internships and placement.
+
+what does the computer science department do with Sree Chitra:Since 2018, the Computer Science department has collaborated with Sree Chitra Tirunal Institute for Medical Sciences and Technology, Thiruvananthapuram, for clinical expertise and validation in its biomedical research.
+
+# ---- Other departments ----
+
+tell me about the civil engineering department:The Civil Engineering department started with the college in 1958 and is one of the oldest in Kerala. It offers B.Tech, M.Tech and PhD programmes, is an AICTE Quality Improvement Programme centre, and has six-year NBA accreditation for its UG programme and three-year accreditation for its PG programme.
+
+how big is the civil engineering department:The Civil Engineering department has 34 faculty members, 15 staff, 69 postgraduate students and 28 research scholars.
+
+what is CWREM:The Centre for Water Resources and Environmental Management, started in 2016 in the Civil Engineering department, does research and consultancy on water and the environment, including work with the LSGD and the Kerala Water Authority.
+
+what consultancy work does the civil department do:The Civil Engineering department does consultancy for government bodies, such as the survey for widening NH 744, a detailed project report for rejuvenating Thamarachal Lake, non-destructive testing of Southern Railway tunnels and bridges, and structural stability checks of Kollam Corporation buildings.
+
+what was the 21 rivers project:The Civil Engineering department prepared the common DPR template for abating pollution in 21 rivers of Kerala, which 39 institutions including IIT Palakkad and NIT Calicut used for their final reports.
+
+what is ICMSC:ICMSC is the International Conference on Modeling and Simulation in Civil Engineering, organised by the Civil Engineering department. The seventh edition was held from December 5 to 7, 2024.
+
+what research labs does the civil department have:Civil Engineering research labs include the Structural Engineering lab, the Water Research lab, the Environmental Engineering lab, the Transportation Engineering lab and the Hydroinformatics lab.
+
+tell me about the mechanical engineering department:The Mechanical Engineering department was formed in 1958 and is the largest department, with 46 faculty members. It offers B.Tech Mechanical Engineering, M.Tech in Industrial Refrigeration and Cryogenics and in Artificial Intelligence, and PhD programmes.
+
+how many students are in the mechanical department:The Mechanical Engineering department has about 877 undergraduate students, 48 postgraduate students and 31 research scholars.
+
+what research does the mechanical department do:Mechanical Engineering research covers biomechanics, cryogenics and refrigeration, computational fluid dynamics, high entropy alloys, novel composite design, solar cooling, thermoacoustics and tribology. Its labs include the Space Technology lab, Cryogenic Research lab, CFD Research lab, Energy Research lab and Nano Fluids Research lab.
+
+tell me about the electrical and electronics department:The Electrical and Electronics Engineering department started in 1958 with 40 students. It offers B.Tech in Electrical and Electronics Engineering and in Electrical and Computer Engineering, M.Tech in Electric Vehicle Technology, and PhD programmes.
+
+what research does the electrical department do:Electrical and Electronics research covers power systems, control systems, power electronics and drives, embedded systems, biomedical instrumentation, renewable energy, electric vehicles and artificial intelligence.
+
+what is the industrial instrumentation and control programme:The M.Tech in Industrial Instrumentation and Control was started in 2006 under the Electrical and Electronics department, with 24 seats. It covers control systems, sensors and transducers, process and biomedical instrumentation, robotics and intelligent controllers.
+
+tell me about the electronics and communication department:The Electronics and Communication Engineering department started in 1977 and was one of the pioneers of B.Tech ECE in Kerala. It offers a B.Tech with 120 seats and an M.Tech in Communication Systems with 18 seats, and has been NBA accredited since 2016.
+
+what research does the electronics department do:Electronics and Communication research covers wireless and digital communication, biomedical instrumentation and medical robotics, signal and image processing with machine learning, and chip design, semiconductor device modelling and AI hardware.
+
+what is the vision of the electronics and communication department:Its vision is to impart quality education in Electronics and Communication Engineering through excellent teaching and research, keeping abreast of changes in technology and the environment.
+
+tell me about the chemical engineering department:The Chemical Engineering department offers a B.Tech with 60 seats. Its faculty work on core chemical engineering and on nanotechnology and biotechnology, including environmental engineering, water and wastewater treatment, reaction engineering, catalysis, electrochemistry, biomass gasification and process control.
+
+tell me about the architecture department:The Architecture department offers the B.Arch programme with 80 seats. In the 2021 KTU B.Arch results, six of the top ten rank holders were from TKM, with Devika S. Rajesh securing the first rank.
+
+tell me about the MCA department:The Department of Computer Applications started in 1986 with a three-year MCA under the University of Kerala. It moved to APJ Abdul Kalam Technological University in 2016, and since 2020 the MCA is a two-year programme. Its research covers computer vision, video data mining, deep learning, programming languages and compilers.
+
+tell me about the centre for artificial intelligence:The Centre for Artificial Intelligence started in 2020 and runs a government aided M.Tech in Artificial Intelligence with 18 seats, taught with faculty from other departments. Its research covers machine learning, deep learning, data mining, natural language processing and AI in medical imaging.
+
+what facilities does the AI centre have:The AI centre has a high-performance computing lab with high-speed servers, and a robotics centre set up with technical support from IIT Bombay.
+
+what is the AI centre's project with Kerala Police:The Centre for AI has an MoU with the Kerala Police Cyberdome to help identify criminals from live CCTV footage, using MTCNN face localisation with FaceNet.
+
+tell me about the mathematics department:The Mathematics department started with the college in 1958. It teaches mathematics for B.Tech, B.Arch, MCA and M.Tech students, offers a B.Tech minor in mathematics, and researches graph theory, algebraic graph theory, discrete mathematics and rough set theory.
+
+tell me about the physics department:The Physics department started in 1958 and teaches physics to all first-year B.Tech students. It has one permanent faculty member and three guest lecturers, and researches material science and nanoscience.
+
+tell me about the chemistry department:The Chemistry department has been part of the college since 1958 as a key supporting department. Its research covers metal nanoclusters, plasmonic and doped semiconductor nanoparticles, nanohybrids, and nanomaterials for sensing, bio-labelling and catalysis.
+
+tell me about the humanities courses:The humanities faculty teach Life Skills, Design and Engineering, Professional Ethics, Sustainable Engineering, Disaster Management, Industrial Economics and Foreign Trade, Management for Engineers, Universal Human Values, the Constitution of India, and Professional Communication.
+
+what is the universal human values cell:The Universal Human Values Cell trains faculty in human values and grounds the induction programme for new students in those values. Dr. Seema K Nayar is its coordinator.
+
+tell me about the physical education department:The Physical Education department aims for mass participation of students and staff in sports and games, with goals of physical fitness, high performance in sports, and recreation.
+
+# ---- Central library ----
+
+how many books does the library have:The central library has about 95,000 books, over 10,000 e-journals, more than 2 lakh e-books, 55 periodicals and 8 newspapers.
+
+what are the library timings:The central library is open from 9:30 am to 9 pm, Monday to Friday, and from 10 am to 5 pm on Saturdays and during vacations.
+
+what time does the library open and close:The central library is open from 9:30 am to 9 pm, Monday to Friday, and from 10 am to 5 pm on Saturdays and during vacations.
+
+who is the librarian:Dr. Dhanya P is the College Librarian.
+
+how many books can a student borrow:A student member can borrow five books at a time.
+
+how do I become a library member:Fill in the application form at the library's membership desk and submit it to the circulation section with your head of department's recommendation. Students and staff of the college and of sister institutions under the TKM Trust can become members.
+
+tell me about the central library:The central library was set up with the college in 1958 and is fully automated. It has a carpet area of 930 square metres, uses Koha library software and Turnitin for plagiarism checking, keeps a DSpace institutional repository, and is a member of DELNET, N-LIST and the National Digital Library.
+
+what e-resources does the library have:Through the AICTE INDEST consortium the library gives access to IEEE journals, Science Direct, Springer, ASME and ASCE resources, ASTM standards, EBSCO, J-Gate and McGraw Hill e-books, along with DELNET databases.
+
+is there photocopying in the library:Yes. The library offers photocopying within copyright rules at one rupee per page, including old university question papers and syllabi.
+
+is internet available in the library:Yes. Internet browsing in the library is free for students and staff.
+
+what is the SC ST book bank:The library's SC ST book bank has the latest textbooks bought under a Government of Kerala scheme, for students from the SC and ST communities.
+
+does the library have a binding unit:Yes. The library has its own full-fledged book binding unit, which may make it the only college library in Kerala with one.
+
+where can I find previous question papers:Previous university question papers and syllabi are kept in the central library's reference section.
+
+what is the non liability certificate:Students must get a non-liability certificate from the College Librarian before their university examinations.
+
+# ---- Computing and network ----
+
+what is the central computing facility:The Central Computing Facility provides common computing for the whole college, with 129 business-class computers, a 500 Mbps internet connection and a 1 gigabit network. It is centrally air-conditioned and covered by security cameras.
+
+when is the central computing facility open:The Central Computing Facility is open on all working days from 9 am to 8 pm.
+
+who runs the central computing facility:Dr. Manu J Pillai is the faculty in charge of the Central Computing Facility, with Basith Nazar as system administrator.
+
+what else is the central computing facility used for:Besides student use, the CCF hosts software programmes from outside agencies, training for government departments, and government tests such as PSC exams.
+
+is there wifi on campus:Yes. The campus is fully Wi-Fi enabled for registered users, with 120 Cisco Wi-Fi 6 access points. Only approved devices can connect, through MAC address filtering.
+
+what is the campus internet speed:The college has a dedicated 1 gigabit per second leased line from BSNL, and a 10 gigabit fibre optic backbone across the campus.
+
+what is the campus networking centre:The Campus Networking Centre manages wired and Wi-Fi networking across the campus, protected by a Sophos firewall. Dr. Shameem Ansar is the faculty in charge, with Anver Muhammed K M as system administrator.
+
+what licensed software does the college provide:The college software repository includes Microsoft services, MATLAB, STAAD Pro, SolidWorks, ANSYS, Oracle, Red Hat, AutoCAD, OrCAD and ETAP.
+
+# ---- Hostels ----
+
+does the college have hostels:Yes. There are separate hostels for boys and girls, with accommodation for around 2000 students, and an international hostel for foreign students.
+
+can I stay on campus:Yes. Students can stay in the college hostels, which have separate hostels for boys and girls with room for around 2000 students. Hostel admission is done at the hostel help desk during admission.
+
+is there accommodation for students:Yes. The college hostels accommodate around 2000 students, with separate hostels for boys and girls and an international hostel for foreign students.
+
+what are the girls hostels:The women's hostels are the Ladies Hostel Main, the UGC TKM Trust Hostel with A, B and C blocks, the AICTE TKM Trust Hostel, the Modern Hostel, Vijaya Inn for PG students and research scholars, the Working Women's Hostel, and the International Hostel.
+
+what are the boys hostels:The men's hostels are the Trust Hostel, Trust Hostel Annexe 2, the Campus Hostel, the Golden Jubilee Hostel, and the International Students Hostel.
+
+who is the chief warden:The Principal is the Chief Warden of the hostels, and Prof. Ahammed Vazim is the Deputy Chief Warden and hostel coordinator.
+
+who are the hostel wardens:Wardens include Dr. Firoz N for the Golden Jubilee Hostel, Prof. Rizwan Rasheed for Soumya Hostel, Prof. Lubaib P for the first-year boys Trust Hostel, Prof. Mohammed Irfan A for Annexe 2, Dr. Teena Lisa John for the UGC hostel, Prof. Baiju R Naina for the first-year girls Ladies Hostel, Dr. Shyna A for the Working Women's Hostel, Dr. Shyni Salam for the Modern Hostel, Dr. Rijo Jacob for the International Hostel, and Dr. Vishnu D for the Campus Hostel.
+
+what facilities do the hostels have:Hostels have free Wi-Fi and computer facilities, gyms, reading rooms with newspapers, common rooms with audio-visual equipment, indoor games, a yoga room, and courts for football, cricket, basketball, volleyball, tennis and badminton.
+
+how is food provided in the hostels:Food is prepared centrally and delivered to each hostel.
+
+is the hostel safe:Yes. The campus and hostels have 24-hour manned security and CCTV cameras, and a maintenance team works around the clock.
+
+what if someone falls sick in the hostel:In a medical emergency, students are taken to a nearby hospital. An emergency vehicle and driver are available round the clock for the college and hostels.
+
+where does hostel water come from:Water comes from tube wells and an open well on the premises, and is filtered and treated at a central water treatment plant. A central sewage treatment plant of 1 lakh litres a day handles hostel waste water.
+
+how are hostels managed:A Hostel Advisory Council headed by the Principal decides policy and discipline, and each hostel has its own council of the warden, deputy warden, resident tutors and student representatives.
+
+# ---- Placements ----
+
+who is the placement officer:Dr. Manu J. Pillai is the Dean of Training and Placement and heads the Career Guidance and Placement Unit, CGPU.
+
+who is in charge of placements:Dr. Manu J. Pillai, the Dean of Training and Placement, is in charge of placements and heads the Career Guidance and Placement Unit.
+
+how does the placement unit work:The Career Guidance and Placement Unit works in three tiers. An advisory council of a TKM Trust member, the Principal and the head of CGPU; a core team of the CGPU head, all heads of departments, placement officers and the placement manager; and senior advisors with final-year student representatives.
+
+what placement training is given:The placement unit gives every student compulsory training in personality development, CV writing, communication skills, aptitude tests and interview techniques, planned through a training needs analysis.
+
+what were the placement results for the 2021 batch:Students of the 2017 to 2021 batch received more than 650 job offers from 60 companies, 22 percent more than the year before. The highest offer was 18 lakh per annum, the average was 4.5 lakh, and 77 students got offers above 7 lakh.
+
+how many placements were there in 2022:The Career Guidance and Placement Unit reported 824 placements in 2022.
+
+which companies recruit from TKM:Recruiters have included MRF, Analog Devices, Oracle, TCS, Infosys, Cognizant, Wipro, Nissan, Byjus, Envestnet, SOTI, Tismo, South Indian Bank and Federal Bank. The Indian Armed Forces also hold recruitment drives on campus.
+
+# ---- Labs and campus facilities ----
+
+what is the IDEA lab:The IDEA Lab is an AICTE initiative for turning students' ideas into prototypes. TKM was one of 49 institutions in India selected in the first phase, with sanctioned funding of 82 lakh rupees and a total project cost of about 1 crore.
+
+what equipment is in the IDEA lab:The IDEA Lab has 3D printers that print up to 30 centimetre cubes, a 3D scanner, laser engravers and cutters, CNC wood routers, a PCB prototyping machine, a vinyl cutter, a sublimation printer, a sand blaster, a UV chamber and an electronics workbench.
+
+who runs the IDEA lab:Dr. Hashim V of Mechanical Engineering is the chief mentor of the IDEA Lab, Dr. Mohammed Mansoor O is assistant mentor, Dr. T. S. Krishna Kumar is coordinator, and Dr. Anzar S. M. is co-coordinator.
+
+can outsiders use the IDEA lab:Yes. The IDEA Lab offers training, boot camps, ideation workshops and open days for students and teachers from other colleges, polytechnics, ITIs and schools.
+
+what is the FAB lab:The Fab Lab, called the APJ DreamLab, was set up in August 2017 with support from KTU, the Government of Kerala and Kerala FabLab. It has more than 60 lakh rupees of equipment for 3D printing, CNC milling, laser cutting, vinyl cutting and electronics, and it is open to anyone interested in digital fabrication.
+
+what workshops does the mechanical department have:The mechanical workshops include fitting, carpentry, welding, smithy, sheet metal, foundry and plumbing shops. The welding shop has arc, gas, MIG and TIG welding machines, and the foundry has an induction furnace.
+
+what sports facilities are there:The college has a football court, cricket pitch, basketball court, volleyball court, tennis court, an indoor wooden badminton court, a multi-gym and a table tennis hall.
+
+what sports achievements does the college have:In 2024 to 25 the college won 30 trophies in the KTU championship and were all-Kerala KTU champions in men's and women's handball, women's football and men's chess. In 2023 to 24 they won men's football, men's handball and men's athletics.
+
+is there an auditorium:Yes. The college has a common auditorium, and departments have seminar halls with modern audio-visual equipment.
+
+is there a medical facility on campus:Yes. The college has a medical cell, and the campus doctor is near the college store by the back gate.
+
+is there a cooperative store:Yes. The college has a cooperative society store.
+
+# ---- Research ----
+
+what are the research thrust areas:The college focuses its research on five thrust areas, water, energy, health, material science, and architectural design.
+
+what research facilities does the college have:Major research facilities include a Computational Fluid Dynamics centre, Nanotechnology Research Centre, Space Technology Lab, Biomechanics Lab, Structural Engineering and Structural Dynamics labs, a horizontal shake table for dynamic testing, a Geotechnical Engineering lab, a VLSI Design lab and an Advanced Communication lab.
+
+how much research funding did the college get:Funded projects for 2023 to 24 totalled about 309 lakh rupees. They include a 2.09 crore rupee DST project on LPG, PNG and CNG refractory burners, shared with IIT Tirupati and IIIT Guwahati and led at TKM by Dr. K. E. Reby Roy and Dr. Tinu P. Saju, and a 69 lakh rupee FIST grant to strengthen Mechanical Engineering research facilities.
+
+what is the seed money scheme:The college management gives seed money of up to 1 lakh rupees, and at most 1.5 lakh, for research projects by regular faculty with a PhD who are under 50, for up to one and a half years.
+
+what research awards have faculty won:Recent awards include the Charles Boyden award to Dr. Priya K. L. from the Estuarine and Coastal Sciences Association, UK, in 2024, the KTU Researcher of the Year award to Dr. Adarsh S in 2022, and the Shree Gaayathree Devi award from IIT Madras to Dr. Kavitha Madhu in 2022.
+
+what patents have faculty received:Faculty patents include several by the principal Dr. Sadiq A, a plastic valorisation compression unit from the Space Technology Lab by Dr. K. E. Reby Roy and his team, a copper-zinc-magnesium catalyst for converting glycerol by Prof. Al Ameen A, and a lead dioxide coated electrode for wastewater treatment by Dr. Indu M S.
+
+what is the IPR cell:The IPR Cell, running since 2010, raises awareness of intellectual property and helps faculty and students file patents with the Patent Information Centre of KSCSTE. It also has an MoU with Cognogen for patent, copyright, design and trademark services.
+
+which international universities does the college collaborate with:The college has MoUs with Tokyo Metropolitan University in Japan, the University of Oulu in Finland, Marshall University in the USA and the University of Leeds in the UK, a letter of intent with the University of Newcastle in Australia, and links with universities in Malaysia, Korea, the Netherlands, Cyprus, Iran, the Philippines and Brunei.
+
+what is the Tokyo Metropolitan University MoU:On 20 May 2025 TKM signed an MoU with Tokyo Metropolitan University for faculty and student exchange, internships and joint research, becoming the first college from Kerala to collaborate with that university. More than 50 students had already done internships there.
+
+what is the University of Oulu MoU:On 7 April 2025 TKM signed an MoU with the University of Oulu, Finland, covering student and faculty exchange, internships, joint research and publications in Civil, Mechanical and Electrical engineering.
+
+what is the University of Leeds MoU:The Civil Engineering department's MoU with the University of Leeds, UK, was the college's first with a university in the world's top 100. It covers joint training, publications, research and exchanges, and lets QIP research scholars work at Leeds.
+
+which organisations in India does the college have MoUs with:Indian partners include ISRO, with a joint Centre of Excellence in Computational Engineering and Intelligent Machining, IIT Madras, NHAI, the Kerala Water Authority, KMML, Sree Chitra Tirunal Institute, C-DAC, the Kerala Police Cyberdome, the Rebuild Kerala Initiative, and the Goethe-Zentrum Trivandrum for German classes.
+
+what international conferences does the college organise:Departments organise international conferences such as ICMSC in Civil Engineering, IPECS in Electrical Engineering, ICAME in Mechanical Engineering, and ICMSS in Electronics and Communication.
+
+what consultancy does the college do:Faculty provide consultancy to government, semi-government and private organisations in structural design and proof checking, transportation, non-destructive testing, materials testing, water resources and lake rejuvenation, and cryogenics for agencies like the DAE and ISRO's LPSC.
+
+what is the IIRS outreach programme:The college is a network institute of the IIRS ISRO outreach programme, which offers free online courses in remote sensing and geoinformation to students, staff and researchers, with certificates for 70 percent attendance.
+
+# ---- Student life ----
+
+what clubs are there in the college:Clubs and forums include the Coding Club, Standards Club, Mathematics Club, Film and Drama Club, Arts Club, Literary and Debate Club, Green Cell, FOSS Cell, SAE India Collegiate Club, the IEDC, the IPR Cell, the Women Cell and the Anti Drugs Cell, along with the College Union, NSS and STEPS.
+
+which professional bodies are active:Professional bodies such as IEI, SAE, IETE, ISHRAE, ASCE, ICI, AIChE and CSI, and student branches like NSS, IEEE, ISTE and the college union, run seminars, workshops, hackathons and competitions.
+
+what happens at Hestia:Hestia has technical events like robotics competitions, coding challenges, hackathons, paper presentations, quizzes and project exhibitions, cultural events like music, dance, short films and literary contests, and inter-college football, cricket, volleyball and athletics.
+
+what is IEDC:The Innovation and Entrepreneurship Development Cell, IEDC, supports student innovation and startups. Dr. Nissan Kunju is in charge, and the IDEA Lab helps startups build prototypes.
+
+how are students mentored:Every group of 30 students has a dedicated faculty advisor who supports them in academic and personal matters.
+
+what scholarships are available:Students can get the TKM Merit-cum-Means scholarship, Kerala's E-Grantz, the Central Sector scholarship, AICTE's Pragati scholarship for girls and Saksham scholarship for differently-abled students, the Prime Minister's Scholarship Scheme, the Kerala fisheries scholarship, Snehapoorvam, and scholarships for students from Lakshadweep and Arunachal Pradesh.
+
+what is the merit cum means scholarship:The TKM Merit-cum-Means scholarship supports deserving students based on merit and financial need. It is funded by contributions from the monthly salaries of college staff, along with the management and alumni.
+
+does the college support students for internships abroad:Yes. The college financially supports students doing internships or presenting papers at international universities and conferences. In five years, more than 500 students received grants totalling over 80 lakh rupees.
+
+what does the PTA do:The Parent-Teacher Association links the college with parents, supports training and placement and student activities, counsels students, and gives financial help to needy students.
+
+what is the student induction programme:New students attend a student induction programme grounded in Universal Human Values when they join the college.
+
+what student achievements does the college have:Highlights include Team Jager winning the People's Choice and Future awards at the Indian Karting Race, students joining a NASA-supported asteroid search with the International Astronomical Search Collaboration, and TKM being recognised at the Tink-Her-Hack Impact Meet 2025 for creating safe spaces for women in tech.
+
+what are the btech honours results:For three years in a row, TKM had the most students in KTU eligible for a B.Tech Honours degree. In one of those years, 350 of 767 students, 46 percent, earned honours, and the college ranked second in the state on the academic performance index.
+
+# ---- Rules ----
+
+is smoking allowed on campus:No. The TKM campus is a smoking-free campus, and alcohol, tobacco and drugs are strictly prohibited on campus and in the hostels.
+
+can I use my mobile phone in class:Students should avoid using mobile phones in classrooms, the library, the computer centre and exam halls, and use them only where permitted.
+
+are political activities allowed on campus:No. As per a Kerala High Court order, politically based organisations are not allowed on campus, and students may not take part in strikes, processions or agitations.
+
+can outsiders enter the campus:Outsiders cannot enter the campus or hostels without permission, though students may bring their parents and family members.
+
+can I ride a two wheeler inside the campus:No. Two-wheeler riding is not allowed inside the campus. Students must park in the space reserved for them.
+
+is there a dress code:Students are expected to dress decently, without obscenity.
+
+what happens if a student breaks the rules:Minor violations lead to a warning or an apology, and serious ones can mean being barred from exams, suspension, paying for damage, losing the caution deposit, or expulsion. The Principal is the final authority on discipline.
+
+what are the college rules:The student code of conduct asks students to respect authorities, staff, women and elders, dress decently, stay away from ragging, alcohol and drugs, avoid political activities and strikes, protect college property, and spend their free time in the library or reading room.
+
+can students collect money or put up banners:Students need written permission from the college to collect money, and prior permission to put up banners, flags or boards.
+
+# ---- Social responsibility ----
+
+what is the back to home project:After the 2018 and 2019 Kerala floods, the college, its alumni and the TKM Trust built houses for families who lost their homes. Sixteen houses costing 1.12 crore rupees were completed by early 2021, each about 550 square feet built with precast units, and the eighteenth house was handed over in March 2022.
+
+what was the back to school project:After the floods, the Back to School project distributed thousands of school kits so that no child dropped out of school after losing books and stationery.
+
+what social service does the college do:Besides the Back to Home and Back to School flood projects, the college ran the Drop the Dope anti-drug awareness programme in April 2025, contributed 26 lakh rupees for an M.Tech student's kidney transplant, and with the TKM group gave 10 lakh rupees to the Chief Minister's Distress Relief Fund for the vaccine challenge.
+
+# ---- Alumni ----
+
+who are famous alumni of TKM:Famous alumni include Dr. S. Somanath, a 1985 Mechanical graduate who became Chairman of ISRO, Irene Tenison, who won a 7.5 crore rupee scholarship for a PhD at MIT, and Prof. P. A. Muhammed Basheer, who became President of the Institute of Concrete Technology.
+
+tell me about S Somanath:Dr. S. Somanath graduated in Mechanical Engineering from TKM in 1985 with the second rank in Kerala University, did his postgraduation in aerospace engineering at IISc Bangalore with a gold medal, led PSLV integration early in his career, directed the Vikram Sarabhai Space Centre, and was appointed Chairman of ISRO.
+
+which computer science alumni are famous:Computer Science alumni include Dija S of the 1994 to 98 batch, an Associate Director at C-DAC Thiruvananthapuram who won an award for leadership in digital forensics research in 2025, and Sony Gabriel and Geetha Ramaswamy of the 1995 batch, whose AI credit-risk startup TRaiCE was featured in Forbes India.
+
+who are other notable alumni:Other alumni honours include Dr. A. Cini, the first Indian woman nominated to the technical committee of the World Road Association, J. J. Jalal, recognised by UNICEF and Stanford for humanitarian work, and Nizamuddin Mohammed, who became CEO of Maker Village in Kalamassery.
+
+what is the alumni network:The TKM alumni network has 18 chapters worldwide and supports the college through projects like Back to Home and through scholarships.
+
+what is the alumni merit evening:The Alumni Merit Evening, organised by the Alumni Association and the PTA, honours students who excel in academics and sports.

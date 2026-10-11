@@ -25,8 +25,10 @@ answer.
 No index, no cache, no embedder: each call is one live search + one summary
 fetch (both official, free, no-key Wikipedia REST endpoints), so this is only
 useful when the device happens to be online — same spirit as web_rag, but
-without anything to fall back to offline. Everything degrades to [] instead
-of raising; a broken network must never break a turn.
+without anything to fall back to offline. It only tries when connectivity.py
+already knows the device is online, so an offline or half-up Pi pays nothing
+here, not a timeout per question. Everything degrades to [] instead of
+raising; a broken network must never break a turn.
 
     python wiki_rag.py --query "what is the capital of france"
     python wiki_rag.py --query "tell me about the chemistry department"  # []
@@ -36,6 +38,8 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
+
+import connectivity
 
 try:
     from config import WIKI_RAG_ENABLED, WIKI_RAG_TIMEOUT, WIKI_RAG_LANG
@@ -127,6 +131,8 @@ def retrieve(text, top_k=1):
         return []
     if _DOMAIN_ADJACENT_TERMS.search(text):
         return []
+    if connectivity.state() is not True:
+        return []
     try:
         title = search_title(text)
         if not title:
@@ -135,8 +141,15 @@ def retrieve(text, top_k=1):
         if not chunk:
             return []
         return [(url or title, chunk, 1.0)]
-    except (urllib.error.URLError, OSError, ValueError, KeyError) as e:
-        print(f"[wiki_rag] lookup failed: {e}")
+    except urllib.error.HTTPError as e:      # Wikipedia answered, just not OK
+        print(f"[wiki_rag] lookup failed: HTTP {e.code}")
+        return []
+    except (urllib.error.URLError, OSError) as e:
+        connectivity.mark_offline()
+        print(f"[wiki_rag] lookup failed ({e}) — offline until the next probe")
+        return []
+    except (ValueError, KeyError) as e:
+        print(f"[wiki_rag] unexpected response: {e}")
         return []
 
 

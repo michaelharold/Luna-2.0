@@ -44,6 +44,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import connectivity
 import face
 import face_store
 from shared_state import state
@@ -172,9 +173,24 @@ def _volume_command(lower, words):
 # before the LLM ever sees the question. Any phrasing this regex doesn't catch
 # still falls through to the LLM's honest decline, rather than a wrong guess.
 
-_DATE_RE = re.compile(r"\b(what('?s| is) the )?(date|day)\b", re.IGNORECASE)
-_TIME_RE = re.compile(r"\bwhat('?s| is) the time\b|\bwhat time\b|\band (the )?time\b",
-                      re.IGNORECASE)
+# The WHOLE utterance has to be a question about the current date or time
+# (after trimming a wake word / "can you tell me"). A substring match sent
+# "what time does the library close" to the clock and would have answered
+# "what is the last date for admission" with today's date.
+_DT_PREFIX_RE = re.compile(r"^(?:(?:hey|hi|ok|okay)\s+)?(?:luna\s+)?(?:please\s+)?"
+                           r"(?:(?:can|could)\s+you\s+)?(?:please\s+)?(?:tell\s+me\s+)?")
+_DATE_ONLY_RE = re.compile(
+    r"(?:what(?:'s| is)\s+)?(?:the\s+)?(?:date|day)(?:\s+(?:today|now))?"
+    r"|what\s+(?:date|day)\s+is\s+(?:it|today)(?:\s+today)?"
+    r"|which\s+day\s+is\s+(?:it|today)"
+    r"|(?:what(?:'s| is)\s+)?today'?s\s+date"
+    r"|what(?:'s| is)\s+today")
+_TIME_ONLY_RE = re.compile(
+    r"(?:what(?:'s| is)\s+)?(?:the\s+)?(?:current\s+)?time(?:\s+(?:now|right\s+now))?"
+    r"|what\s+time\s+is\s+it(?:\s+(?:now|right\s+now))?")
+_DATE_AND_TIME_RE = re.compile(
+    r"(?:what(?:'s| is)\s+)?(?:the\s+)?(?:date\s+and\s+time|time\s+and\s+date)"
+    r"(?:\s+(?:now|right\s+now|today))?")
 _WEATHER_RE = re.compile(r"\bweather\b|\bis it raining\b|\bhow(’|')?s it "
                          r"(looking|outside)\b", re.IGNORECASE)
 
@@ -194,21 +210,37 @@ _WMO_WEATHER = {
 }
 
 
+def _clock_question(lower):
+    """"date", "time", "both" or None — None unless the whole utterance asks
+    for the current date and/or time."""
+    t = re.sub(r"[’`]", "'", lower)
+    t = " ".join(re.sub(r"[^a-z0-9' ]+", " ", t).split())
+    t = re.sub(r"\s+please$", "", t)
+    t = _DT_PREFIX_RE.sub("", t, count=1).strip()
+    if _DATE_AND_TIME_RE.fullmatch(t):
+        return "both"
+    if _DATE_ONLY_RE.fullmatch(t):
+        return "date"
+    if _TIME_ONLY_RE.fullmatch(t):
+        return "time"
+    return None
+
+
 def _datetime_command(lower, words):
     if not ENABLE_DATETIME_COMMAND:
         return False
-    wants_date = bool(_DATE_RE.search(lower))
-    wants_time = bool(_TIME_RE.search(lower))
-    if not (wants_date or wants_time):
+    kind = _clock_question(lower)
+    if kind is None:
         return False
     now = datetime.datetime.now()
-    if wants_time and not wants_date:
-        _speak(f"It's {now.strftime('%I:%M %p').lstrip('0')}.")
-    elif wants_date and not wants_time:
-        _speak(f"It's {now.strftime('%A, %B %d')}.")
+    clock = now.strftime("%I:%M %p").lstrip("0")
+    day = f"{now:%A, %B} {now.day}"            # "October 5", not "October 05"
+    if kind == "time":
+        _speak(f"It's {clock}.")
+    elif kind == "date":
+        _speak(f"It's {day}.")
     else:
-        _speak(f"It's {now.strftime('%A, %B %d')}, "
-              f"{now.strftime('%I:%M %p').lstrip('0')}.")
+        _speak(f"It's {day}, {clock}.")
     return True
 
 
@@ -216,9 +248,15 @@ def _weather_command(lower, words):
     """Live current-weather lookup for the campus location via Open-Meteo
     (free, no API key) — stdlib urllib only, matching llm_ollama.py's "no new
     dependency on the Pi" rule. This is the one voice command that needs the
-    internet; on any failure she says so honestly instead of guessing."""
+    internet; on any failure she says so honestly instead of guessing. When
+    connectivity.py already knows the device is offline she says so at once
+    instead of paying a network timeout first."""
     if not ENABLE_WEATHER_COMMAND or not _WEATHER_RE.search(lower):
         return False
+    if connectivity.state() is False:
+        _speak("I can't check the weather right now — I'm not connected to "
+               "the internet.")
+        return True
     try:
         url = ("https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode(
             {"latitude": WEATHER_LAT, "longitude": WEATHER_LON, "current_weather": "true"}))
@@ -229,9 +267,16 @@ def _weather_command(lower, words):
         temp_c = round(current["temperature"])
         _speak(f"It's currently {temp_c} degrees in {WEATHER_LOCATION_NAME}, "
               f"with {description}.")
-    except (urllib.error.URLError, OSError, ValueError, KeyError) as e:
+    except urllib.error.HTTPError as e:      # the service answered, just not OK
+        print(f"[cmd] weather service error: HTTP {e.code}")
+        _speak("Sorry, the weather service isn't answering right now.")
+    except (urllib.error.URLError, OSError) as e:
+        connectivity.mark_offline()
         print(f"[cmd] weather lookup failed: {e}")
         _speak("Sorry, I couldn't reach the weather service right now.")
+    except (ValueError, KeyError) as e:
+        print(f"[cmd] weather response unreadable: {e}")
+        _speak("Sorry, I couldn't read the weather report right now.")
     return True
 
 

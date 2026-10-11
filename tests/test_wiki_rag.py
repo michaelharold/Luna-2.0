@@ -115,9 +115,21 @@ class TestRetrieveAgainstFakeWikipedia(unittest.TestCase):
         self.srv, self.base = _start_server()
         self._orig_api_base = wiki_rag._api_base
         wiki_rag._api_base = lambda: self.base
+        # Never let a test start a real connectivity probe.
+        self._orig_state = wiki_rag.connectivity.state
+        self._orig_mark = wiki_rag.connectivity.mark_offline
+        self.online = True
+        self.marked_offline = 0
+        wiki_rag.connectivity.state = lambda: self.online
+        wiki_rag.connectivity.mark_offline = self._mark
+
+    def _mark(self):
+        self.marked_offline += 1
 
     def tearDown(self):
         wiki_rag._api_base = self._orig_api_base
+        wiki_rag.connectivity.state = self._orig_state
+        wiki_rag.connectivity.mark_offline = self._orig_mark
         self.srv.shutdown()
         self.srv.server_close()
 
@@ -134,9 +146,29 @@ class TestRetrieveAgainstFakeWikipedia(unittest.TestCase):
     def test_no_search_hit_returns_empty(self):
         self.assertEqual(wiki_rag.retrieve("no such article at all"), [])
 
-    def test_unreachable_server_never_raises(self):
+    def test_unreachable_server_never_raises_and_marks_offline(self):
         wiki_rag._api_base = lambda: "http://127.0.0.1:1"
         self.assertEqual(wiki_rag.retrieve("what is gravity"), [])
+        self.assertEqual(self.marked_offline, 1)
+
+    def test_known_offline_skips_without_any_request(self):
+        def boom():
+            raise AssertionError("must not touch the network when offline")
+        wiki_rag._api_base = boom
+        self.online = False
+        self.assertEqual(wiki_rag.retrieve("What is the capital of France?"), [])
+        self.online = None                   # not probed yet: also skip
+        self.assertEqual(wiki_rag.retrieve("What is the capital of France?"), [])
+
+    def test_http_error_is_not_treated_as_offline(self):
+        # The search hit exists but its summary 404s: Wikipedia answered, so
+        # the device is online — only the lookup failed.
+        SEARCH_RESULTS["missing summary"] = [{"title": "No Such Summary"}]
+        try:
+            self.assertEqual(wiki_rag.retrieve("missing summary"), [])
+        finally:
+            del SEARCH_RESULTS["missing summary"]
+        self.assertEqual(self.marked_offline, 0)
 
 
 if __name__ == "__main__":

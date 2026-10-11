@@ -87,25 +87,19 @@ question_embeddings = None
 _knowledge_mtime    = None
 
 # ── Sentence transformer — retrieval + offline matching ──────────────────────
-# Loaded from the local cache first (HF_HUB_OFFLINE forces huggingface_hub to
-# skip its network reachability check entirely) so a disconnected Pi never
-# depends on internet just to boot. Only reaches for the network if the model
-# isn't cached yet, and if that also fails (never downloaded + no internet)
-# Luna degrades to plain keyword matching instead of crashing.
+# config.py switches huggingface_hub to offline mode before anything imports it
+# whenever this model is already cached (setting HF_HUB_OFFLINE here, after the
+# import above, is silently ignored), so a disconnected Pi loads it straight from
+# disk instead of retrying huggingface.co first. On a fresh install with internet
+# it downloads once; if it is neither cached nor downloadable, Luna degrades to
+# plain keyword matching instead of crashing.
 print("[brain] Loading sentence transformer...")
 _st_model = None
 try:
-    os.environ["HF_HUB_OFFLINE"]      = "1"
-    os.environ["TRANSFORMERS_OFFLINE"] = "1"
     _st_model = SentenceTransformer("all-MiniLM-L6-v2")
-except Exception:
-    os.environ.pop("HF_HUB_OFFLINE", None)
-    os.environ.pop("TRANSFORMERS_OFFLINE", None)
-    try:
-        _st_model = SentenceTransformer("all-MiniLM-L6-v2")
-    except Exception as e:
-        print(f"[brain] Could not load sentence transformer ({e}) — "
-              f"falling back to plain keyword matching for the knowledge base.")
+except Exception as e:
+    print(f"[brain] Could not load sentence transformer ({e}) — "
+          f"falling back to plain keyword matching for the knowledge base.")
 
 
 def embed(texts):
@@ -195,6 +189,12 @@ if web_rag is not None and WEB_RAG_ENABLED and WEB_RAG_URL:
         web_rag.start(embed)
     except Exception as _e:
         print(f"[brain] web_rag failed to start: {_e}")
+
+# Start the first connectivity probe now, in the background, so the first
+# general-knowledge question after boot can already use Wikipedia instead of
+# finding "not probed yet" and skipping it.
+if wiki_rag is not None and WIKI_RAG_ENABLED:
+    wiki_rag.connectivity.state()
 
 # ── The prompt ────────────────────────────────────────────────────────────────
 # Persona + scope rules live in persona.py (shared with the Ollama Modelfile
