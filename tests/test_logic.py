@@ -55,8 +55,10 @@ class TestAddressing(unittest.TestCase):
             "the second one please", conf=0.70, awaiting_answer=True))
 
     def test_min_words_floor(self):
-        self.assertFalse(self.addr.is_addressed("luna", conf=1.0,
-                                                awaiting_answer=True))
+        self.assertFalse(self.addr.is_addressed("luna", conf=1.0))
+        # ...but when Luna just asked ("what's your name?") one word answers
+        self.assertTrue(self.addr.is_addressed("michael", conf=1.0,
+                                               awaiting_answer=True))
 
 
 class TestFaceStore(unittest.TestCase):

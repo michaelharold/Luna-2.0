@@ -15,15 +15,15 @@ It assumes Luna is already installed and runs (see `README.md`). Run every comma
 
 ### What it does
 
-When a website is configured and the machine is online, Luna does five things:
+When the machine is online, Luna does five things:
 
-- crawls up to 40 pages of that one site, following links up to two clicks deep
-- splits each page into short passages
-- turns each passage into a vector with the same model the knowledge base uses
-- saves everything to `data/rag_cache/`
-- adds the three passages that best match a question to Luna's prompt, next to the matching knowledge-base entries
+- reads the menus of the home page and the CSE page; those menus are her catalog of topics (general college pages plus CSE pages; other departments and files are skipped)
+- downloads every catalog page in parallel and checks each link (`web_rag.py --verify` prints the report)
+- splits pages into passages, table rows and the staff lists the pages load as JSON
+- turns each one into a vector with the same model the knowledge base uses, and saves everything to `data/rag_cache/`
+- for each question, picks the pages it is about first (its route), then the three best passages from those pages, and adds them to the prompt next to the matching knowledge-base entries
 
-After the first crawl, the cache answers questions offline. Luna re-crawls only when online and the cache is more than 24 hours old.
+After the first download, the cache answers questions offline. Luna refreshes it only when online and the cache is more than 24 hours old.
 
 Some rules it follows:
 
@@ -34,7 +34,7 @@ Some rules it follows:
 
 ### Step 1: Choose the site
 
-Pick the most useful starting page, for example the department page rather than the college home page. The crawl budget is spent breadth-first from that page.
+The pages whose menus form the catalog are `WEB_RAG_SEEDS` (the home page and the CSE page). To focus on another department, change `WEB_RAG_FOCUS_NAME`, `WEB_RAG_FOCUS_SLUGS` and the seeds.
 
 ### Step 2: Build the index by hand and check it
 
@@ -75,14 +75,14 @@ In `config.py`:
 
 ```python
 WEB_RAG_URL        = "https://tkmce.ac.in/"   # empty string = off
-WEB_RAG_MAX_PAGES  = 40      # crawl budget
-WEB_RAG_MAX_DEPTH  = 2       # link depth
+WEB_RAG_SEEDS      = ("https://tkmce.ac.in/", "https://tkmce.ac.in/computer-science-and-engineering", ...)
+WEB_RAG_FOCUS_NAME = "Computer Science and Engineering"   # the department kept
 WEB_RAG_TOP_K      = 3       # passages added to each question
-WEB_RAG_MIN_SIM    = 0.35    # ignore passages less similar than this
-WEB_RAG_REFRESH_HOURS = 24   # re-crawl when online and older than this
+WEB_RAG_ROUTE_TOPICS = 5     # pages a question is routed to
+WEB_RAG_REFRESH_HOURS = 24   # re-fetch when online and older than this
 ```
 
-Restart Luna. At startup she loads the cache immediately. If she's online and the cache is stale, she re-crawls in the background, so startup never waits for the network.
+Restart Luna. At startup she loads the cache immediately. If she's online and the cache is stale, she re-fetches the catalog in the background (waiting at most `WEB_RAG_STARTUP_WAIT` seconds before she starts listening).
 
 ### Step 4: Get the index onto the Pi
 

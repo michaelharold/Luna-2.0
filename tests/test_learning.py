@@ -383,7 +383,7 @@ class TestPersonaLearningFields(unittest.TestCase):
             "The person talking to you is Alice (you recognised their face)."
             "\n\nFacts from your knowledge base that may be relevant:\n- q1: a1"
             "\n\nExtracts from the college website that may be relevant:\n"
-            "- (from site) chunk"
+            "- chunk"
             "\n\nWhat your camera sees RIGHT NOW (answer from this, in your "
             "own warm words):\na person smiling")
         self.assertEqual(persona.format_context(**self.CTX), expected)

@@ -254,8 +254,10 @@ LLM_WARMUP      = True   # load the model in the background at boot (like TTS)
 # on the Pi), only the LLM_KB_TOP_K entries most similar to the question are
 # included. The sentence-transformer that already powers offline matching does
 # the retrieval, so this costs nothing extra.
-LLM_KB_TOP_K    = 6
-LLM_KB_MIN_SIM  = 0.30   # retrieved entries below this similarity are dropped
+LLM_KB_TOP_K    = 4
+LLM_KB_MIN_SIM  = 0.45   # retrieved entries below this similarity are dropped
+                         # (0.30 let unrelated facts in: "hostel fee" got the
+                         # average-package fact at 0.33 and the model talked about it)
 
 # ── LLM backend: Ollama (default) or in-process llama.cpp ─────────────────────
 # "ollama"   — talk to a local Ollama server (http://127.0.0.1:11434). Still
@@ -310,25 +312,64 @@ AUDIO_MAX_GAIN       = 8.0     # never boost more than this (x) — avoids
 AUDIO_GATE_DB        = -50.0   # blocks quieter than this (dBFS RMS) are muted;
                                # None disables the gate
 
-# ── Web RAG (only when online, only if a site is configured) ─────────────────
-# Point WEB_RAG_URL at a website (e.g. the department pages) and, whenever the
-# Pi has internet, web_rag.py crawls it (bounded), splits it into chunks,
-# embeds them with the same sentence-transformer that powers the knowledge
-# base, and CACHES everything under WEB_RAG_CACHE_DIR — so the site's content
-# keeps answering questions offline afterwards, and is only re-fetched when
-# online and stale. Retrieved chunks join the KB facts in the prompt. An empty
-# WEB_RAG_URL disables all of it (Luna's offline-forever default).
+# ── Web RAG: the college website (only when online) ─────────────────────────
+# How it works (web_rag.py):
+#  1. CATALOG — the menus of WEB_RAG_SEEDS (the home page and the focus
+#     department's page) are the site's own topic map: every link with its
+#     menu path ("ACADEMICS > Admissions > B.Tech Lateral Entry"). Kept: the
+#     general college pages and the focus department's pages. Skipped: other
+#     departments, PDFs/images/documents, other sites.
+#  2. FETCH — every catalog page is downloaded in parallel (WEB_RAG_FETCH_WORKERS
+#     at a time), verified (broken / not HTML / duplicate are reported), split
+#     into passages, table rows and the JSON data pages load with JavaScript
+#     (the staff lists), embedded and cached in WEB_RAG_CACHE_DIR. Re-done when
+#     online and older than WEB_RAG_REFRESH_HOURS; the cache works offline.
+#  3. ROUTE — each question is matched against the catalog's topics first; only
+#     the best pages are searched (falls back to all pages if no topic fits). A
+#     routed page that isn't cached yet is fetched live.
+# An empty WEB_RAG_URL disables all of it (Luna's offline-forever default).
 WEB_RAG_ENABLED        = True
-WEB_RAG_URL            = ""            # e.g. "https://tkmce.ac.in/"
-WEB_RAG_MAX_PAGES      = 40            # crawl budget (same host only)
-WEB_RAG_MAX_DEPTH      = 2             # link depth from WEB_RAG_URL
-WEB_RAG_CHUNK_WORDS    = 120           # words per chunk
-WEB_RAG_TOP_K          = 3             # chunks added to a prompt
-WEB_RAG_MIN_SIM        = 0.35          # below this a chunk is noise, not context
+WEB_RAG_URL            = "https://tkmce.ac.in/"   # "" = offline-forever
+WEB_RAG_SEEDS          = (                 # pages whose menus form the catalog
+    "https://tkmce.ac.in/",
+    "https://tkmce.ac.in/computer-science-and-engineering",
+    "https://tkmce.ac.in/cse.php",
+)
+WEB_RAG_FOCUS_NAME     = "Computer Science and Engineering"
+WEB_RAG_FOCUS_SLUGS    = ("cse",)          # URL words that mark focus pages
+WEB_RAG_SKIP_SECTIONS  = ("departments",)  # menu sections skipped (other depts)
+WEB_RAG_SKIP_SLUGS     = (                 # URL words of other departments
+    "mech", "mechanical", "civil", "eee", "ece", "electrical", "electronics",
+    "chem", "chemical", "chemistry", "ce", "arch", "architecture", "ca", "mca",
+    "application", "coa", "artificial", "maths", "mathematics", "phy", "physics",
+    "physical", "humanities", "iic", "instrumentation",
+)
+WEB_RAG_MAX_PAGES      = 250           # catalog cap
+WEB_RAG_FETCH_WORKERS  = 8             # pages downloaded at the same time
+WEB_RAG_CHUNK_WORDS    = 120           # words per passage
+WEB_RAG_TOP_K          = 3             # passages added to a prompt
+WEB_RAG_MIN_SIM        = 0.35          # below this a passage is noise
+WEB_RAG_ROUTE_TOPICS   = 5             # best-matching topics a question is routed to
+WEB_RAG_ROUTE_MIN      = 0.30          # a topic must match at least this well
+                                       # (unrelated questions score ~0.2)
 WEB_RAG_CACHE_DIR      = "data/rag_cache"
-WEB_RAG_REFRESH_HOURS  = 24            # re-crawl when online and older than this
+WEB_RAG_REFRESH_HOURS  = 24            # re-fetch when online and older than this
 WEB_RAG_FETCH_TIMEOUT  = 8.0           # seconds per page
 WEB_RAG_ONLINE_TIMEOUT = 1.5           # seconds for the "are we online?" probe
+WEB_RAG_LIVE_PAGES     = 2             # routed-but-uncached pages fetched per question
+WEB_RAG_LIVE_TIMEOUT   = 6.0           # s a question waits for those (later
+                                       # arrivals are still cached)
+WEB_RAG_LIVE_MIN_KB    = 0.3           # only questions this close to the
+                                       # knowledge base (= about the college)
+                                       # may trigger a live fetch on their own
+WEB_RAG_DEPARTMENT     = "computer science and engineering"
+                                       # what "the department" means in a
+                                       # website search
+WEB_RAG_STARTUP_WAIT   = 60.0          # s Luna waits at boot for the website
+                                       # fetch before she starts listening (face
+                                       # shows "Reading the college website…");
+                                       # 0 = listen at once, fetch in background.
+                                       # Offline / cache fresh: ends at once.
 
 # ── Audio devices ─────────────────────────────────────────────────────────────
 # Capture through PIPEWIRE, not the raw USB device. Direct-hw capture on this
@@ -664,6 +705,13 @@ RECOG_EXPRESSION_SECS  = 4.0    # how long the "recognised" face is held
 RECOG_DOUBLE_TAKE      = True   # quick left-right eye dart before locking on
 RECOG_BANNER_SLIDE     = True   # banner slides up and pops (vs just appearing)
 RECOG_GREET_OPENS_CONVERSATION = True
+RECOG_EXPRESSION       = "excited"  # the face worn with the "Hi {name}!" banner
+RECOG_ON_SIGHT         = True   # show the banner + face the moment a registered
+                                # person is recognised (not only when greeted)
+RECOG_SIGHT_COOLDOWN   = 60.0   # s before the same person gets it again
+ENROLL_PREVIEW         = True   # live mirrored camera view while registering,
+                                # so people can see (and centre) their face
+ENROLL_PREVIEW_SECS    = 40.0   # preview stays up this long after each step
 WELCOME_BACK_SECS      = 900    # left less than this long ago → "welcome back"
                                 # (must exceed GREET_COOLDOWN_SECS)
 WELCOME_BACK_PHRASES = (

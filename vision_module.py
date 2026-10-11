@@ -301,6 +301,31 @@ def _update_recognition(frame, det_row):
     if name and name != previous:
         print(f"[vision] Recognised {name} ({conf:.2f})")
         _log_sighting(name, conf)
+        _sight_moment(name)
+
+
+_sighted = {}      # name -> time.time() of the last on-sight "Hi {name}!"
+
+
+def _sight_moment(name):
+    """The moment a registered person is recognised: "Hi {name}!" on screen
+    with the excited face — straight away, not only when proactive.py
+    decides to greet out loud. Once per RECOG_SIGHT_COOLDOWN per person, and
+    never in the middle of a registration."""
+    if not getattr(_config, "RECOG_ON_SIGHT", False):
+        return
+    now = time.time()
+    if now - _sighted.get(name, 0.0) < getattr(_config, "RECOG_SIGHT_COOLDOWN", 60.0):
+        return
+    with state.lock:
+        if state.enroll_request:
+            return
+    _sighted[name] = now
+    try:
+        import face
+        face.recognition_moment(name)
+    except Exception as e:                       # noqa: BLE001
+        print(f"[vision] recognition moment failed: {e}")
 
 
 def _clear_recognition():

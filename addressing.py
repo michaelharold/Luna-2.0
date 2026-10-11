@@ -192,8 +192,9 @@ def decide(text, conf, kb_score=0.0, face_visible=False,
     """The full verdict: (accepted, reason). `reason` is a short phrase for
     the log — "no addressing signal", "score 1.61 >= 1.35", … Keeps the
     minimum-words floor from the old gate: one stray word is never a
-    conversation."""
-    if len(text.split()) < STT_MIN_WORDS:
+    conversation — unless Luna just asked something: then a bare "Michael"
+    or "yes" IS the answer."""
+    if len(text.split()) < (1 if awaiting_answer else STT_MIN_WORDS):
         return False, "too few words"
     if ADDR_REQUIRE_SIGNAL and not has_signal(text, kb_score, face_visible,
                                               awaiting_answer, loudness):

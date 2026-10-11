@@ -9,7 +9,7 @@ What she does:
 - **Recognises people** she has been introduced to, greets them with a dedicated animation, and starts conversations with people she knows.
 - **Understands the scene** ("what do you see?") and remembers who came and went, so conversation carries context.
 - **Learns from daily life**: which reply style people like, who asks about what, answers that worked, and facts people teach her (after approval).
-- **Reads a website** (optional). When online, she indexes one site and answers from a cached copy, which also works offline.
+- **Reads a website** (on by default: tkmce.ac.in). When online, she indexes the site and answers from a cached copy, which also works offline. Questions are routed to the matching pages (general college + CSE), and "look into the website" re-checks the last question.
 
 No cloud APIs, keys or accounts are needed at runtime.
 
@@ -147,7 +147,7 @@ Every setting lives in **`config.py`**, grouped by section and commented. `RUN_M
 | `PIPER_PATH`, `PIPER_MODEL` | `/home/luna/piper/...` | Piper is installed somewhere else (Pi only) |
 | `AUDIO_INPUT_DEVICE` | Mac: default, Pi: `"pipewire"` | your microphone has a different name |
 | `CAMERA_SOURCE` | Mac: `"usb"`, Pi: `"picam"` | you use a USB camera on the Pi |
-| `WEB_RAG_URL` | `""` (off) | you want her to read a website |
+| `WEB_RAG_URL` | `"https://tkmce.ac.in/"` | you want her to read another website (`""` = off) |
 | `ROBOT_NAME`, `WAKE_WORDS` | `Luna`, hello / luna / hey luna | you rename her |
 | `ENABLE_SERVOS` | `True` | no servos attached (it falls back to simulation anyway) |
 | `ADDR_*`, `LOUDNESS_*` | see comments | she answers too much or too little |
@@ -189,11 +189,12 @@ venv/bin/python scripts/approve_facts.py --approve 1 "when does the library clos
 
 **Other commands.** "Volume up / down / fifty percent", "go to sleep", "wake up", "change your face", "what do you see?". To shut down, say "exit", then "exit" again as the password.
 
-**Website knowledge (optional).** Set `WEB_RAG_URL = "https://your-college.example/"` in `config.py`. When online, Luna crawls up to `WEB_RAG_MAX_PAGES` pages of that site once a day and caches them in `data/rag_cache/`. You can also build the index by hand:
+**Website knowledge.** `WEB_RAG_URL` in `config.py` points at `https://tkmce.ac.in/`. Luna builds a catalog from the menus of the home page and the CSE page: the general college pages plus the CSE pages, while other departments and files are skipped. She downloads them in parallel (about 160 pages in under a minute) and caches them in `data/rag_cache/`, refreshed daily when online. Every question is first routed to the pages it is about (menu path, link text and title), and only those pages are searched. Related pages are searched together, such as Faculty → Regular and Adhoc. Staff lists that pages load with JavaScript are read from their JSON. Table rows are indexed one by one. Student lists, e-mails and phone numbers are left out. "Look into the website" re-checks the last question. See [Syntaxes.md](Syntaxes.md) for the commands:
 
 ```bash
-venv/bin/python web_rag.py --url https://your-college.example/ --refresh
-venv/bin/python web_rag.py --query "who is the principal"
+venv/bin/python web_rag.py --verify                     # check every link in scope
+venv/bin/python web_rag.py --refresh                    # rebuild the cache
+venv/bin/python web_rag.py --route "when is the exam"   # which pages a question goes to
 ```
 
 ## 7. Choosing the LLM
@@ -284,7 +285,7 @@ Luna-2.0/
 └── docs/                    architecture, benchmark results, servo wiring, changelog
 ```
 
-Website knowledge and training: [Train Instructions.md](Train%20Instructions.md) (also as a [PDF](Train%20Instructions.pdf)). Architecture in depth: [docs/PROJECT_PIPELINE.md](docs/PROJECT_PIPELINE.md). Change history: [docs/UPDATES.txt](docs/UPDATES.txt). Servo wiring: [docs/SERVO_SETUP.md](docs/SERVO_SETUP.md).
+Every command in one place: [Syntaxes.md](Syntaxes.md). Website knowledge and training: [Train Instructions.md](Train%20Instructions.md) (also as a [PDF](Train%20Instructions.pdf)). Architecture in depth: [docs/PROJECT_PIPELINE.md](docs/PROJECT_PIPELINE.md). Change history: [docs/UPDATES.txt](docs/UPDATES.txt). Servo wiring: [docs/SERVO_SETUP.md](docs/SERVO_SETUP.md).
 
 ## 11. Troubleshooting
 

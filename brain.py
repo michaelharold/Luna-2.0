@@ -6,20 +6,24 @@ The answer pipeline, in priority order:
 
   1. Voice commands   — volume, sleep, face enrollment, "who am I"… handled
                         instantly by commands.py, no models involved.
-  2. Vision questions — "what do you see?" builds a live scene description
+  2. Website request  — "look into the website" re-asks the previous question
+                        against the college website, fetching pages live.
+  3. Vision questions — "what do you see?" builds a live scene description
                         (scene_context.py) and answers through the local LLM.
-  3. KB direct match  — a question the knowledge base is confident about is
+  4. KB direct match  — a question the knowledge base is confident about is
                         answered verbatim from it (ANSWER_OFFLINE_FIRST).
-  4. Local LLM        — everything else goes to the on-device llama.cpp model
+  5. Local LLM        — everything else goes to the on-device llama.cpp model
                         (llm_local.py), with the top-K most relevant KB entries
                         retrieved into the prompt instead of the whole file —
                         short prompts keep the Pi's prefill fast.
-  5. KB fallback      — if the LLM is missing/broken, the closest KB entry.
+  6. KB fallback      — if the LLM is missing/broken, the closest KB entry.
 
 The only optional network use is web_rag.py: when WEB_RAG_URL is set and the
 Pi happens to be online it refreshes a cached copy of that website, and the
-most relevant cached chunks join the knowledge facts in the prompt. No keys,
-no quotas, and it keeps working offline from the cache.
+most relevant cached chunks join the knowledge facts in the prompt. A college
+question the cache can't answer fetches the best-matching pages live, and
+"check the website" re-asks the previous question that way. No keys, no
+quotas, and it keeps working offline from the cache.
 knowledge.txt still hot-reloads while Luna is running.
 """
 
@@ -54,6 +58,9 @@ from config import (
     SCENE_MEMORY_IN_PROMPT,
     WEB_RAG_ENABLED,
     WEB_RAG_URL,
+    WEB_RAG_LIVE_MIN_KB,
+    WEB_RAG_LIVE_TIMEOUT,
+    WEB_RAG_DEPARTMENT,
 )
 
 # Website retrieval (web_rag.py) is optional: it only does anything when
@@ -193,12 +200,15 @@ if web_rag is not None and WEB_RAG_ENABLED and WEB_RAG_URL:
 # live scene, who is talking — travels in the user message, so the Pi only
 # prefills the new tokens each question (Ollama caches the static prefix).
 
-def _turn_context(text, scene=None, with_kb=True):
+def _turn_context(text, scene=None, with_kb=True, live_web=False,
+                  web_snippets=None):
     """Per-turn context dict for persona.build_user_turn().
 
     Scene memory rides in the `scene` slot: on an ordinary turn it is the
     whole scene (marked as background, so the model doesn't narrate it
-    unprompted); on a vision question it follows the live description."""
+    unprompted); on a vision question it follows the live description.
+    live_web lets the website lookup fetch pages live; web_snippets, when
+    given, are used as they are (the website path already looked them up)."""
     with state.lock:
         person = state.person_name
     memory = ""
@@ -214,7 +224,8 @@ def _turn_context(text, scene=None, with_kb=True):
         else:
             scene = f"(Background — mention only if it helps.) {memory}"
     kb_snippets = _top_k_kb(text) if with_kb else ()
-    web_snippets = _top_k_web(text)
+    if web_snippets is None:
+        web_snippets = _top_k_web(text, live=live_web)
     _turn["kb_matches"] = [[q, round(float(s), 3)] for q, _, s in kb_snippets]
     _turn["web_matches"] = [[src, round(float(s), 3)]
                             for src, _, s in web_snippets]
@@ -343,6 +354,37 @@ def _messages():
     return [{"role": "system", "content": _system}, *_history]
 
 
+class _StageFilter:
+    """Drops *stage directions* ("*waves little arms*") from a streamed
+    reply: the small model writes them despite the persona, and TTS would
+    read them out. Works across delta boundaries; a lone "*" that isn't
+    closed within STAGE_MAX chars is let through as plain text."""
+    STAGE_MAX = 80
+
+    def __init__(self):
+        self.buf = None                      # text after an opening "*"
+
+    def __call__(self, delta):
+        out = []
+        for ch in delta:
+            if self.buf is None:
+                if ch == "*":
+                    self.buf = []
+                else:
+                    out.append(ch)
+            elif ch == "*":
+                self.buf = None              # closed: drop the direction
+            else:
+                self.buf.append(ch)
+                if len(self.buf) > self.STAGE_MAX:   # not a direction
+                    out.extend(self.buf)
+                    self.buf = None
+        return "".join(out)
+
+
+_STAGE_RE = re.compile(r"\*[^*]{0,80}\*")
+
+
 def _stream_llm(text, context):
     """Yield reply deltas from the local model, maintaining history the same
     way the old streaming path did: the user turn is pushed up front and
@@ -350,7 +392,11 @@ def _stream_llm(text, context):
     generator is exhausted (which speak() does synchronously)."""
     _push_user(persona.build_user_turn(text, **context))
     parts = []
+    strip = _StageFilter()
     for delta in llm_local.stream(_messages()):
+        delta = strip(delta)
+        if not delta:
+            continue
         parts.append(delta)
         yield delta
 
@@ -362,10 +408,28 @@ def _stream_llm(text, context):
         _drop_user()
 
 
+_BOOT_T = time.time()
+LLM_BOOT_WAIT = 120.0   # s after start-up in which a question waits for the
+                        # model to finish loading instead of falling back
+
+
+def _wait_for_llm(max_wait=15.0):
+    """Right after boot the model may still be loading (main.py warms it in
+    the background). A visitor's first "hello" should wait a few seconds
+    for it, not get "I am sorry, I do not have an answer for that"."""
+    if llm_local.available() or time.time() - _BOOT_T > LLM_BOOT_WAIT:
+        return
+    print("[brain] LLM still loading — waiting for it")
+    t0 = time.time()
+    while time.time() - t0 < max_wait and not llm_local.available():
+        time.sleep(0.25)
+
+
 def _llm_stream_or_none(text, context):
     """Start a streaming reply and pull the first delta so failures surface
     before anything is spoken. Returns an iterator of deltas, or None to use
     the KB fallback."""
+    _wait_for_llm()
     if not llm_local.available() or not LLM_STREAMING:
         return None
     gen = _stream_llm(text, context)
@@ -415,11 +479,60 @@ def embed_query(text):
     return vec
 
 
+def _kb_text(text):
+    """`text` with college abbreviations spelled out ("hod of cse" -> "... head
+    of department HOD ... computer science and engineering") — the embedder
+    barely links "hod" to "head of department" (0.43 vs 1.00)."""
+    try:
+        return web_rag.expand_query(text) if web_rag is not None else text
+    except Exception:                        # noqa: BLE001
+        return text
+
+
 def _kb_scores(text):
     """Similarity of `text` to every KB question, or None without embeddings."""
     if _st_model is None or question_embeddings is None:
         return None
-    return question_embeddings @ embed_query(text)
+    return question_embeddings @ embed_query(_kb_text(text))
+
+
+_STOP = set("""a an the is are was were be been am do does did of in on at to
+for from by with and or what who whom whose which where when why how can could
+would will shall should may might me my you your i we our they their it its
+this that these those there here tell about please any all some much many
+college tkm tkmce engineering kollam department dept""".split())
+
+
+def _stem(w):
+    return w[:5]
+
+
+def _kb_direct_ok(text, index, score):
+    """May the KB answer `text` verbatim? Clear matches (>= KB_SURE) always;
+    borderline ones only if every content word of the question appears in
+    that KB entry — "who are the TEACHERS in computer science" scores 0.72
+    against "who is the head of computer science department" (and would be
+    answered with the HOD's name), while "where is the canteen" scores 0.72
+    against "where is the college canteen and store" and is right."""
+    if score >= KB_SURE:
+        return True
+    entry = set(_stem(w) for w in re.findall(r"[a-z]+",
+                (questions[index] + " " + answers[index]).lower()))
+    expansions = getattr(web_rag, "_SLUG_EXPANSIONS", {}) if web_rag else {}
+
+    def covered(w):
+        if _stem(w) in entry:
+            return True
+        full = [x for x in re.findall(r"[a-z]+", expansions.get(w, "").lower())
+                if x not in _STOP and x != w]      # "hod" -> head (department)
+        return bool(full) and all(_stem(x) in entry for x in full)
+
+    words = [w for w in re.findall(r"[a-z]+", text.lower())
+             if w not in _STOP and len(w) > 2]
+    return all(covered(w) for w in words)
+
+
+KB_SURE = 0.85
 
 
 def _best_local_match(text):
@@ -439,18 +552,44 @@ def _top_k_kb(text):
     if scores is None or not len(scores):
         return []
     order = np.argsort(scores)[::-1][:LLM_KB_TOP_K]
-    return [(questions[i], answers[i], float(scores[i]))
+    hits = [(questions[i], answers[i], float(scores[i]))
             for i in order if scores[i] >= LLM_KB_MIN_SIM]
+    if web_rag is not None and web_rag._names_other_department(text):
+        # "who is the HOD of mechanical": facts about Luna's own department
+        # ("head of computer science: Dr. A") only make the model mix them up
+        own = re.compile(r"\b(cse|computer science)\b")
+        hits = [h for h in hits if not own.search(f"{h[0]} {h[1]}".lower())]
+    return hits
 
 
-def _top_k_web(text):
+def _web_enabled():
+    return web_rag is not None and WEB_RAG_ENABLED and bool(WEB_RAG_URL)
+
+
+_THE_DEPARTMENT = re.compile(r"\b(the|your|this|our|my) (department|dept)\b")
+
+
+def _web_query(text):
+    """The website search text: "the department" means Luna's own one, or
+    every department's staff list would match equally well."""
+    if WEB_RAG_DEPARTMENT and _THE_DEPARTMENT.search(text.lower()):
+        return f"{text} ({WEB_RAG_DEPARTMENT})"
+    return text
+
+
+def _top_k_web(text, live=False, force=False):
     """Relevant website chunks as (source, text, score) from web_rag — empty
     when no site is configured, nothing is cached yet, or the module is
-    missing. Never raises: a broken website index must not break answers."""
-    if web_rag is None or not WEB_RAG_ENABLED or not WEB_RAG_URL:
+    missing. live=True may fetch matching pages from the site right now
+    (web_rag.lookup); force=True always tries. Never raises: a broken
+    website index must not break answers."""
+    if not _web_enabled():
         return []
     try:
-        return web_rag.retrieve(text)
+        query = _web_query(text)
+        if live or force:
+            return web_rag.lookup(query, force=force)
+        return web_rag.retrieve(query)
     except Exception as e:
         print(f"[brain] web_rag retrieve failed: {e}")
         return []
@@ -549,9 +688,137 @@ def _answer_vision_query(text):
     _log_turn("vision", desc)
 
 
+# ── "Check the website" ───────────────────────────────────────────────────────
+
+_last_question = ""        # the last question Luna tried to answer
+
+
+def _last_reply():
+    return (_history[-1]["content"]
+            if _history and _history[-1]["role"] == "assistant" else "")
+
+
+def _say(reply, path="fallback"):
+    """Speak a fixed sentence (no LLM) and log the turn."""
+    _mark_followup(reply)
+    _mark_first_token()
+    _turn["style_arm"] = None
+    speak(reply)
+    _log_turn(path, reply)
+
+
+# An LLM reply that admits it doesn't know. For a college question that is
+# the cue to check the website before giving up (process(), step 5).
+_UNSURE_RE = re.compile(
+    r"\b(don'?t|do not|doesn'?t) (have|know|mention|say)\b"
+    r"|\bnot (sure|certain|mentioned|explicitly|available|listed|specified)\b"
+    r"|\bno (information|details|info)\b"
+    r"|\bcouldn'?t find\b|\bunable to\b|\bdepartment office\b"
+    r"|\bnot in (my|the) (facts|knowledge)\b")
+
+
+def _unsure(reply):
+    return bool(reply) and bool(_UNSURE_RE.search(reply.lower()))
+
+
+_seen_web = []     # website extracts the unsure answer already had
+
+
+def _fresh_answer(hits):
+    """After an unsure answer: did the website check turn up anything the
+    LLM hadn't already seen? Re-asking with the same extracts would only
+    produce the same "I don't know" again."""
+    return any(u not in _seen_web for u, _, _ in hits)
+
+
+def _ask_web_only(question, hits):
+    """A second, non-streamed answer from the website extracts only — no
+    knowledge-base facts, no earlier turns. "" if the model is still unsure
+    (then nothing is added to the conversation history)."""
+    if not llm_local.available():
+        return ""
+    user = persona.build_user_turn(question, web_snippets=hits)
+    try:
+        reply = llm_local.ask([{"role": "system", "content": _system},
+                               {"role": "user", "content": user}]) or ""
+    except Exception as e:                   # noqa: BLE001
+        print(f"[brain] web-only retry failed: {e}")
+        return ""
+    reply = _STAGE_RE.sub("", reply).strip()
+    if not reply or _unsure(reply):
+        return ""
+    print(f"[brain] LLM (website only): {reply}")
+    _history.append({"role": "user", "content": question})
+    _history.append({"role": "assistant", "content": reply})
+    return reply
+
+
+def _answer_from_website(topic, auto=False):
+    """Answer `topic` — or, for a bare "look into the website", the previous
+    question — from the college website, fetching matching pages live. When
+    the website has nothing, Luna says so plainly instead of letting the LLM
+    talk around a near-miss knowledge-base fact. auto=True: Luna's own
+    follow-up after an unsure LLM answer (she has already said she doesn't
+    know, so a miss is a short "couldn't find it there either")."""
+    question = topic or _last_question
+    if not question:
+        _say("Sure! What should I look up on the college website?")
+        return
+    if not _web_enabled():
+        _say("I don't have the college website set up, so I can only answer "
+             "from what I already know.")
+        return
+    print(f"[brain] Checking the website for: {question}")
+    face.curious()
+    result = {}
+    worker = threading.Thread(
+        target=lambda: result.update(hits=_top_k_web(question, force=True)),
+        daemon=True, name="web_lookup")
+    worker.start()
+    _mark_first_token()
+    speak("Let me check the college website.")    # while the pages download
+    worker.join(timeout=WEB_RAG_LIVE_TIMEOUT + 10.0)
+    hits = result.get("hits") or []
+    if auto and not _fresh_answer(hits):
+        # Nothing new on the site — but the model may have fumbled the right
+        # extract among knowledge-base facts and history: one more, clean
+        # try with the website extracts alone. Spoken only if it's sure.
+        reply = _ask_web_only(question, hits) if hits else ""
+        if reply:
+            _mark_followup(reply)
+            _mark_first_token()
+            speak(reply)
+            _log_turn("llm", reply)
+        else:
+            _say("I checked the college website too, but couldn't find it there.")
+        return
+    if not hits:
+        if web_rag.busy():
+            _say("I'm still reading the college website for the first time. "
+                 "Ask me again in a minute!")
+        elif not web_rag.is_online():
+            _say("I can't reach the college website right now, so I can't "
+                 "check that.")
+        else:
+            _say("I checked the college website but couldn't find that. "
+                 "The department office would know.")
+        return
+    context = _turn_context(question, web_snippets=hits)
+    stream = _llm_stream_or_none(question, context)
+    if stream is not None:
+        speak(stream)
+        reply = _last_reply()
+        _mark_followup(reply)
+        _log_turn("llm", reply)
+        return
+    best = " ".join(hits[0][1].split()[:45])       # no LLM: read the extract
+    _say(f"Here's what the college website says. {best}")
+
+
 # ── Main process ──────────────────────────────────────────────────────────────
 
 def process(text):
+    global _last_question
     text = text.strip()
     if not text:
         return
@@ -588,20 +855,31 @@ def process(text):
             or words & {"cute", "awesome", "amazing", "beautiful"}):
         face.love()
 
-    # 2 — questions about what the camera sees
+    # 2 — "look into the website", "check online for the fees", or a yes to
+    # Luna's own offer to check: answer from the website, fetching live
+    if web_rag is not None:
+        is_web, topic = web_rag.website_request(text, _last_reply())
+        if is_web:
+            _set_learning_context(topic or _last_question or text, 0.0)
+            _answer_from_website(topic)
+            return
+
+    # 3 — questions about what the camera sees
     if ENABLE_SCENE_CONTEXT and scene_context.is_vision_query(lower):
         _set_learning_context(text, 0.0)
         _answer_vision_query(text)
         return
 
+    _last_question = text
     kb_score, kb_index = (_best_local_match(text) if answers else (0.0, 0))
     _set_learning_context(text, kb_score)
 
-    # 3 — offline-first: answer straight from the knowledge base. A confident
+    # 4 — offline-first: answer straight from the knowledge base. A confident
     # match is instant and exactly what the KB author wrote; only questions
     # the KB can't confidently answer fall through to the LLM below.
     if ANSWER_OFFLINE_FIRST and answers:
-        if kb_score >= LOCAL_ANSWER_THRESH:
+        if kb_score >= LOCAL_ANSWER_THRESH and _kb_direct_ok(text, kb_index,
+                                                             kb_score):
             reply = answers[kb_index]
             print(f"[brain] Answered from knowledge base "
                   f"(match {kb_score:.2f}) — no LLM")
@@ -612,23 +890,35 @@ def process(text):
             _log_turn("kb", reply)
             return
 
-    # 4 — the local LLM, with only the RELEVANT KB entries in the prompt.
-    # Streaming: Luna starts speaking the first sentence while the model is
-    # still writing the rest.
-    context = _turn_context(text)
+    # 5 — the local LLM, with only the RELEVANT KB entries (and website
+    # extracts) in the prompt. A question about the college that the cached
+    # website can't answer fetches matching pages live first. Streaming:
+    # Luna starts speaking the first sentence while the model is still
+    # writing the rest.
+    college = kb_score >= WEB_RAG_LIVE_MIN_KB
+    context = _turn_context(text, live_web=college)
     stream  = _llm_stream_or_none(text, context)
     if stream is not None:
         print("[brain] Using local LLM (streaming)")
         speak(stream)
         reply = (_history[-1]["content"]
                  if _history and _history[-1]["role"] == "assistant" else "")
+        # Low confidence on a college question: check the website (live,
+        # forced) before leaving the visitor with "I don't know".
+        if college and _unsure(reply) and _web_enabled():
+            print("[brain] Unsure answer — checking the college website")
+            _seen_web[:] = [u for u, _, _ in context.get("web_snippets", ())]
+            _log_turn("llm", reply)
+            _begin_turn(text)
+            _answer_from_website(text, auto=True)
+            return
         _mark_followup(reply)
         _log_turn("llm", reply)
         return
 
     if not LLM_STREAMING and llm_local.available():
         _push_user(persona.build_user_turn(text, **context))
-        reply = llm_local.ask(_messages())
+        reply = _STAGE_RE.sub("", llm_local.ask(_messages()) or "").strip()
         if reply:
             _history.append({"role": "assistant", "content": reply})
             print(f"[brain] LLM: {reply}")
@@ -639,7 +929,7 @@ def process(text):
             return
         _drop_user()
 
-    # 5 — no LLM (model missing / still loading / failed): closest KB entry.
+    # 6 — no LLM (model missing / still loading / failed): closest KB entry.
     print("[brain] LLM unavailable — using local knowledge base")
     reply = _local_fallback(text)
     _mark_followup(reply)

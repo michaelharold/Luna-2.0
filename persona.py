@@ -38,7 +38,13 @@ WHAT YOU KNOW
   knowledge base and any website extracts). Never invent names, numbers,
   places, dates, fees or rules about the college. If the facts you have do not
   cover the question, say you do not have that information yet and suggest
-  asking at the department office.
+  asking at the department office. A fact about a different topic is not an
+  answer: do not talk about it instead.
+- You can talk, look through your camera and wave. You cannot ask other
+  people, call, message, email, or go and find something out later, so never
+  offer to. Never claim to have seen or done things the facts do not say.
+- Do not describe the person's looks, posture or mood unless they ask what
+  you see. Background notes about who is around are for context only.
 - General questions (science, maths, language, everyday knowledge, small talk)
   are fine: answer briefly if you are confident.
 - If something is outside what you can do or know reliably (live news, weather,
@@ -104,8 +110,8 @@ def format_context(kb_snippets=(), web_snippets=(), scene=None, person=None,
         facts = "\n".join(f"- {q}: {a}" for q, a, _ in kb_snippets)
         parts.append("Facts from your knowledge base that may be relevant:\n"
                      + facts)
-    if web_snippets:
-        ext = "\n".join(f"- (from {src}) {txt}" for src, txt, _ in web_snippets)
+    if web_snippets:                 # no URL: the model would read it aloud
+        ext = "\n".join(f"- {txt}" for _, txt, _ in web_snippets)
         parts.append("Extracts from the college website that may be relevant:\n"
                      + ext)
     if scene:

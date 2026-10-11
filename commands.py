@@ -170,6 +170,14 @@ _ENROLL_PHRASES = ("remember me", "remember my face", "register me",
                    "register my face", "scan my face", "learn my face",
                    "scan me")
 
+# "who do you know", "who have you met", "what are the people you know",
+# "which people do you know", "who all do you remember", "list the people …"
+_KNOW_LIST_RE = re.compile(
+    r"\bwho (all )?(do you|have you) (know|met|remember|recogni[sz]e)\b"
+    r"|\b(people|persons|faces|everyone|anyone) (that |who )?you "
+    r"(know|remember|recogni[sz]e|have met)\b"
+    r"|\b(how many|which|what) (people|faces|persons) do you (know|remember)\b")
+
 _awaiting_name = False
 _pending_name = None         # heard a name, waiting for "yes" / "no"
 _pending_since = 0.0
@@ -194,11 +202,24 @@ def _hold_window():
         state.conversation_active = True
 
 
+def _preview(on=True):
+    """Show (or hide) the live camera preview the renderer draws while
+    someone registers, so they can see their face is in view."""
+    import config as _cfg
+    if not getattr(_cfg, "ENROLL_PREVIEW", False):
+        return
+    with state.lock:
+        state.enroll_preview_until = (
+            time.time() + getattr(_cfg, "ENROLL_PREVIEW_SECS", 40.0)
+            if on else 0.0)
+
+
 def _ask_confirm(name):
     """Ask "Did you say {name}?" and wait for yes / no in handle()."""
     global _pending_name, _pending_since
     _pending_name, _pending_since = name, time.time()
     _hold_window()
+    _preview()
     face.curious()
     _speak(f"Did you say {name}?")
 
@@ -216,6 +237,7 @@ def _ask_name(prompt):
     global _awaiting_name
     _awaiting_name = True           # set BEFORE speaking: never miss the reply
     _hold_window()
+    _preview()
     face.curious()
     _speak(prompt)
 
@@ -341,6 +363,7 @@ def _do_enroll(name):
     with state.lock:
         seen = state.face_detected
 
+    _preview()
     result = None
     try:
         if ENROLL_GUIDED_POSES and ENROLL_POSES:
@@ -353,8 +376,12 @@ def _do_enroll(name):
             state.enroll_result  = None
             state.enroll_finish  = False
             state.enroll_pose    = 0
+        _preview(False)
 
     if result is not None and result[1]:
+        with state.lock:            # the face in front IS who was just stored:
+            state.person_name = name  # "who am I?" must not wait for vision
+            state.person_since = time.time()
         _celebrate(name)
         _speak(f"Nice to meet you, {name}! I'll remember your face.")
     else:
@@ -390,6 +417,13 @@ def _who_am_i():
     with state.lock:
         name = state.person_name
         seen = state.face_detected
+    # Recognition needs two agreeing frames; give it a moment before
+    # telling someone she just met that she doesn't know them.
+    deadline = time.time() + 1.5
+    while seen and not name and time.time() < deadline:
+        time.sleep(0.1)
+        with state.lock:
+            name = state.person_name
     if name:
         face.happy()
         face.banner(f"Hi {name}!")
@@ -612,7 +646,7 @@ def handle(text):
         _who_am_i()
         return True
 
-    if "who do you know" in lower or "who have you met" in lower:
+    if _KNOW_LIST_RE.search(lower):
         _who_do_you_know()
         return True
 

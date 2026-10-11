@@ -239,7 +239,8 @@ class TestFaceApi(unittest.TestCase):
             face.recognition_moment("Alice")
             after = time.time()
         with state.lock:
-            self.assertEqual(state.face_override, "recognised")
+            # the configured greeting face (RECOG_EXPRESSION, "excited")
+            self.assertEqual(state.face_override, face.RECOG_EXPRESSION)
             self.assertEqual(state.banner_text, "Hi Alice!")
             self.assertTrue(before <= state.recog_event_time <= after)
             # One timestamp for all three writes — they belong together.
@@ -305,7 +306,7 @@ class TestRenderedMoment(unittest.TestCase):
         pygame.image.save(self.face.screen,
                           os.path.join(self.shot_dir, "recognised.png"))
 
-        self.assertEqual(self.face.state, "recognised")
+        self.assertEqual(self.face.state, face.RECOG_EXPRESSION)
         self.assertLess(min(darts), -20)             # looked left...
         self.assertGreater(max(darts), 20)           # ...then right...
         self.assertEqual(darts[-1], 0.0)             # ...and settled

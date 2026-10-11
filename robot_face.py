@@ -63,7 +63,7 @@ from config import (RENDER_FPS, FACE_STYLE, DISPLAY_FULLSCREEN,
                     ENABLE_TOUCH_REACTIONS, BOOP_SECONDS,
                     GREET_BANNER, GREET_BANNER_SIZE,
                     RECOG_ANIMATION, RECOG_DOUBLE_TAKE, RECOG_BANNER_SLIDE,
-                    TOUCH_ENROLL, TOUCH_ENROLL_HOLD_SECS)
+                    TOUCH_ENROLL, TOUCH_ENROLL_HOLD_SECS, ENROLL_POSES)
 
 import expressions
 import face as face_api
@@ -778,9 +778,56 @@ class RobotFace:
         # and the whole point of it is "am I still listening?".
         self._draw_convo_light()
         self._draw_thinking()
+        self._draw_enroll_preview()
         self._draw_banner()
 
         pygame.display.flip()
+
+    def _draw_enroll_preview(self):
+        """While someone registers: the live camera feed, mirrored like a
+        selfie, in a frame over the face, with a guide circle that turns
+        green once a face is detected and the current pose prompt — so the
+        person can see they are actually in view."""
+        with state.lock:
+            until  = state.enroll_preview_until
+            frame  = state.frame
+            seen   = state.face_detected
+            fx, fy = state.face_x, state.face_y
+            pose   = state.enroll_pose
+            active = bool(state.enroll_request)
+        if frame is None or (time.time() > until and not active):
+            return
+        try:
+            import numpy as np
+            rgb = np.ascontiguousarray(frame[:, ::-1, ::-1])  # mirror, BGR->RGB
+            h, w = rgb.shape[:2]
+            cam = pygame.image.frombuffer(rgb.tobytes(), (w, h), "RGB")
+        except Exception:
+            return
+        scale = min(WIDTH * 0.62 / w, HEIGHT * 0.62 / h)
+        pw, ph = int(w * scale), int(h * scale)
+        cam = pygame.transform.smoothscale(cam, (pw, ph))
+        x0, y0 = (WIDTH - pw) // 2, int(HEIGHT * 0.08)
+        pad = 8
+        pygame.draw.rect(self.screen, theme.GLOW_COL,
+                         (x0 - pad, y0 - pad, pw + 2 * pad, ph + 2 * pad),
+                         border_radius=18)
+        self.screen.blit(cam, (x0, y0))
+        col = (60, 220, 120) if seen else (235, 235, 235)
+        r = int(min(pw, ph) * 0.30)
+        if seen:                         # follow the face (mirrored x)
+            cx, cy = x0 + int((1.0 - fx) * pw), y0 + int(fy * ph)
+        else:
+            cx, cy = x0 + pw // 2, y0 + ph // 2
+        pygame.draw.circle(self.screen, col, (cx, cy), r, width=4)
+        if active and ENROLL_POSES:
+            tip = ENROLL_POSES[min(pose, len(ENROLL_POSES) - 1)]
+        else:
+            tip = "I can see you!" if seen else "Move into the circle"
+        label = get_font(max(18, GREET_BANNER_SIZE // 2)).render(
+            tip, True, theme.EYE_INNER)
+        self.screen.blit(label, ((WIDTH - label.get_width()) // 2,
+                                 y0 + ph + pad + 6))
 
     def _handle_events(self):
         for event in pygame.event.get():

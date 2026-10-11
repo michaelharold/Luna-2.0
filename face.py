@@ -33,6 +33,10 @@ import time
 from shared_state import state
 from config import (FACE_OVERRIDE_SECS, GREET_BANNER_SECS,
                     RECOG_ANIMATION, RECOG_EXPRESSION_SECS)
+try:
+    from config import RECOG_EXPRESSION
+except ImportError:                      # older config.py
+    RECOG_EXPRESSION = "recognised"
 from expressions import EXPRESSIONS, NAMES
 
 __all__ = [
@@ -114,7 +118,8 @@ def recognition_moment(name):
     now = time.time()
     with state.lock:
         if RECOG_ANIMATION:
-            _set_override("recognised", RECOG_EXPRESSION_SECS, now)
+            expr = RECOG_EXPRESSION if RECOG_EXPRESSION in NAMES else "recognised"
+            _set_override(expr, RECOG_EXPRESSION_SECS, now)
             state.recog_event_time = now
         else:
             _set_override("happy", RECOG_EXPRESSION_SECS, now)

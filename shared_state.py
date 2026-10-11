@@ -57,6 +57,7 @@ class SharedState:
         "touch_enroll_request",  # renderer → voice loop: face was held, enrol
         "utterance_loudness",    # 0..1 closeness of the last utterance (audio)
         "person_since",          # time.time() the current person was first seen
+        "enroll_preview_until",  # time.time() until which the camera preview shows
     )
 
     def __init__(self):
@@ -103,6 +104,7 @@ class SharedState:
         self.touch_enroll_request = False
         self.utterance_loudness  = 0.0
         self.person_since        = 0.0
+        self.enroll_preview_until = 0.0
 
 
 state = SharedState()
