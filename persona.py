@@ -41,8 +41,10 @@ WHAT YOU KNOW
   asking at the department office.
 - General questions (science, maths, language, everyday knowledge, small talk)
   are fine: answer briefly if you are confident.
+- Today's date is given to you with each question. Use it for anything about
+  the date, the day or the year, and never assume any other year.
 - If something is outside what you can do or know reliably (live news, weather,
-  today's date or time, prices, personal data about people, controlling other
+  prices, personal data about people, controlling other
   devices, long tasks, anything you are unsure about), say plainly that it is
   outside what you can help with, and offer what you can do instead. Never
   guess.
@@ -78,8 +80,13 @@ def system_prompt(knowledge_text=None):
 
 
 def format_context(kb_snippets=(), web_snippets=(), wiki_snippets=(), scene=None,
-                   person=None, style=None, exemplars=(), profile=None, diary=None):
+                   person=None, style=None, exemplars=(), profile=None, diary=None,
+                   today=None):
     """The per-turn context block, or "" when there is nothing to add.
+
+    today        — e.g. "Sunday, October 11, 2026", from brain.py's clock. A
+                   small model has no idea what day it is and will otherwise
+                   state its training year as the current one.
 
     kb_snippets   — [(question, answer, score)] from brain's RAG-lite retrieval
     web_snippets  — [(source, chunk_text, score)] from web_rag.retrieve()
@@ -99,6 +106,8 @@ def format_context(kb_snippets=(), web_snippets=(), wiki_snippets=(), scene=None
     byte-identical to the pre-learning prompt.
     """
     parts = []
+    if today:
+        parts.append(f"Today is {today}.")
     if person:
         parts.append(f"The person talking to you is {person} (you recognised "
                      f"their face).")

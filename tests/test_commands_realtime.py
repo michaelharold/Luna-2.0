@@ -75,7 +75,10 @@ class TestDateTime(unittest.TestCase):
                  "what's the time please": "time",
                  "what day is it today": "date",
                  "what is today's date?": "date",
-                 "what's the date and time right now": "both"}
+                 "what's the date and time right now": "both",
+                 "which year is this": "year",
+                 "what year is it": "year",
+                 "what is the current year": "year"}
         for q, kind in cases.items():
             self.assertEqual(commands._clock_question(q.lower()), kind, q)
 

@@ -188,6 +188,10 @@ _DATE_ONLY_RE = re.compile(
 _TIME_ONLY_RE = re.compile(
     r"(?:what(?:'s| is)\s+)?(?:the\s+)?(?:current\s+)?time(?:\s+(?:now|right\s+now))?"
     r"|what\s+time\s+is\s+it(?:\s+(?:now|right\s+now))?")
+_YEAR_RE = re.compile(
+    r"(?:what|which)\s+year\s+is\s+(?:it|this)(?:\s+now)?"
+    r"|(?:what(?:'s| is)\s+)?(?:the\s+)?(?:current\s+)?year(?:\s+now)?"
+    r"|(?:what|which)\s+year\s+(?:are\s+we\s+in|is\s+it\s+now)")
 _DATE_AND_TIME_RE = re.compile(
     r"(?:what(?:'s| is)\s+)?(?:the\s+)?(?:date\s+and\s+time|time\s+and\s+date)"
     r"(?:\s+(?:now|right\s+now|today))?")
@@ -211,14 +215,16 @@ _WMO_WEATHER = {
 
 
 def _clock_question(lower):
-    """"date", "time", "both" or None — None unless the whole utterance asks
-    for the current date and/or time."""
+    """"date", "time", "both", "year" or None — None unless the whole
+    utterance asks for the current date, time or year."""
     t = re.sub(r"[’`]", "'", lower)
     t = " ".join(re.sub(r"[^a-z0-9' ]+", " ", t).split())
     t = re.sub(r"\s+please$", "", t)
     t = _DT_PREFIX_RE.sub("", t, count=1).strip()
     if _DATE_AND_TIME_RE.fullmatch(t):
         return "both"
+    if _YEAR_RE.fullmatch(t):
+        return "year"
     if _DATE_ONLY_RE.fullmatch(t):
         return "date"
     if _TIME_ONLY_RE.fullmatch(t):
@@ -235,7 +241,9 @@ def _datetime_command(lower, words):
     now = datetime.datetime.now()
     clock = now.strftime("%I:%M %p").lstrip("0")
     day = f"{now:%A, %B} {now.day}"            # "October 5", not "October 05"
-    if kind == "time":
+    if kind == "year":
+        _speak(f"It's {now.year}.")
+    elif kind == "time":
         _speak(f"It's {clock}.")
     elif kind == "date":
         _speak(f"It's {day}.")

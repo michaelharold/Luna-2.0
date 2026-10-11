@@ -236,7 +236,9 @@ def _turn_context(text, scene=None, with_kb=True):
                             for src, _, s in web_snippets]
     _turn["wiki_matches"] = [[src, round(float(s), 3)]
                              for src, _, s in wiki_snippets]
+    now = time.localtime()
     return dict(
+        today=time.strftime("%A, %B ", now) + f"{now.tm_mday}, {now.tm_year}",
         kb_snippets=kb_snippets,
         web_snippets=web_snippets,
         wiki_snippets=wiki_snippets,

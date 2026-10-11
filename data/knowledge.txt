@@ -4,6 +4,8 @@ What is the full name of the college:thangal Kunju musaliar college of engineeri
 
 Where is the college located:tkm college of engineering is located at karikode,kollam,kerala,india
 
+where is TKM college located:TKM College of Engineering is located at Karikode, Kollam, Kerala, India.
+
 What are the nearby landmarks of the college:the college is located at a distance of 450 meters from Kilikollur railway station
 
 What is the PIN code of the college:691005
@@ -90,11 +92,11 @@ where is seminar hall:ground floor of computer science department
 
 who are you : I am Luna.A voice controlled desk bot powered by raspberry pi 5 with camera and motor abilities who can help you with simple queries and guide you through college and give you information about our department CS.Luna is able to answer your queries in voice and able to detect or interpret your emotions through camera module attached and can show some cute gestures with her hands .
 
-who developed you : I was developed by Michael Harold Sony, Sreenadhana, and Devadathan as a Computer Science Department project.
+who developed you : I was developed by Michael Harold Sony, Sreenandana and Devadathan, in association with the CSE department.
 
-who made you : I was made by Michael Harold Sony, Sreenadhana, and Devadathan, students of the Computer Science Department.
+who made you : I was made by Michael Harold Sony, Sreenandana and Devadathan, in association with the CSE department.
 
-who created you : I was created by Michael Harold Sony, Sreenadhana, and Devadathan for the Computer Science Department.
+who created you : I was created by Michael Harold Sony, Sreenandana and Devadathan, in association with the CSE department.
 
 where is ladies' common room:backside of college canteen
 
