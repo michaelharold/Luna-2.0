@@ -20,11 +20,15 @@ Now there are two distinct states:
   state.tts_active  — from the moment a reply is handed to TTS. Blocks the mic.
                       Nothing visible happens.
   state.speaking    — set by the `on_start` callback the instant the audio
-                      device actually begins playing. Drives the mouth energy
-                      (see `_energy_loop`) and the servo arm sway.
+                      is actually audible. Drives the mouth energy (see
+                      `_energy_loop`) and the servo arm sway.
 
 So the mic is protected for the whole window, while the body only moves while
 there is genuinely sound coming out.
+
+The mouth energy itself is the voice's real loudness (lip_sync.py): each
+chunk's envelope is registered with the time it becomes audible, so the mouth
+opens on syllables and closes in pauses and between sentences.
 """
 
 import threading
@@ -32,18 +36,22 @@ import time
 import random
 import math
 
+import lip_sync
 from piper_tts import tts, chunk_stream
 
 from shared_state import state
 from servo_module import servo
-from config import MIC_BLOCK_AFTER_SPEAK
+from config import MIC_BLOCK_AFTER_SPEAK, TTS_LIPSYNC_LEAD
+import console
 
 
 # ============================================================================
 # Talking mouth energy animation
 # ============================================================================
-# Purely cosmetic: a smooth pseudo-random envelope that looks like speech.
-# Gated on state.speaking, which is now only true while audio is really playing.
+# The loudness of the audio being played, from lip_sync.track. Only when the
+# engine has no wav to measure (the piper streaming fallback, or no engine at
+# all) does it fall back to a smooth pseudo-random envelope that looks like
+# speech. Gated on state.speaking, which is only true once audio is audible.
 
 _energy_phase = 0.0
 
@@ -55,7 +63,13 @@ def _energy_loop():
         with state.lock:
             speaking = state.speaking
 
-        if speaking:
+        real = (lip_sync.track.energy(time.time() + TTS_LIPSYNC_LEAD)
+                if speaking else None)
+
+        if real is not None:
+            with state.lock:
+                state.audio_energy = real
+        elif speaking:
             _energy_phase += 0.18
 
             slow = abs(math.sin(_energy_phase * 0.9))
@@ -117,11 +131,12 @@ def speak(text, can_drop=False):
     start_time = time.time()
 
     try:
+        lip_sync.track.reset()
         with state.lock:
-            # mic shut from here (synthesis included); body still motionless
+            # mic shut from here (synthesis included); body still motionless.
+            # The face holds its current mood until speech ends (face_renderer).
             state.tts_active     = True
             state.luna_mode      = "speaking"
-            state.frozen_emotion = state.emotion
 
         def _tap(chunks):
             """Pass chunks through to the engine, logging and recording them."""
@@ -132,11 +147,13 @@ def speak(text, can_drop=False):
                 yield chunk
 
         if is_stream:
-            tts.speak_chunks(_tap(chunk_stream(text)), on_start=_on_audio_start)
+            tts.speak_chunks(_tap(chunk_stream(text)), on_start=_on_audio_start,
+                             on_audio=lip_sync.track.add)
         else:
             print(f"[Luna] {text}")
             spoken_parts.append(text)
-            tts.speak(text, on_start=_on_audio_start)
+            tts.speak(text, on_start=_on_audio_start,
+                      on_audio=lip_sync.track.add)
 
     finally:
         elapsed = time.time() - start_time
@@ -147,11 +164,11 @@ def speak(text, can_drop=False):
 
         full_text = " ".join(spoken_parts).strip()
 
+        lip_sync.track.reset()
         with state.lock:
             state.speaking       = False
             state.tts_active     = False
             state.audio_energy   = 0.0
-            state.frozen_emotion = None
             state.luna_mode      = "idle"
 
             # The mic was blocked for the whole of synthesis+playback; this
@@ -166,6 +183,6 @@ def speak(text, can_drop=False):
             if state.conversation_active:
                 state.last_activity_time = time.time()
 
-        print(f"[TTS] finished in {elapsed:.1f}s")
+        console.detail(f"[TTS] finished in {elapsed:.1f}s")
 
         _speak_lock.release()

@@ -1,15 +1,21 @@
+import os
 import sys
 import time
 import signal
 import threading
 
-from config import TORCH_THREADS, PI_MODEL
+# First, before the libraries that print on import / load (pygame, Vosk,
+# MediaPipe, TensorFlow Lite): clean terminal unless LOG_VERBOSE is on.
+import console
+console.quiet_libraries()
+
+from config import TORCH_THREADS, PI_MODEL, IS_MAC
 import torch
 torch.set_num_threads(TORCH_THREADS)
 
-if PI_MODEL:
-    print(f"[Luna] Running on Raspberry Pi {PI_MODEL}")
-    print(f"[Luna] PyTorch threads: {TORCH_THREADS}")
+console.detail("[Luna] Running in Mac dev mode" if IS_MAC else
+               f"[Luna] Running on Raspberry Pi {PI_MODEL}")
+console.detail(f"[Luna] PyTorch threads: {TORCH_THREADS}")
 
 # Load the piper voice model in the background, overlapped with the camera /
 # vision / brain startup below. Without this the model load (several seconds on
@@ -37,9 +43,16 @@ from vision_module import start_vision
 start_vision()
 time.sleep(1.0)
 
-from gesture_module import start_gesture
-start_gesture()
-time.sleep(0.5)
+from config import ENABLE_GESTURES
+if ENABLE_GESTURES:
+    # Importing gesture_module builds the MediaPipe hand tracker (an OpenGL
+    # context and a TensorFlow Lite model), so it is only imported when used.
+    from gesture_module import start_gesture
+    start_gesture()
+    time.sleep(0.5)
+else:
+    console.detail("[gesture] Disabled (ENABLE_GESTURES=False) — hand "
+                   "gestures ignored")
 
 from behavior_engine import start_behavior
 start_behavior()
@@ -143,7 +156,7 @@ def voice_loop():
                 return
             elif text:
                 if _is_self_echo(text):
-                    print(f"[Luna] Ignoring self-echo: \"{text}\"")
+                    console.detail(f"[Luna] Ignoring self-echo: \"{text}\"")
                 else:
                     # speak() serializes internally — an answer is never
                     # dropped, even if a gesture reaction is mid-sentence
@@ -159,7 +172,18 @@ def voice_loop():
 threading.Thread(target=voice_loop, daemon=True).start()
 
 
+_shutting_down = False
+
+
 def _shutdown(*_):
+    """Clean up once, then leave with os._exit. Ctrl+C used to run this twice
+    (the signal, then the `finally` below) and then crash Python's own
+    teardown ("segmentation fault") while the camera / mic / model threads
+    were still inside native code."""
+    global _shutting_down
+    if _shutting_down:
+        return
+    _shutting_down = True
     print("\n[Luna] Shutting down — centering servos, releasing GPIO")
     try:
         servo.cleanup()
@@ -180,7 +204,9 @@ def _shutdown(*_):
         pygame.quit()
     except Exception:
         pass
-    sys.exit(0)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
 
 
 signal.signal(signal.SIGINT,  _shutdown)

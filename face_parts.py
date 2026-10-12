@@ -46,10 +46,11 @@ class Eye:
         self.squint      = 0.0
         self.widen       = 0.0
         self.droop       = 0.0
+        self.slant       = 0.0   # 0-1, the angry cut across the top (Face 3)
 
     # ── state ─────────────────────────────────────────────────────────────
     def update(self, w, h, blink_t, pupil_ox, pupil_oy,
-               pupil_scale=1.0, squint=0.0, widen=0.0, droop=0.0):
+               pupil_scale=1.0, squint=0.0, widen=0.0, droop=0.0, slant=0.0):
         # Rates are tuned per property: the blink is fast, the pupil follows
         # quickly, and the shape changes are slow so moods settle rather than
         # flick. Do not flatten these into one constant.
@@ -62,11 +63,14 @@ class Eye:
         self.squint      = lerp(self.squint,      squint,      0.08)
         self.widen       = lerp(self.widen,       widen,       0.08)
         self.droop       = lerp(self.droop,       droop,       0.06)
+        self.slant       = lerp(self.slant,       slant,       0.08)
 
     # ── drawing ───────────────────────────────────────────────────────────
     def draw(self, surf, cx, cy, brow="flat", color=None,
-             red_pulse=0.0, arc=0.0, nudge=None):
-        """`nudge` = (pupil_dx, scale) is a one-frame additive offset (the
+             red=0.0, arc=0.0, nudge=None):
+        """`red` (0-1) is how far the eye is recoloured red — angry.
+
+        `nudge` = (pupil_dx, scale) is a one-frame additive offset (the
         recognition double-take). It is applied around the draw and undone
         afterwards, so it never leaks into the eased state that update()
         smooths — otherwise the lerps would swallow a 0.15 s dart."""
@@ -76,14 +80,17 @@ class Eye:
             self.w *= nudge[1]
             self.h *= nudge[1]
             try:
-                self._draw(surf, cx, cy, brow, color, red_pulse, arc)
+                self._draw(surf, cx, cy, brow, color, red, arc)
             finally:
                 self.pupil_ox, self.w, self.h = saved
             return
-        self._draw(surf, cx, cy, brow, color, red_pulse, arc)
+        self._draw(surf, cx, cy, brow, color, red, arc)
 
-    def _draw(self, surf, cx, cy, brow, color, red_pulse, arc):
+    def _draw(self, surf, cx, cy, brow, color, red, arc):
         eye_col = color or theme.EYE_OUTER
+        pal = _red_palette(red)
+        if red > 0.01:
+            eye_col = blend(eye_col, theme.ANGRY_COL, red)
 
         # '∩' arc eyes take over completely once the blend is committed, so the
         # swap into and out of the shape happens mid-transition and isn't seen.
@@ -91,18 +98,15 @@ class Eye:
             self._draw_arc(surf, cx, cy, eye_col, arc)
             return
 
-        if red_pulse > 0.01:
-            eye_col = blend(eye_col, theme.ANGRY_COL, red_pulse)
-
         if theme.EYE_STYLE == "solid":
             # Face 3: one gradient block whose shape carries the emotion.
             # No separate brow — the slanted top edge IS the brow.
-            self._draw_solid(surf, cx, cy, eye_col, brow, red_pulse)
+            self._draw_solid(surf, cx, cy, eye_col, pal, red > 0.01)
             return
 
         rect = self._body_rect(cx, cy)
-        self._draw_body(surf, rect, eye_col)
-        self._draw_iris(surf, cx, cy, rect)
+        self._draw_body(surf, rect, eye_col, pal)
+        self._draw_iris(surf, cx, cy, rect, pal)
         if self.blink_t > 0.4:
             self._draw_brow(surf, cx, rect, brow)
 
@@ -113,7 +117,7 @@ class Eye:
         return pygame.Rect(cx - w // 2, cy - vis_h // 2, w, vis_h)
 
     # ── Face 3: solid gradient eye ────────────────────────────────────────
-    def _draw_solid(self, surf, cx, cy, eye_col, brow, red_pulse):
+    def _draw_solid(self, surf, cx, cy, eye_col, pal, red):
         """EMO/Vector-style eye: a rounded gradient block, animated with
         squash-and-stretch. The gaze moves the WHOLE eye (a screen-robot's
         eyes slide, they don't roll), a blink squashes it flat while bulging
@@ -132,26 +136,24 @@ class Eye:
         ey = cy + int(self.pupil_oy * 0.45)
         rect = pygame.Rect(ex - w // 2, ey - vis_h // 2, w, vis_h)
 
-        top, bottom = theme.EYE_GRAD_TOP, theme.EYE_GRAD_BOTTOM
-        if red_pulse > 0.01:
-            top    = blend(top,    theme.ANGRY_COL, red_pulse * 0.8)
-            bottom = blend(bottom, theme.ANGRY_COL, red_pulse * 0.8)
-        elif eye_col != theme.EYE_OUTER:
+        top, bottom = pal["top"], pal["bottom"]
+        if not red and eye_col != theme.EYE_OUTER:
             # A status tint (listening pulse / awake glow) recolours the
             # gradient toward the cue colour rather than replacing it.
             top    = blend(top,    eye_col, 0.45)
             bottom = blend(bottom, eye_col, 0.45)
 
-        draw_glow_rect(surf, theme.GLOW_COL, rect,
+        draw_glow_rect(surf, pal["glow"], rect,
                        radius=theme.EYE_RADIUS, layers=5)
         draw_grad_rect(surf, top, bottom, rect, radius=theme.EYE_RADIUS)
 
         # Emotion lives in the top edge: angry slants it down toward the nose,
-        # sad droops it down toward the OUTSIDE — mirrored per eye.
+        # sad droops it down toward the OUTSIDE — mirrored per eye. Both are
+        # eased amounts, so the cut grows in rather than appearing whole.
         is_left = self.rel_x < 0
-        if brow == "angry":
+        if self.slant > 0.05:
             self._slant_top(surf, rect, inner_down=True,  is_left=is_left,
-                            amount=0.42)
+                            amount=0.42 * self.slant)
         elif self.droop > 0.05:
             self._slant_top(surf, rect, inner_down=False, is_left=is_left,
                             amount=0.38 * self.droop)
@@ -192,8 +194,8 @@ class Eye:
                 continue                      # squashed shut — no room left
             surf.blit(_dot_sprite(r, theme.IRIS_SHINE, a), (x - r, y - r))
 
-    def _draw_body(self, surf, rect, eye_col):
-        draw_glow_rect(surf, theme.GLOW_COL, rect,
+    def _draw_body(self, surf, rect, eye_col, pal):
+        draw_glow_rect(surf, pal["glow"], rect,
                        radius=theme.EYE_RADIUS + 2, layers=5)
         pygame.draw.rect(surf, eye_col, rect, border_radius=theme.EYE_RADIUS)
 
@@ -208,30 +210,31 @@ class Eye:
 
         inset = rect.inflate(-20, -20)
         if inset.w > 8 and inset.h > 8:
-            pygame.draw.rect(surf, theme.EYE_MID, inset,
+            pygame.draw.rect(surf, pal["mid"], inset,
                              border_radius=max(4, theme.EYE_RADIUS - 6))
 
-    def _draw_iris(self, surf, cx, cy, rect):
+    def _draw_iris(self, surf, cx, cy, rect, pal):
         r  = int(min(rect.w, rect.h) * 0.27 * self.pupil_scale)
         ix = cx + int(self.pupil_ox)
         iy = cy + int(self.pupil_oy)
         if r <= 4 or self.blink_t <= 0.25:
             return
 
+        inner = pal["inner"]
         if theme.IRIS_SQUARE:
             # Robo style — a square sensor rather than an organic iris.
             box = pygame.Rect(ix - r, iy - r, r * 2, r * 2)
-            draw_glow_rect(surf, theme.EYE_INNER, box, radius=6, layers=3,
+            draw_glow_rect(surf, inner, box, radius=6, layers=3,
                            max_alpha=45)
-            pygame.draw.rect(surf, theme.EYE_INNER, box, border_radius=6)
+            pygame.draw.rect(surf, inner, box, border_radius=6)
             pr = int(r * 0.55)
             pygame.draw.rect(surf, PUPIL_COL,
                              pygame.Rect(ix - pr, iy - pr, pr * 2, pr * 2),
                              border_radius=4)
             self._draw_shine(surf, ix, iy, r, square=True)
         else:
-            draw_glow_circle(surf, theme.EYE_INNER, (ix, iy), r)
-            pygame.draw.circle(surf, theme.EYE_INNER, (ix, iy), r)
+            draw_glow_circle(surf, inner, (ix, iy), r)
+            pygame.draw.circle(surf, inner, (ix, iy), r)
             pygame.draw.circle(surf, PUPIL_COL, (ix, iy), int(r * 0.50))
             self._draw_shine(surf, ix, iy, r, square=False)
 
@@ -358,6 +361,28 @@ class Eye:
                   (cx - w // 2 - 10, y - 10))
 
 
+def _red_palette(red):
+    """The eye's colours with `red` (0-1) of anger mixed in.
+
+    Every part of the eye moves toward a red of its own — light red where the
+    style is light, deep red where it is dark — so a red eye keeps its
+    gradient and depth instead of becoming a flat red block. Tinting only the
+    outline (the old behaviour in the iris styles) barely showed at all."""
+    if red <= 0.01:
+        return {"top": theme.EYE_GRAD_TOP, "bottom": theme.EYE_GRAD_BOTTOM,
+                "glow": theme.GLOW_COL, "mid": theme.EYE_MID,
+                "inner": theme.EYE_INNER}
+    c = theme.ANGRY_COL
+    light = blend(c, (255, 255, 255), 0.35)
+    deep  = blend(c, (0, 0, 0), 0.25)
+    glow  = blend(c, (0, 0, 0), 0.45)
+    return {"top":    blend(theme.EYE_GRAD_TOP,    light, red),
+            "bottom": blend(theme.EYE_GRAD_BOTTOM, deep,  red),
+            "glow":   blend(theme.GLOW_COL,        glow,  red),
+            "mid":    blend(theme.EYE_MID,         deep,  red),
+            "inner":  blend(theme.EYE_INNER,       light, red)}
+
+
 def _dot_sprite(r, col, a):
     """Cached translucent disc — catchlights and iris shines."""
     def build():
@@ -394,20 +419,36 @@ class Mouth:
         self.talk_open   = 0.0
         self.mouth_w     = 140.0
         self.visible     = 0.0
+        self.shape       = "none"   # resting shape currently on screen
         self.corner_lift = 0.0
         self.jaw_bounce  = 0.0
         self.prev_energy = 0.0
 
     # ── state ─────────────────────────────────────────────────────────────
     def update(self, energy, expr, speaking):
-        target_visible = 1.0 if speaking else expr.mouth_visible
+        if speaking:
+            self.shape = expr.mouth
+            target_visible = 1.0
+        elif expr.mouth != self.shape:
+            # A new resting shape waits for the old one to fade out, then
+            # fades in: the mouth relaxes before it re-forms. Swapping the
+            # shape in place made a smile vanish (or turn into a frown) in a
+            # single frame.
+            target_visible = 0.0
+            if self.visible < 0.05:
+                self.shape = expr.mouth
+        else:
+            target_visible = expr.mouth_visible
         self.visible     = lerp(self.visible, target_visible, 0.20)
         self.corner_lift = lerp(self.corner_lift, expr.corner_lift, 0.08)
 
         if speaking:
-            # Floor the energy so the mouth is never fully shut mid-sentence —
-            # without this it goes dead in the gaps between words.
-            self.talk_open = lerp(self.talk_open, max(0.15, energy), 0.30)
+            # The energy is the real voice now (lip_sync), so silence means a
+            # closed mouth — between sentences, and while the next one is
+            # still being synthesised. Sounding speech keeps a small floor so
+            # quiet syllables still visibly open it.
+            want = max(0.15, energy) if energy > 0.03 else 0.0
+            self.talk_open = lerp(self.talk_open, want, 0.30)
             self.mouth_w   = lerp(self.mouth_w,
                                   190.0 if energy > 0.5 else 150.0, 0.12)
             delta = energy - self.prev_energy
@@ -432,9 +473,9 @@ class Mouth:
 
         if self.visible < 0.05:
             return
-        shape = _MOUTHS.get(expr.mouth)
+        shape = _MOUTHS.get(self.shape)
         if shape:
-            self._blit_resting(surf, shape, expr.mouth, cx, cy, alpha)
+            self._blit_resting(surf, shape, self.shape, cx, cy, alpha)
 
     def _blit_resting(self, surf, shape, name, cx, cy, alpha):
         """Resting mouths are fixed shapes that only fade, so each is drawn
@@ -734,10 +775,12 @@ class MicroExpressions:
         self._tic      = None
 
     def update(self, expr, listening, speaking):
-        # Speaking and listening are states of attention, not moods — they
-        # override the expression's eye shaping entirely.
+        # Talking keeps the mood's own eye shaping, minus the idle tics, so an
+        # angry or sad face stays angry or sad mid-sentence instead of
+        # resetting to blank the moment the voice starts. Listening is a
+        # state of attention, not a mood, and overrides the shaping.
         if speaking:
-            self._set(0.0, 0.0, 0.0, 1.0)
+            self._set(expr.squint, expr.widen, expr.droop, expr.pupil_scale)
             return
         if listening:
             self._set(0.0, 0.6, 0.0, 1.15)

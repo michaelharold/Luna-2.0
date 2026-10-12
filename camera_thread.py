@@ -16,6 +16,7 @@ from config import (CAMERA_SOURCE, CAMERA_ID, FRAME_WIDTH, FRAME_HEIGHT,
                     FPS, ESP32_STREAM,
                     PICAM_WIDTH, PICAM_HEIGHT, PICAM_FPS, PICAM_HFLIP, PICAM_VFLIP)
 from shared_state import state
+import console
 
 
 def _read_exact(stream, n):
@@ -46,7 +47,7 @@ def _picam_loop():
     if PICAM_VFLIP:
         cmd.append("--vflip")
 
-    print(f"[camera] Starting Pi CSI camera (rpicam-vid) {w}x{h} @ {fps}fps")
+    console.detail(f"[camera] Starting Pi CSI camera (rpicam-vid) {w}x{h} @ {fps}fps")
     help_printed = False
 
     while True:
@@ -90,7 +91,7 @@ def _picam_loop():
 
 def _esp32_loop():
     """Read MJPEG stream from ESP32."""
-    print(f"[camera] Connecting to ESP32 stream: {ESP32_STREAM}")
+    console.detail(f"[camera] Connecting to ESP32 stream: {ESP32_STREAM}")
 
     while True:
         cap = cv2.VideoCapture(ESP32_STREAM)
@@ -102,7 +103,7 @@ def _esp32_loop():
             time.sleep(3)
             continue
 
-        print("[camera] ESP32 stream connected")
+        console.detail("[camera] ESP32 stream connected")
         with state.lock:
             state.camera_ok = True
 
@@ -146,7 +147,7 @@ def _open_local_camera():
 def _local_loop():
     """Read from local USB or Pi camera. Retries forever if no camera —
     Luna keeps running (voice + face) without vision."""
-    print(f"[camera] Starting local camera {CAMERA_ID}")
+    console.detail(f"[camera] Starting local camera {CAMERA_ID}")
     help_printed = False
 
     while True:
@@ -165,7 +166,7 @@ def _local_loop():
         help_printed = False
         with state.lock:
             state.camera_ok = True
-        print(f"[camera] Local camera started {FRAME_WIDTH}x{FRAME_HEIGHT} @ {FPS}fps")
+        console.detail(f"[camera] Local camera started {FRAME_WIDTH}x{FRAME_HEIGHT} @ {FPS}fps")
 
         fail_count = 0
         while True:

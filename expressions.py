@@ -44,7 +44,7 @@ class Expression:
     droop: float = 0.0        # 0-1, inner brow falls (the sad tell)
     pupil_scale: float = 1.0  # iris size multiplier; >1 reads as interested
     gaze: tuple = (0.0, 0.0)  # forced pupil offset in px (x, y); shy looks away
-    red_pulse: bool = False   # angry red throb over the eye colour
+    red_eyes: bool = False    # eyes glow red (fades in, simmers gently)
 
     # ── Brow ──────────────────────────────────────────────────────────────
     brow: str = "flat"        # flat | angry | happy | sad | raised
@@ -106,13 +106,13 @@ def sad():
 
 
 def angry():
-    """Hard squint, angled brows, a red throb in the eyes and steam venting
-    off the top of the head. The steam is what stops angry from reading as
-    merely 'sleepy but cross'."""
+    """Hard squint, angled brows, red eyes and steam venting off the top of
+    the head. The steam is what stops angry from reading as merely 'sleepy
+    but cross'; the red is what reads from across the room."""
     return Expression(
         name="angry",
         eye_w=185, eye_h=78,
-        squint=0.45, red_pulse=True,
+        squint=0.45, red_eyes=True,
         brow="angry",
         mouth="tight", mouth_visible=0.7,
         particles=(("steam", 12),),
@@ -210,7 +210,7 @@ def curious():
 
 def annoyed():
     """Flat, half-lidded stare with an angled mouth — deadpan displeasure.
-    Deliberately NO red pulse or steam: annoyed is the quiet sibling of
+    Deliberately NO red eyes or steam: annoyed is the quiet sibling of
     angry, and sharing those effects would collapse the two."""
     return Expression(
         name="annoyed",

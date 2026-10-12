@@ -28,6 +28,7 @@ knowledge.txt still hot-reloads while Luna is running.
 """
 
 import os
+import datetime
 import re
 import threading
 import time
@@ -41,6 +42,8 @@ import llm_local
 import commands
 import scene_context
 import persona
+import intents
+import people
 from shared_state import state
 from config import (
     KNOWLEDGE_PATH,
@@ -61,7 +64,10 @@ from config import (
     WEB_RAG_LIVE_MIN_KB,
     WEB_RAG_LIVE_TIMEOUT,
     WEB_RAG_DEPARTMENT,
+    WEB_RAG_RELATED,
+    PERSON_CARDS,
 )
+import console
 
 # Website retrieval (web_rag.py) is optional: it only does anything when
 # WEB_RAG_URL is set, and only reaches the network when the Pi is online.
@@ -75,7 +81,7 @@ except Exception as _e:                      # missing module / import error
 # Loaded at startup AND re-read automatically whenever data/knowledge.txt changes
 # on disk (see _maybe_reload_knowledge, called on every question), so edits take
 # effect on a running Luna without a restart.
-print("[brain] Loading knowledge base...")
+console.detail("[brain] Loading knowledge base...")
 
 questions           = []
 answers             = []
@@ -89,7 +95,7 @@ _knowledge_mtime    = None
 # depends on internet just to boot. Only reaches for the network if the model
 # isn't cached yet, and if that also fails (never downloaded + no internet)
 # Luna degrades to plain keyword matching instead of crashing.
-print("[brain] Loading sentence transformer...")
+console.detail("[brain] Loading sentence transformer...")
 _st_model = None
 try:
     os.environ["HF_HUB_OFFLINE"]      = "1"
@@ -183,7 +189,7 @@ def _maybe_reload_knowledge():
 
 
 _load_knowledge()
-print(f"[brain] {len(questions)} knowledge entries loaded")
+console.detail(f"[brain] {len(questions)} knowledge entries loaded")
 
 # Website index: loads its cache (if any) and, when online, refreshes it in a
 # background thread. Shares this module's embedder — nothing loads twice.
@@ -204,35 +210,58 @@ def _turn_context(text, scene=None, with_kb=True, live_web=False,
                   web_snippets=None):
     """Per-turn context dict for persona.build_user_turn().
 
-    Scene memory rides in the `scene` slot: on an ordinary turn it is the
-    whole scene (marked as background, so the model doesn't narrate it
-    unprompted); on a vision question it follows the live description.
-    live_web lets the website lookup fetch pages live; web_snippets, when
-    given, are used as they are (the website path already looked them up)."""
+    Scene memory: on a vision question it follows the live description in
+    the `scene` slot, moods and objects included — the person asked what
+    Luna sees. On an ordinary turn it goes in the `background` slot, people
+    only (who is here, who came by, what Luna just asked): the camera's mood
+    guesses and desk objects are exactly what the model used to bring up out
+    of nowhere. live_web lets the website lookup fetch pages live;
+    web_snippets, when given, are used as they are (the website path already
+    looked them up)."""
     with state.lock:
         person = state.person_name
     memory = ""
     if ENABLE_SCENE_MEMORY and SCENE_MEMORY_IN_PROMPT:
         try:                                 # deferred + guarded: remembering
             import scene_memory              # must never break a voice turn
-            memory = scene_memory.summary() or ""
+            if scene:                        # "what do you see?"
+                memory = scene_memory.summary() or ""
+            elif (intents.needs_scene_context(text)
+                  or scene_memory.asked_recently()):
+                # Only when the question is about who is / was around, or is
+                # the reply to a question Luna just asked — otherwise the
+                # model gets no scene notes to wander off into.
+                memory = scene_memory.summary(moods=False,
+                                              objects=False) or ""
+                if not memory and intents.needs_scene_context(text):
+                    # Say so: with nothing at all the model invents people
+                    # ("a student studying, a professor typing…").
+                    memory = ("You have not seen anyone in front of you "
+                              "recently. Do not describe or invent people.")
         except Exception as e:               # noqa: BLE001
             print(f"[brain] scene memory unavailable: {e}")
+    background = None
     if memory:
         if scene:
             scene = f"{scene} Recently: {memory}"
         else:
-            scene = f"(Background — mention only if it helps.) {memory}"
+            background = memory
     kb_snippets = _top_k_kb(text) if with_kb else ()
     if web_snippets is None:
         web_snippets = _top_k_web(text, live=live_web)
+    # the best knowledge-base answer first: "who is the HOD?" names the
+    # person only in the answer, and that is who the second hop follows
+    top_kb = [h for h in kb_snippets[:1] if h[2] >= LOCAL_ANSWER_THRESH]
+    web_related = _related_web(text, top_kb + list(web_snippets))
     _turn["kb_matches"] = [[q, round(float(s), 3)] for q, _, s in kb_snippets]
     _turn["web_matches"] = [[src, round(float(s), 3)]
                             for src, _, s in web_snippets]
     return dict(
         kb_snippets=kb_snippets,
         web_snippets=web_snippets,
+        web_related=web_related,
         scene=scene,
+        background=background,
         person=person,
         **_learning_context(text, person),
     )
@@ -281,7 +310,11 @@ def _learning_context(text, person):
         ex = learning.exemplars_for(text)
         if ex:
             extra["exemplars"] = ex
-        prof = learning.profile_context(person) if person else None
+        # "You have met Michael on 4 visits" in every prompt made the model
+        # open answers with "glad you're here again!" — only for questions
+        # about the person themself / who is around
+        prof = (learning.profile_context(person)
+                if person and intents.needs_scene_context(text) else None)
         if prof:
             extra["profile"] = prof
         diary = learning.diary_context(text)
@@ -403,7 +436,7 @@ def _stream_llm(text, context):
     reply = "".join(parts).strip()
     if reply:
         _history.append({"role": "assistant", "content": reply})
-        print(f"[brain] LLM: {reply}")
+        console.detail(f"[brain] LLM: {reply}")
     else:
         _drop_user()
 
@@ -595,6 +628,21 @@ def _top_k_web(text, live=False, force=False):
         return []
 
 
+def _related_web(text, hits):
+    """web_rag's second hop: what else the site says about the people or
+    things in the question or its best answer — a faculty member's latest
+    award alongside their designation. [] when the website or the hop is
+    off. `hits` are (source, text, score); hits[0] is what the hop follows
+    when the question names nobody."""
+    if not WEB_RAG_RELATED or not _web_enabled():
+        return []
+    try:
+        return web_rag.related(text, hits)
+    except Exception as e:                   # noqa: BLE001
+        print(f"[brain] related website search failed: {e}")
+        return []
+
+
 def knowledge_match_score(text):
     """Semantic similarity of `text` to the closest knowledge-base entry (0..1).
     Used by the STT layer's meaning gate / addressing score."""
@@ -605,7 +653,7 @@ def knowledge_match_score(text):
 
 def _local_fallback(text):
     best_score, best_index = _best_local_match(text)
-    print(f"[brain] Local match score: {best_score:.2f}")
+    console.detail(f"[brain] Local match score: {best_score:.2f}")
     if best_score > LOCAL_MATCH_THRESH:
         return answers[best_index]
     return "I am sorry, I do not have an answer for that."
@@ -650,10 +698,24 @@ def _mark_followup(reply):
         if asked:
             state.conversation_active = True
     if asked:
-        print("[brain] Asked a follow-up — holding the conversation open")
+        console.detail("[brain] Asked a follow-up — holding the conversation open")
 
 
 # ── Vision questions ──────────────────────────────────────────────────────────
+
+def _show_source(context=None, kind=None):
+    """The clean-mode [source] line: the website pages this answer was
+    built from, and the closest knowledge-base entry if it really matches.
+    Only the closest: the looser ones that ride along in the prompt score
+    deceptively high ("what is the name of the college" for any question
+    ending in "of the college") and would bury the one that matters."""
+    context = context or {}
+    kb = [(sc, q) for q, _, sc in context.get("kb_snippets") or ()
+          if sc >= LOCAL_MATCH_THRESH]
+    web = [u for u, _, _ in (list(context.get("web_snippets") or ())
+                             + list(context.get("web_related") or ()))]
+    console.source(web=web, kb=[max(kb)[1]] if kb else (), kind=kind)
+
 
 def _answer_vision_query(text):
     """Describe the live camera scene and answer through the LLM — or speak
@@ -669,10 +731,11 @@ def _answer_vision_query(text):
     objects = scene_context.detect_objects(frame)
     desc = scene_context.describe(face_count, person, emotion, face_x,
                                   objects=objects, frame_bgr=frame)
-    print(f"[brain] Scene: {desc}")
+    console.detail(f"[brain] Scene: {desc}")
 
-    stream = _llm_stream_or_none(text, _turn_context(text, scene=desc,
-                                                     with_kb=False))
+    context = _turn_context(text, scene=desc, with_kb=False)
+    stream = _llm_stream_or_none(text, context)
+    _show_source(context, kind="camera")
     if stream is not None:
         speak(stream)
         reply = (_history[-1]["content"]
@@ -696,6 +759,109 @@ _last_question = ""        # the last question Luna tried to answer
 def _last_reply():
     return (_history[-1]["content"]
             if _history and _history[-1]["role"] == "assistant" else "")
+
+
+def _answer_date_time(when):
+    """The date or time from the system clock, said aloud and shown as a
+    calendar / clock card. A clock that was never set — a Pi offline with no
+    RTC battery boots in 1970 — is admitted to rather than read out."""
+    now = datetime.datetime.now()
+    if not intents.clock_is_set(now):
+        console.source(kind="clock (not set)")
+        _say("My clock isn't set right now, so I can't tell you that.",
+             path="clock")
+        return
+    if when == "time":
+        face.time_card()
+        reply = intents.say_time(now)
+    else:
+        face.date_card()
+        reply = intents.say_date(now)
+        if when == "both":
+            reply += " " + intents.say_time(now)
+    console.source(kind="clock")
+    _say(reply, path="clock")
+
+
+def _staff_sections():
+    """The website's staff lists for people.directory(), [] when off."""
+    if not _web_enabled():
+        return []
+    try:
+        return web_rag.staff_sections()
+    except Exception:                        # noqa: BLE001
+        return []
+
+
+_TITLE_WORDS = people.TITLES
+
+
+def _strip_subject(sentence, person):
+    """'Prof. Reshma Sheik has been awarded …' -> 'Has been awarded …' —
+    the card already shows the name."""
+    words = sentence.split()
+    i = 0
+    while i < len(words):
+        w = words[i].strip(".,").lower()
+        if w in _TITLE_WORDS or w in person.tokens or len(w) == 1:
+            i += 1
+            continue
+        break
+    rest = " ".join(words[i:]).strip(" .") if i < len(words) else ""
+    return (rest[:1].upper() + rest[1:]) if rest else sentence.strip(" .")
+
+
+def _person_highlight(person, max_chars=150):
+    """One line under the name: the newest dated thing the college website
+    says about them (an award, a project — a sentence, never a table row)
+    when it is from the last three years, else the knowledge base's second
+    fact (their PhD), else nothing."""
+    if _web_enabled() and WEB_RAG_RELATED:
+        try:
+            year = datetime.date.today().year
+            for _, _, sent in web_rag.related_sentences(person.name):
+                years = [int(y) for y in re.findall(r"\b(?:19|20)\d{2}\b", sent)]
+                if (not years or max(years) < year - 3
+                        or not _reads_like_a_sentence(sent)):
+                    continue
+                line = _strip_subject(sent, person)
+                if len(line) > max_chars:
+                    line = line[:max_chars].rsplit(" ", 1)[0] + "…"
+                return line
+        except Exception as e:               # noqa: BLE001
+            console.detail(f"[brain] highlight lookup failed: {e}")
+    return person.detail
+
+
+def _reads_like_a_sentence(text):
+    """A line fit for a card: prose, not a data row — no table pipes, no
+    ';'-separated records, no 'Key: value' fields, not overlong."""
+    return ("|" not in text and ";" not in text and len(text.split()) <= 40
+            and len(re.findall(r"\b[\w.]+:\s", text)) < 2)
+
+
+def _maybe_person_card(text, kb_score, kb_index):
+    """Put up a person card when — and only when — Luna is certain who the
+    question is about: it names exactly one known person ("who is reshma
+    sheik"), or it confidently matches a knowledge-base entry about one
+    person ("who is the principal"). Every word on the card is a stored
+    fact (people.py), never the model's. Returns the Person or None."""
+    if not PERSON_CARDS:
+        return None
+    try:
+        d = people.directory(_staff_sections())
+        person = d.match_question(text)
+        if (person is None and answers and kb_score >= LOCAL_ANSWER_THRESH
+                and _kb_direct_ok(text, kb_index, kb_score)):
+            person = d.for_kb_question(questions[kb_index], text)
+        if person is None:
+            return None
+        face.person_card(person.name, person.role, _person_highlight(person))
+        console.detail(f"[brain] person card: {person.name}")
+        return person
+    except Exception as e:                   # noqa: BLE001
+        print(f"[brain] person card failed: {e}")
+        return None
 
 
 def _say(reply, path="fallback"):
@@ -747,7 +913,7 @@ def _ask_web_only(question, hits):
     reply = _STAGE_RE.sub("", reply).strip()
     if not reply or _unsure(reply):
         return ""
-    print(f"[brain] LLM (website only): {reply}")
+    console.detail(f"[brain] LLM (website only): {reply}")
     _history.append({"role": "user", "content": question})
     _history.append({"role": "assistant", "content": reply})
     return reply
@@ -768,7 +934,7 @@ def _answer_from_website(topic, auto=False):
         _say("I don't have the college website set up, so I can only answer "
              "from what I already know.")
         return
-    print(f"[brain] Checking the website for: {question}")
+    console.detail(f"[brain] Checking the website for: {question}")
     face.curious()
     result = {}
     worker = threading.Thread(
@@ -785,6 +951,7 @@ def _answer_from_website(topic, auto=False):
         # try with the website extracts alone. Spoken only if it's sure.
         reply = _ask_web_only(question, hits) if hits else ""
         if reply:
+            console.source(web=[u for u, _, _ in hits])
             _mark_followup(reply)
             _mark_first_token()
             speak(reply)
@@ -806,12 +973,14 @@ def _answer_from_website(topic, auto=False):
     context = _turn_context(question, web_snippets=hits)
     stream = _llm_stream_or_none(question, context)
     if stream is not None:
+        _show_source(context)
         speak(stream)
         reply = _last_reply()
         _mark_followup(reply)
         _log_turn("llm", reply)
         return
     best = " ".join(hits[0][1].split()[:45])       # no LLM: read the extract
+    console.source(web=[hits[0][0]])
     _say(f"Here's what the college website says. {best}")
 
 
@@ -826,7 +995,7 @@ def process(text):
     # pick up any edits to knowledge.txt without needing a restart
     _maybe_reload_knowledge()
 
-    print(f"[brain] Processing: {text}")
+    console.detail(f"[brain] Processing: {text}")
     _begin_turn(text)
 
     lower = text.lower()
@@ -855,6 +1024,12 @@ def process(text):
             or words & {"cute", "awesome", "amazing", "beautiful"}):
         face.love()
 
+    # 1b — the date / the time: from the clock, shown as a card
+    when = intents.date_time(lower)
+    if when:
+        _answer_date_time(when)
+        return
+
     # 2 — "look into the website", "check online for the fees", or a yes to
     # Luna's own offer to check: answer from the website, fetching live
     if web_rag is not None:
@@ -874,14 +1049,27 @@ def process(text):
     kb_score, kb_index = (_best_local_match(text) if answers else (0.0, 0))
     _set_learning_context(text, kb_score)
 
+    # a person Luna is certain about: their card goes up while she answers
+    _maybe_person_card(text, kb_score, kb_index)
+
     # 4 — offline-first: answer straight from the knowledge base. A confident
     # match is instant and exactly what the KB author wrote; only questions
     # the KB can't confidently answer fall through to the LLM below.
     if ANSWER_OFFLINE_FIRST and answers:
-        if kb_score >= LOCAL_ANSWER_THRESH and _kb_direct_ok(text, kb_index,
-                                                             kb_score):
-            reply = answers[kb_index]
-            print(f"[brain] Answered from knowledge base "
+        reply = answers[kb_index]
+        direct = (kb_score >= LOCAL_ANSWER_THRESH
+                  and _kb_direct_ok(text, kb_index, kb_score))
+        if direct and llm_local.available() and _related_web(
+                text, [(questions[kb_index], reply, kb_score)]):
+            # The knowledge base has the answer and the website has more
+            # about who / what it names (a recent award): let the model say
+            # both, below, instead of the bare entry.
+            console.detail("[brain] KB answer has related website facts — "
+                           "answering through the LLM")
+            direct = False
+        if direct:
+            console.source(kb=[questions[kb_index]])
+            console.detail(f"[brain] Answered from knowledge base "
                   f"(match {kb_score:.2f}) — no LLM")
             _mark_followup(reply)
             _turn["kb_matches"] = [[questions[kb_index], round(kb_score, 3)]]
@@ -895,11 +1083,14 @@ def process(text):
     # website can't answer fetches matching pages live first. Streaming:
     # Luna starts speaking the first sentence while the model is still
     # writing the rest.
-    college = kb_score >= WEB_RAG_LIVE_MIN_KB
+    # a question about who is / was around is never a website question
+    college = (kb_score >= WEB_RAG_LIVE_MIN_KB
+               and not intents.needs_scene_context(text))
     context = _turn_context(text, live_web=college)
     stream  = _llm_stream_or_none(text, context)
     if stream is not None:
-        print("[brain] Using local LLM (streaming)")
+        console.detail("[brain] Using local LLM (streaming)")
+        _show_source(context)
         speak(stream)
         reply = (_history[-1]["content"]
                  if _history and _history[-1]["role"] == "assistant" else "")
@@ -921,7 +1112,8 @@ def process(text):
         reply = _STAGE_RE.sub("", llm_local.ask(_messages()) or "").strip()
         if reply:
             _history.append({"role": "assistant", "content": reply})
-            print(f"[brain] LLM: {reply}")
+            console.detail(f"[brain] LLM: {reply}")
+            _show_source(context)
             _mark_followup(reply)
             _mark_first_token()
             speak(reply)
@@ -930,7 +1122,8 @@ def process(text):
         _drop_user()
 
     # 6 — no LLM (model missing / still loading / failed): closest KB entry.
-    print("[brain] LLM unavailable — using local knowledge base")
+    console.detail("[brain] LLM unavailable — using local knowledge base")
+    console.source(kind="knowledge base (LLM unavailable)")
     reply = _local_fallback(text)
     _mark_followup(reply)
     if not _turn.get("kb_matches") and answers:

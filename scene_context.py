@@ -24,6 +24,7 @@ import numpy as np
 
 from config import (ENABLE_OBJECT_DETECTION, YOLO_MODEL_PATH, YOLO_INPUT_SIZE,
                     YOLO_CONF, YOLO_NMS, VISION_QUERY_PHRASES)
+import console
 
 # The 80 COCO class names, index-aligned with YOLOv8's output rows.
 COCO_CLASSES = (
@@ -67,7 +68,7 @@ def _load_net():
     try:
         import cv2
         _net = cv2.dnn.readNetFromONNX(YOLO_MODEL_PATH)
-        print("[scene] YOLOv8n loaded")
+        console.detail("[scene] YOLOv8n loaded")
     except Exception as e:
         _net_failed = True
         print(f"[scene] Could not load YOLO ({e}) — object detection off.")

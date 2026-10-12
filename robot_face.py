@@ -20,9 +20,14 @@ top of any expression:
     speaking  — talking mouth driven by audio energy, expression frozen
     thinking  — three orbiting dots while the brain works
 
+Cards: some answers are SHOWN — the face cross-fades to a full-screen card
+(the date, the time, a person, a greeting; face_cards.py draws them, face.py
+requests them, CardTimer decides how long they stay).
+
 Keys on the face window:  1 / 2 / 3 switch style,  ESC or Q quits.
-Touch (or click) an eye to boop it; the mouth area giggles. Press and HOLD the
-middle of the face (between the eyes, above the mouth) to register your face.
+A tap (or click) anywhere makes Luna angry for a moment, and takes down a
+card. Press and HOLD the middle of the face (between the eyes, above the
+mouth) to register your face.
 
 The recognition moment ("I know you!", see face.recognition_moment) adds two
 one-shot animations on top of the "recognised" expression: an eye double-take
@@ -48,6 +53,7 @@ scripts/bench_face.py measures all of this):
     face_style's cache, keyed by size / colour / alpha bucket.
 """
 
+import datetime
 import math
 import os
 import random
@@ -60,13 +66,15 @@ from config import (RENDER_FPS, FACE_STYLE, DISPLAY_FULLSCREEN,
                     CONVO_LIGHT_LABEL, CONVO_LIGHT_LABEL_SIZE,
                     AMBIENT_MOTES, AMBIENT_MOTE_COUNT, THINKING_DOTS,
                     ARC_EYES_HAPPY, WAKE_ARMS,
-                    ENABLE_TOUCH_REACTIONS, BOOP_SECONDS,
+                    ENABLE_TOUCH_REACTIONS, TOUCH_ANGRY_SECS,
+                    CARD_FADE_SECS, CARD_LINGER_SECS, CARD_START_GRACE,
                     GREET_BANNER, GREET_BANNER_SIZE,
                     RECOG_ANIMATION, RECOG_DOUBLE_TAKE, RECOG_BANNER_SLIDE,
                     TOUCH_ENROLL, TOUCH_ENROLL_HOLD_SECS, ENROLL_POSES)
 
 import expressions
 import face as face_api
+import face_cards
 from face_style import (theme, apply_style, WIDTH, HEIGHT, BG,
                         lerp, clamp, blend, get_font,
                         sprite, alpha_bucket, with_alpha)
@@ -89,6 +97,10 @@ TILT_DEADBAND = 0.1       # deg — at or below this the face is drawn unrotated
 
 #: Particles drawn in front of the face, in paint order.
 FRONT_PARTICLES = ("zzz", "tear", "star", "heart")
+
+#: Extra alpha a particle loses per frame once its mood has ended, on top of
+#: its own fade — a full-strength particle is gone in about half a second.
+PARTICLE_EXIT_FADE = 9.0
 
 
 # ── Recognition moment ────────────────────────────────────────────────────────
@@ -274,6 +286,47 @@ def rotate_point(x, y, angle, cx=WIDTH / 2, cy=HEIGHT / 2):
     return cx + dx * c + dy * s, cy - dx * s + dy * c
 
 
+class CardTimer:
+    """Whether a requested card is on screen right now. Pure — every call is
+    handed `now` and whether Luna is talking — so it is unit-testable.
+
+    A card with an end time (`until`) shows from `since` until then. A card
+    without one belongs to the answer Luna is about to speak: it shows while
+    the reply is being prepared and spoken, then `linger` seconds more; if no
+    voice starts within `grace` seconds it goes anyway."""
+
+    def __init__(self, linger=CARD_LINGER_SECS, grace=CARD_START_GRACE):
+        self.linger, self.grace = float(linger), float(grace)
+        self._for = None              # set_at of the card being tracked
+        self._spoke = False
+        self._quiet_since = None
+
+    def _track(self, set_at):
+        if set_at != self._for:
+            self._for, self._spoke, self._quiet_since = set_at, False, None
+
+    def visible(self, card, set_at, since, until, talking, now):
+        if card is None or now < since:
+            return False
+        if until is not None:
+            return now < until
+        self._track(set_at)
+        if talking:
+            self._spoke, self._quiet_since = True, None
+            return True
+        if self._spoke:
+            if self._quiet_since is None:
+                self._quiet_since = now
+            return now - self._quiet_since < self.linger
+        return now - since < self.grace
+
+    def done(self, card, set_at, since, until, talking, now):
+        """True once the card has had its time and should be forgotten."""
+        if card is None or now < since:
+            return False
+        return not self.visible(card, set_at, since, until, talking, now)
+
+
 class RobotFace:
     """The whole face. Call `set_state(name)` to change mood, `draw()` per frame."""
 
@@ -342,7 +395,7 @@ class RobotFace:
 
         # ── pulses and one-shots ──────────────────────────────────────────
         self.listen_pulse = self.listen_phase = 0.0
-        self.red_pulse = self.red_pulse_phase = 0.0
+        self.eye_red = self.eye_red_phase = 0.0
         self.eye_arc = 0.0
         self.bounce_phase = self.bounce_amp = 0.0
         self.wake_ripple = 0.0
@@ -355,6 +408,15 @@ class RobotFace:
         self.think_phase = self.think_glow = 0.0
         self.awake_glow = self.rest_pulse = 0.0
         self._last_expire = 0.0
+
+        # ── cards ─────────────────────────────────────────────────────────
+        self.card_mix = 0.0               # 0 = face, 1 = card
+        self._card_timer = CardTimer()
+        self._card = None                 # the card on screen (kept while it
+                                          # fades out after being cleared)
+        self._card_key = None
+        self._card_surf = None
+        self._last_t = None
 
         # ── particles ─────────────────────────────────────────────────────
         self.motes = ([AmbientMote() for _ in range(AMBIENT_MOTE_COUNT)]
@@ -420,23 +482,28 @@ class RobotFace:
             listening = state.listening
             energy    = state.audio_energy
             look_dir  = state.look_dir
-            frozen    = state.frozen_emotion
             convo_active  = state.conversation_active
             convo_expired = state.convo_expired_time
             luna_mode = state.luna_mode
             recog_at  = state.recog_event_time
+            tts_active = state.tts_active
+            card       = state.card
+            card_set   = state.card_set_at
+            card_since = state.card_since
+            card_until = state.card_until
 
-        # While speaking, the mood is frozen to whatever it was when she began —
-        # a face that changes emotion mid-sentence reads as a glitch.
-        if speaking and frozen:
-            name = frozen.lower() if frozen != "Neutral" else "neutral"
-            expr = expressions.get(name)
-        else:
-            expr = self.expr
+        # While speaking, face_renderer holds whatever face she started talking
+        # with, so the mood is simply self.expr. (This used to swap in the raw
+        # vision label captured when speak() began, which threw away a
+        # face.happy() / love() set just before the reply — a smile that
+        # snapped to neutral the instant the voice started.)
+        expr = self.expr
 
         listening_only = listening and not speaking
 
         self._update_double_take(recog_at)
+        self._update_card(card, card_set, card_since, card_until,
+                          speaking or tts_active)
         self._update_idle(face_detected, speaking, expr)
         self._update_wake()
         self._update_conversation(convo_active, convo_expired)
@@ -451,6 +518,43 @@ class RobotFace:
 
         # Stash what draw() needs, so drawing reads no shared state.
         self._frame = (expr, speaking, listening_only)
+
+    # ── cards ─────────────────────────────────────────────────────────────
+    def _update_card(self, card, set_at, since, until, talking):
+        """Fade toward the card while it should show, back to the face after;
+        forget a card whose time is up (only that one — never a newer card
+        requested in the meantime)."""
+        now = time.time()
+        dt = 0.0 if self._last_t is None else min(0.1, max(0.0, now - self._last_t))
+        self._last_t = now
+        show = self._card_timer.visible(card, set_at, since, until, talking, now)
+        if show:
+            self._card = card
+        elif card is not None and self._card_timer.done(
+                card, set_at, since, until, talking, now):
+            with state.lock:
+                if state.card_set_at == set_at:
+                    state.card = None
+                    state.card_until = None
+        step = dt / max(1e-3, CARD_FADE_SECS)
+        self.card_mix = (min(1.0, self.card_mix + step) if show
+                         else max(0.0, self.card_mix - step))
+        if self.card_mix == 0.0 and not show:
+            self._card = None
+
+    def _card_surface(self):
+        """The current card's pixels, re-drawn only when they change (the
+        clock once a second, the date once a day, the others never)."""
+        now = datetime.datetime.fromtimestamp(time.time())
+        key = face_cards.cache_key(self._card, now)
+        if key != self._card_key:
+            self._card_key = key
+            try:
+                self._card_surf = face_cards.render(self._card, now)
+            except Exception as e:                  # never kill the face
+                print(f"[face] card failed: {e}")
+                self._card_surf = None
+        return self._card_surf
 
     # ── recognition double-take ───────────────────────────────────────────
     def _update_double_take(self, recog_at):
@@ -593,7 +697,7 @@ class RobotFace:
 
     # ── eyes ──────────────────────────────────────────────────────────────
     def _update_eyes(self, expr, speaking, listening):
-        eye_w, eye_h = self._eye_size(expr, speaking)
+        eye_w, eye_h = self._eye_size(expr)
         blink_t = self._blink(expr, speaking)
 
         # '∩' eyes only for genuinely cheerful moods, and never while speaking —
@@ -610,6 +714,9 @@ class RobotFace:
         # An expression may deliberately look away (shy). This is added on top
         # of tracking, so she still follows you — just not with her eyes.
         gaze_x, gaze_y = expr.gaze
+        # The angry cut across the top of the eye eases in like everything
+        # else, rather than appearing whole on the first angry frame.
+        slant = 1.0 if expr.brow == "angry" and not listening else 0.0
         for eye, scale in ((self.left_eye,  expr.asym[0]),
                            (self.right_eye, expr.asym[1])):
             eye.update(int(eye_w * scale), int(eye_h * scale), blink_t,
@@ -617,14 +724,18 @@ class RobotFace:
                        pupil_scale=self.micro.pupil_scale,
                        squint=self.micro.squint,
                        widen=self.micro.widen,
-                       droop=self.micro.droop)
+                       droop=self.micro.droop,
+                       slant=slant)
 
         self._update_pulses(expr, listening)
         self.left_blush.update(expr.blush)
         self.right_blush.update(expr.blush)
 
-    def _eye_size(self, expr, speaking):
-        w, h = (185, 118) if speaking else (expr.eye_w, expr.eye_h)
+    def _eye_size(self, expr):
+        # The mood's own eye size, talking or not. Forcing one fixed size while
+        # speaking made every face lurch to the same eyes when the voice began
+        # and lurch back when it stopped, and hid anger / sadness mid-reply.
+        w, h = expr.eye_w, expr.eye_h
 
         # Waking: squeeze then pop. The yawn squashes the eyes almost shut and
         # stretches them wide, the way you screw your eyes up mid-yawn; as it
@@ -678,11 +789,23 @@ class RobotFace:
             0.5 + 0.5 * math.sin(self.listen_phase) if listening else 0.0,
             0.15 if listening else 0.10)
 
-        self.red_pulse_phase += 0.06
-        self.red_pulse = lerp(
-            self.red_pulse,
-            0.3 + 0.3 * math.sin(self.red_pulse_phase) if expr.red_pulse else 0.0,
-            0.10 if expr.red_pulse else 0.08)
+        # Red eyes: ease in over ~0.5 s, ease out a little slower (anger
+        # lingers), and never snap. The old version pulsed 0 -> 60 % red, so
+        # half the time angry eyes were not red at all.
+        self.eye_red = lerp(self.eye_red, 1.0 if expr.red_eyes else 0.0,
+                            0.08 if expr.red_eyes else 0.05)
+        if self.eye_red > 0.01:
+            self.eye_red_phase += 0.05
+
+    def _red_level(self):
+        """How red the eyes are drawn this frame, 0-1. A slow, shallow throb
+        (88-100 %) keeps angry eyes simmering without ever looking un-red.
+        Quantised to 1/32 so the cached glow / gradient sprites, which are
+        keyed by colour, stay a handful rather than one per frame."""
+        if self.eye_red <= 0.01:
+            return 0.0
+        throb = 0.94 + 0.06 * math.sin(self.eye_red_phase)
+        return round(self.eye_red * throb * 32) / 32
 
     def _eye_color(self):
         """Listening pulse > awake tint > rest dim. All deliberately subtle —
@@ -708,14 +831,17 @@ class RobotFace:
 
         `(kind, 0)` means one burst on entry; `(kind, n)` means one every n
         frames while the mood lasts. Anything the current mood does not ask
-        for is dropped immediately, so switching away clears the screen."""
+        for stops spawning and fades out fast (~0.5 s) — deleting it outright
+        made the steam / tears / hearts of the last mood blink out in one
+        frame, which read as a glitch rather than a change of mood."""
         fcx = int(self.face_cx + self.face_ox)
         fcy = int(self.face_cy + self.face_oy)
 
         wanted = {kind for kind, _ in expr.particles}
         for kind, group in self.particles.items():
             if kind not in wanted:
-                group.clear()
+                for p in group:
+                    p.alpha = max(0.0, p.alpha - PARTICLE_EXIT_FADE)
                 self.spawn_timers[kind] = 0
 
         for kind, period in expr.particles:
@@ -760,26 +886,34 @@ class RobotFace:
         screen = self.screen
         screen.fill(BG)
 
-        fcx = int(self.face_cx + self.face_ox)
-        fcy = int(self.face_cy + self.face_oy)
+        if self.card_mix < 1.0:       # fully covered by a card: skip the face
+            fcx = int(self.face_cx + self.face_ox)
+            fcy = int(self.face_cy + self.face_oy)
 
-        self._draw_background(screen, expr)
-        angle = quantize_angle(self.head_angle)
-        if angle == 0.0:
-            # Upright: straight onto the screen, no layer, no rotation.
-            self._draw_face(screen, fcx, fcy, expr, speaking, listening)
-            self._paint_front(screen)
-            self._draw_wake_ripple(screen, fcx, fcy)
-        else:
-            self._draw_tilted(angle, fcx, fcy, expr, speaking, listening)
+            self._draw_background(screen, expr)
+            angle = quantize_angle(self.head_angle)
+            if angle == 0.0:
+                # Upright: straight onto the screen, no layer, no rotation.
+                self._draw_face(screen, fcx, fcy, expr, speaking, listening)
+                self._paint_front(screen)
+                self._draw_wake_ripple(screen, fcx, fcy)
+            else:
+                self._draw_tilted(angle, fcx, fcy, expr, speaking, listening)
+
+        if self.card_mix > 0.0 and self._card is not None:
+            card = self._card_surface()
+            if card is not None:      # the cross-fade: card over the face
+                card.set_alpha(int(round(255 * self.card_mix)))
+                screen.blit(card, (0, 0))
 
         # Status overlays are drawn AFTER the rotation, deliberately: a status
         # light that swings around with the head is hard to read at a glance,
         # and the whole point of it is "am I still listening?".
         self._draw_convo_light()
-        self._draw_thinking()
+        if self.card_mix < 0.5:       # a card replaces these, the light stays
+            self._draw_thinking()
+            self._draw_banner()
         self._draw_enroll_preview()
-        self._draw_banner()
 
         pygame.display.flip()
 
@@ -890,28 +1024,21 @@ class RobotFace:
             print(f"[face] touch enroll failed: {e}")
 
     def _handle_touch(self, x, y):
-        """Tapping an eye boops it (that eye pops); the mouth area giggles.
-        Uses the face override channel so it wins over vision for a moment,
-        then hands the face straight back."""
+        """A tap anywhere makes Luna angry for TOUCH_ANGRY_SECS — red eyes,
+        steam — and takes down a card first, so the angry face is what you
+        see. Even asleep (she wakes up grumpy). Never while she is speaking:
+        an answer is not interrupted. Uses the face override channel so it
+        wins over vision, then hands the face back."""
         if not ENABLE_TOUCH_REACTIONS:
             return
         with state.lock:
             speaking = state.speaking or state.tts_active
-        if speaking or self.state == "sleeping":
-            return                        # never stomp on talking / sleeping
-
-        fcx = self.face_cx + self.face_ox
-        fcy = self.face_cy + self.face_oy
-        reach = 150                       # generous hit circle around each part
-        if math.hypot(x - (fcx + self.left_eye.rel_x),
-                      y - (fcy + self.left_eye.rel_y)) < reach:
-            face_api.show("boop_left", BOOP_SECONDS)
-        elif math.hypot(x - (fcx + self.right_eye.rel_x),
-                        y - (fcy + self.right_eye.rel_y)) < reach:
-            face_api.show("boop_right", BOOP_SECONDS)
-        elif math.hypot(x - (fcx + self.mouth.rel_x),
-                        y - (fcy + self.mouth.rel_y)) < reach:
-            face_api.show("giggle", BOOP_SECONDS + 0.6)
+            card = state.card
+        if card is not None or self.card_mix > 0.0:
+            face_api.clear_card()
+        if speaking:
+            return
+        face_api.angry(TOUCH_ANGRY_SECS)
 
     def _draw_background(self, surf, expr):
         # Motes are dimmed while sleeping so they read as a calm night sky
@@ -1042,10 +1169,11 @@ class RobotFace:
 
         brow = "raised" if listening else expr.brow
         color = self._eye_color()
+        red = self._red_level()
         for eye in (self.left_eye, self.right_eye):
             eye.draw(surf, fcx + eye.rel_x, fcy + eye.rel_y,
                      brow=brow, color=color,
-                     red_pulse=self.red_pulse, arc=self.eye_arc,
+                     red=red, arc=self.eye_arc,
                      nudge=self._nudge)
 
         self.mouth.draw(surf, fcx + self.mouth.rel_x, fcy + self.mouth.rel_y,

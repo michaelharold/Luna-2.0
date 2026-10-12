@@ -84,12 +84,22 @@ def system_prompt(knowledge_text=None):
 
 
 def format_context(kb_snippets=(), web_snippets=(), scene=None, person=None,
-                   style=None, exemplars=(), profile=None, diary=None):
+                   style=None, exemplars=(), profile=None, diary=None,
+                   background=None, web_related=()):
     """The per-turn context block, or "" when there is nothing to add.
 
     kb_snippets  — [(question, answer, score)] from brain's RAG-lite retrieval
     web_snippets — [(source, chunk_text, score)] from web_rag.retrieve()
-    scene        — live camera description (vision questions)
+    web_related  — [(source, text, score)] from web_rag.related(): what else
+                   the site says about the people / things in the question
+                   (a teacher's award, a student's placement)
+    scene        — live camera description (vision questions ONLY: the model
+                   is told to answer from it)
+    background   — scene memory on an ordinary question (who is around, what
+                   Luna just asked). Marked as not-to-be-mentioned: under the
+                   "answer from this" scene header the model narrated it
+                   ("I saw you looking surprised...") in reply to questions
+                   that had nothing to do with it
     person       — recognised person's name, if any
     profile      — one sentence about that person (learning.profile_context)
     exemplars    — [(question, reply)] liked replies to similar questions
@@ -114,9 +124,20 @@ def format_context(kb_snippets=(), web_snippets=(), scene=None, person=None,
         ext = "\n".join(f"- {txt}" for _, txt, _ in web_snippets)
         parts.append("Extracts from the college website that may be relevant:\n"
                      + ext)
+    if web_related:
+        rel = "\n".join(f"- {txt}" for _, txt, _ in web_related)
+        parts.append("Related facts from the website about the people or "
+                     "things in the question. If one is a recent achievement "
+                     "or piece of work of the person asked about, add the "
+                     "most recent in one short sentence; otherwise use them "
+                     "only if they fit naturally:\n" + rel)
     if scene:
         parts.append("What your camera sees RIGHT NOW (answer from this, in "
                      f"your own warm words):\n{scene}")
+    if background:
+        parts.append("Background notes, for your understanding only — do not "
+                     "bring them up, comment on them or greet anyone because "
+                     "of them unless the person asks:\n" + background)
     if exemplars:
         ex = "\n".join(f"- Q: {q}\n  A: {a}" for q, a in exemplars)
         parts.append("Replies people liked for similar questions (copy the "

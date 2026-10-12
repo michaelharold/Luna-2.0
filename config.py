@@ -28,6 +28,15 @@ IS_MAC = (RUN_MODE == "mac") or (RUN_MODE == "auto"
                                  and platform.system() == "Darwin")
 IS_PI  = not IS_MAC
 
+# ── Terminal output ───────────────────────────────────────────────────────────
+# False — clean: what Luna heard, where each answer came from (website pages /
+#         knowledge-base entries), what she said, who she recognised, and any
+#         errors. Ollama's own logs go to data/logs/ollama.log (see
+#         OLLAMA_AUTOSTART).
+# True  — everything: speech-recognition scores, LLM speed, retrieval routes,
+#         timings, servo moves, start-up chatter and the libraries' own logs.
+LOG_VERBOSE = False
+
 # ── Pi 5 fixed config ─────────────────────────────────────────────────────────
 PI_MODEL        = 5
 VISION_FPS      = 8
@@ -136,6 +145,15 @@ WAKE_REPLIES = ["Yes?", "I'm listening!", "Hi! How can I help?"]
 # ── Emotion smoothing ─────────────────────────────────────────────────────────
 EMOTION_HISTORY_LEN  = 5
 SAD_CONFIDENCE       = 55.0
+
+# How the FACE follows the camera's emotion (face_renderer.EmotionFilter).
+# Vision re-guesses the emotion 8 times a second and its guess flickers, so
+# copying it straight onto the face gave one-second smiles that snapped away.
+# A new mood must be reported steadily for EMOTION_ONSET_SECS before Luna
+# wears it, and once worn it stays for at least EMOTION_MIN_HOLD_SECS.
+# Explicit faces (face.happy(), compliments, gestures) are not delayed.
+EMOTION_ONSET_SECS    = 0.8
+EMOTION_MIN_HOLD_SECS = 2.5
 
 # DeepFace (TensorFlow) is the heaviest thing Luna can load (~1-2 GB RAM and a
 # slow import) and only improves "Sad" detection. That RAM is now budgeted to
@@ -282,6 +300,10 @@ OLLAMA_NUM_THREAD = TORCH_THREADS   # CPU threads Ollama may use on the Pi
 OLLAMA_KEEP_ALIVE = -1              # -1 = keep the model resident forever
                                     # (never pay the load again mid-conversation)
 OLLAMA_TIMEOUT    = 90.0            # seconds before a generation is abandoned
+OLLAMA_AUTOSTART  = True            # no server running? start `ollama serve`
+                                    # in the background, its logs going to
+                                    # OLLAMA_LOG instead of this terminal
+OLLAMA_LOG        = "data/logs/ollama.log"
 OLLAMA_BAKE_KNOWLEDGE = False       # make_luna_model.py puts the WHOLE
                                     # knowledge.txt in the model's SYSTEM
                                     # prompt (Ollama caches that static prefix,
@@ -311,6 +333,18 @@ AUDIO_MAX_GAIN       = 8.0     # never boost more than this (x) — avoids
                                # blowing up silence into noise
 AUDIO_GATE_DB        = -50.0   # blocks quieter than this (dBFS RMS) are muted;
                                # None disables the gate
+#   • noise suppression — steady room noise (fans, AC, machines) is learned
+#     from the gaps between words and turned down by up to
+#     AUDIO_NOISE_FLOOR_DB, before the gate and gain. OFF by default: measured
+#     with scripts/bench_stt_noise.py it halves errors in LOUD steady noise
+#     (fan at 0 dB SNR: 18-24 % -> 9-13 %) but makes crowd chatter worse
+#     (5 dB SNR: ~57 % -> ~71 %), because chatter is speech too and the
+#     filter eats into the voice it should keep. Turn it on only where the
+#     noise is a fan / AC / machine hum, not people talking.
+#     (Always on, regardless: the anti-aliasing resampler in front of all of
+#     this — audio_preprocess.Resampler.)
+AUDIO_NOISE_SUPPRESS = False
+AUDIO_NOISE_FLOOR_DB = -12.0     # deepest cut; -20 dB distorted speech
 
 # ── Web RAG: the college website (only when online) ─────────────────────────
 # How it works (web_rag.py):
@@ -335,6 +369,15 @@ WEB_RAG_SEEDS          = (                 # pages whose menus form the catalog
     "https://tkmce.ac.in/computer-science-and-engineering",
     "https://tkmce.ac.in/cse.php",
 )
+WEB_RAG_LINKS_FILE     = "data/website_links.txt"  # hand-picked pages, grouped:
+                                           # always indexed, routed by group
+WEB_RAG_RELATED        = True              # second hop: a question about a
+                                           # person / thing also pulls what else
+                                           # the site says about them (a
+                                           # teacher's latest award). A
+                                           # knowledge-base answer that has such
+                                           # extras goes through the LLM
+                                           # (slower) to weave one in
 WEB_RAG_FOCUS_NAME     = "Computer Science and Engineering"
 WEB_RAG_FOCUS_SLUGS    = ("cse",)          # URL words that mark focus pages
 WEB_RAG_SKIP_SECTIONS  = ("departments",)  # menu sections skipped (other depts)
@@ -432,7 +475,24 @@ PIPER_MODEL = (
 # 1.3 = natural assistant pace
 PIPER_LENGTH_SCALE = 1.3
 
-TTS_PLAYER = "paplay"
+TTS_PLAYER = "afplay" if IS_MAC else "paplay"
+
+# How speech is played, which decides how precisely the talking mouth lines up
+# with the voice (see piper_tts / lip_sync):
+#   True  — in-process through sounddevice, which reports exactly when the
+#           sound is heard. The Mac default.
+#   False — through TTS_PLAYER. It can't say when sound starts, so Luna
+#           estimates it: TTS_PLAYER_LATENCY to begin with, then re-measured
+#           from every sentence played. The Pi default, since paplay is the
+#           known-good path through PipeWire there.
+# If in-process playback fails it falls back to TTS_PLAYER automatically.
+TTS_INPROCESS_PLAYBACK = IS_MAC
+TTS_PLAYER_LATENCY     = 0.2    # s, first guess at TTS_PLAYER's start-up delay
+
+# The mouth reads the voice's loudness this far ahead of the sound. Real lips
+# move a touch before the sound they make, and a mouth that leads the voice
+# by a few frames looks natural where one that lags looks dubbed.
+TTS_LIPSYNC_LEAD = 0.05
 
 # Stream piper audio straight into the player so speech starts on the first
 # audio chunk (instead of waiting for the whole file to synthesize — the old
@@ -575,6 +635,23 @@ FACE_MATCH_THRESH  = 0.36      # SFace cosine similarity — the paper's 0.363,
                                # if enrolled people aren't recognised.
 RECOGNIZE_EVERY    = 3         # run the embedder every Nth vision frame
 FACE_DB_DIR        = "data/faces"
+FACE_MAX_TEMPLATES = 6         # looks per person (day, night, glasses…): each
+                               # registration adds one; matching takes the best
+# Learning a new look by itself — when Luna is VERY sure it is you in light she
+# hasn't stored yet (e.g. the first evening after a daytime registration). All
+# must hold: recognised steadily for FACE_LEARN_STABLE_SECS, a match of at least
+# FACE_LEARN_MIN_SIM (well above FACE_MATCH_THRESH) yet below
+# FACE_LEARN_NOVEL_BELOW (a look she already has is nothing new), a clear
+# FACE_LEARN_MARGIN over every other enrolled person, exactly one face in view,
+# and at most one new look per person per FACE_LEARN_EVERY_SECS. The new look is
+# the average of FACE_LEARN_SAMPLES consecutive qualifying sightings.
+FACE_AUTO_LEARN        = True
+FACE_LEARN_MIN_SIM     = 0.55
+FACE_LEARN_NOVEL_BELOW = 0.80
+FACE_LEARN_MARGIN      = 0.15
+FACE_LEARN_STABLE_SECS = 10.0
+FACE_LEARN_EVERY_SECS  = 600.0
+FACE_LEARN_SAMPLES     = 5
 FACE_LOG_PATH      = "data/face_log.jsonl"
 FACE_LOG_ENABLED   = True
 FACE_LOG_COOLDOWN  = 60.0      # min seconds between log entries per person
@@ -654,8 +731,20 @@ VOLUME_MIN, VOLUME_MAX = 20, 100
 # active conversation or her own speech.
 ENABLE_PROACTIVE          = True
 PROACTIVE_GREET_RECOGNIZED = True   # "Hi Alice!" + wave + name banner
-GREET_COOLDOWN_SECS       = 120.0   # per person: a quick step away and back
-                                    # gets no second greeting
+GREET_COOLDOWN_SECS       = 120.0   # Luna greets a person once per VISIT; a
+                                    # new visit (back after PERSON_AWAY_SECS
+                                    # out of sight) is greeted again only if
+                                    # the last greeting was this long ago
+
+# What counts as someone LEAVING. A face that drops out of view for less than
+# this — looking down at a phone, turning to a friend, the camera missing a
+# few frames — is still the same visit: same name, no "welcome back", no
+# "you're back again". Out of sight for longer = they left.
+PERSON_AWAY_SECS          = 30.0
+# A recognised name is only replaced (by a stranger, or someone else) once the
+# camera has disagreed for this long — one badly-angled frame that fails to
+# match must not make Luna forget who she is talking to.
+RECOG_SWITCH_SECS         = 3.0
 PROACTIVE_SMILE_REACT     = True    # smile back + a happy word
 SMILE_REACT_COOLDOWN      = 120.0
 PROACTIVE_SAD_REACT       = True    # gentle check-in on a sad face
@@ -684,7 +773,25 @@ SAD_PHRASES = (
 # cross for a moment), tapping the mouth area gets a giggle smile. Works with a
 # mouse too, for desktop testing.
 ENABLE_TOUCH_REACTIONS = True
-BOOP_SECONDS           = 1.4
+BOOP_SECONDS           = 1.4    # (boop / giggle faces, still in expressions.py)
+TOUCH_ANGRY_SECS       = 4.0    # a tap on the screen makes Luna angry this long
+                                # (press-and-hold in the middle still registers)
+
+# ── Screen cards (face_cards.py) ──────────────────────────────────────────────
+# Some answers are better SHOWN: the face fades out and a full-screen card
+# fades in — the date (a calendar tile like the macOS widget), the time (an
+# analog clock), a person (name in big rounded bold, role, one highlight), or
+# the name of someone Luna has just recognised.
+SCREEN_CARDS      = True
+CARD_FADE_SECS    = 0.35   # face <-> card cross-fade
+CARD_LINGER_SECS  = 3.0    # a card stays this long after Luna stops speaking
+CARD_START_GRACE  = 8.0    # a card waiting for a voice that never starts
+PERSON_CARDS      = True   # only when the person is certain (people.py)
+GREET_CARD        = True   # recognition: the name card instead of the banner
+GREET_CARD_DELAY  = 1.0    # s — after the eye double-take
+GREET_CARD_SECS   = 4.0
+RECOG_DEDUP_SECS  = 30.0   # one recognition moment per arrival: vision's
+                           # on-sight moment and the spoken greeting share it
 
 # ── Greeting name banner ──────────────────────────────────────────────────────
 # "Hi <name>!" drawn on screen when a recognised face is greeted (the sketch's

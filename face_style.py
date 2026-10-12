@@ -21,6 +21,7 @@ Styles
 """
 
 import pygame
+import console
 
 # ── Canvas ────────────────────────────────────────────────────────────────────
 # Fixed logical canvas. pygame's SCALED flag maps it onto the real display, so
@@ -113,7 +114,7 @@ def apply_style(n):
     for key in _KEYS:
         setattr(theme, key, style[key])
     clear_caches()           # cached glow surfaces are baked per-palette
-    print(f"[face] Style {n} ({style['name']}) active")
+    console.detail(f"[face] Style {n} ({style['name']}) active")
     return True
 
 

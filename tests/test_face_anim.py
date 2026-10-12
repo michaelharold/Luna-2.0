@@ -39,13 +39,15 @@ robot_face.RENDER_FPS = config.RENDER_FPS
 _RESET = dict(face_override=None, face_override_until=0.0, banner_text="",
               banner_until=0.0, banner_since=0.0, recog_event_time=0.0,
               touch_enroll_request=False, speaking=False, tts_active=False,
-              face_detected=False, face_x=0.5, audio_energy=0.0)
+              face_detected=False, face_x=0.5, audio_energy=0.0, card=None,
+              card_set_at=0.0, card_since=0.0, card_until=None)
 
 
 def _reset_state():
     with state.lock:
         for k, v in _RESET.items():
             setattr(state, k, v)
+    face._moments.clear()              # one moment per arrival — per test
 
 
 class FakeClock:
@@ -236,27 +238,63 @@ class TestFaceApi(unittest.TestCase):
     def test_recognition_moment_writes(self):
         with mock.patch.object(face, "RECOG_ANIMATION", True):
             before = time.time()
-            face.recognition_moment("Alice")
+            face.recognition_moment("Alice", line="Good afternoon")
             after = time.time()
         with state.lock:
             # the configured greeting face (RECOG_EXPRESSION, "excited")
             self.assertEqual(state.face_override, face.RECOG_EXPRESSION)
-            self.assertEqual(state.banner_text, "Hi Alice!")
             self.assertTrue(before <= state.recog_event_time <= after)
-            # One timestamp for all three writes — they belong together.
-            self.assertEqual(state.banner_since, state.recog_event_time)
+            # the name card, AFTER the double-take, for GREET_CARD_SECS
+            self.assertEqual(state.card, {"kind": "greeting", "name": "Alice",
+                                          "line": "Good afternoon"})
+            self.assertEqual(state.card_set_at, state.recog_event_time)
+            self.assertAlmostEqual(state.card_since - state.card_set_at,
+                                   config.GREET_CARD_DELAY)
+            self.assertAlmostEqual(state.card_until - state.card_since,
+                                   config.GREET_CARD_SECS)
             self.assertAlmostEqual(
                 state.face_override_until - state.recog_event_time,
                 config.RECOG_EXPRESSION_SECS)
+            self.assertEqual(state.banner_text, "")
+
+    def test_banner_when_cards_are_off(self):
+        with mock.patch.object(face, "RECOG_ANIMATION", True), \
+                mock.patch.object(face, "GREET_CARD", False):
+            face.recognition_moment("Alice")
+        with state.lock:
+            self.assertEqual(state.banner_text, "Hi Alice!")
+            self.assertEqual(state.banner_since, state.recog_event_time)
             self.assertAlmostEqual(state.banner_until - state.banner_since,
                                    config.GREET_BANNER_SECS)
+            self.assertIsNone(state.card)
+
+    def test_once_per_arrival(self):
+        """Vision plays the moment on sight; the spoken greeting asks for it
+        again a moment later — the double-take must not play twice."""
+        self.assertTrue(face.recognition_moment("Alice", line=""))
+        with state.lock:
+            first = state.recog_event_time
+        self.assertFalse(face.recognition_moment("Alice", line=""))
+        with state.lock:
+            self.assertEqual(state.recog_event_time, first)
+        self.assertTrue(face.recognition_moment("Bob", line=""))   # someone else
+
+    def test_greeting_line(self):
+        noon = time.mktime((2026, 10, 12, 14, 0, 0, 0, 0, -1))
+        with mock.patch.object(face, "_met_before", lambda n: True):
+            self.assertEqual(face.greeting_line("Zed Quill", noon),
+                             "Good afternoon · welcome back")
+        with mock.patch.object(face, "_met_before", lambda n: False):
+            self.assertEqual(face.greeting_line("Zed Quill", noon - 5 * 3600),
+                             "Good morning · nice to see you")
 
     def test_recognition_moment_without_animation(self):
         with mock.patch.object(face, "RECOG_ANIMATION", False):
-            face.recognition_moment("Bob")
+            face.recognition_moment("Bob", line="")
         with state.lock:
             self.assertEqual(state.face_override, "happy")
-            self.assertEqual(state.banner_text, "Hi Bob!")
+            self.assertEqual(state.card["name"], "Bob")
+            self.assertEqual(state.card_since, state.card_set_at)  # no delay
             self.assertEqual(state.recog_event_time, 0.0)   # no double-take
 
 
@@ -355,7 +393,8 @@ class TestRenderedMoment(unittest.TestCase):
             self.assertFalse(state.touch_enroll_request)     # only once
             self.assertEqual(state.face_override, "curious")  # no tap on release
 
-    def test_short_tap_still_giggles(self):
+    def test_short_tap_in_the_middle_angers(self):
+        """A quick tap in the registration zone is a tap, not a hold."""
         import pygame
         self._frames(5, override=False)
         cx, cy = self._centre()
@@ -365,17 +404,29 @@ class TestRenderedMoment(unittest.TestCase):
         self._post(pygame.MOUSEBUTTONUP, pos)
         self._frames(1, override=False)
         with state.lock:
-            self.assertEqual(state.face_override, "giggle")
+            self.assertEqual(state.face_override, "angry")
             self.assertFalse(state.touch_enroll_request)
 
-    def test_eye_tap_is_immediate(self):
+    def test_tap_on_an_eye_angers_at_once(self):
         import pygame
         self._frames(5, override=False)
         cx, cy = self._centre()
         self._post(pygame.MOUSEBUTTONDOWN, (int(cx) - 190, int(cy) - 30))
         self._frames(1, override=False)
         with state.lock:
-            self.assertEqual(state.face_override, "boop_left")
+            self.assertEqual(state.face_override, "angry")
+            self.assertAlmostEqual(state.face_override_until - self.clock(),
+                                   config.TOUCH_ANGRY_SECS, delta=0.1)
+
+    def test_no_anger_while_speaking(self):
+        import pygame
+        self._frames(5, override=False)
+        with state.lock:
+            state.speaking = True
+        self._post(pygame.MOUSEBUTTONDOWN, (80, 80))
+        self._frames(1, override=False)
+        with state.lock:
+            self.assertIsNone(state.face_override)
 
 
 if __name__ == "__main__":

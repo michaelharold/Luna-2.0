@@ -41,6 +41,7 @@ import json
 import os
 import threading
 import time
+import console
 
 try:
     from config import (CONVO_LOG_ENABLED, CONVO_LOG_DIR,
@@ -284,7 +285,7 @@ def prune(days_to_keep=None, now=None):
                 os.remove(path_for(d))
                 removed += 1
         if removed:
-            print(f"[convlog] pruned {removed} log file(s) older than "
+            console.detail(f"[convlog] pruned {removed} log file(s) older than "
                   f"{keep} days")
         return removed
     except Exception as e:                                   # noqa: BLE001

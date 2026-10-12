@@ -51,6 +51,7 @@ import time
 import numpy as np
 
 import conversation_log
+import console
 
 try:
     import config as _config
@@ -587,7 +588,7 @@ def _apply(turn, signals, now):
         reward_signals=[[s, round(v, 3)] for s, v in signals])
     _learn_from(turn, r, now)
     sig = ", ".join(f"{s} {v:+.2f}" for s, v in signals)
-    print(f"[learn] reward {r:+.2f} for \"{(turn.get('heard_clean') or '')[:40]}\""
+    console.detail(f"[learn] reward {r:+.2f} for \"{(turn.get('heard_clean') or '')[:40]}\""
           f" ({sig}) arm={turn.get('style_arm')}")
     return r
 
@@ -1109,7 +1110,7 @@ def maybe_write_diary(llm_ask, now=None, force=False):
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(text + "\n")
     os.replace(tmp, path)
-    print(f"[learn] diary written: {path}")
+    console.detail(f"[learn] diary written: {path}")
     return True
 
 

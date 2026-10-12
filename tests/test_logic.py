@@ -96,12 +96,44 @@ class TestFaceStore(unittest.TestCase):
         self.assertNotIn("Bob", self.store.known_names())
         self.assertFalse(self.store.forget("bob"))
 
-    def test_reenroll_replaces(self):
+    def test_reenroll_adds_a_look(self):
+        """Registering again (at night, with glasses) ADDS a template — both
+        looks are recognised — instead of replacing the first."""
         self.store.enroll("cara", [self._vec(3)])
         self.store.enroll("cara", [self._vec(4)])
         self.assertEqual(self.store.known_names().count("Cara"), 1)
-        name, _ = self.store.match(self._vec(4))
-        self.assertEqual(name, "Cara")
+        self.assertEqual(self.store.template_count("cara"), 2)
+        for seed in (3, 4):
+            name, score = self.store.match(self._vec(seed))
+            self.assertEqual(name, "Cara")
+            self.assertGreater(score, 0.99)
+
+    def test_looks_are_capped_keeping_the_spread(self):
+        cap = self.store.FACE_MAX_TEMPLATES
+        for seed in range(10, 10 + cap):
+            self.store.enroll("eli", [self._vec(seed)])
+        near = self._vec(10) + self.np.random.default_rng(0).normal(
+            scale=0.05, size=128).astype("float32")
+        self.store.enroll("eli", [near])        # replaces its twin, seed 10
+        self.assertEqual(self.store.template_count("eli"), cap)
+        for seed in range(11, 10 + cap):        # every other look kept
+            self.assertGreater(self.store.match(self._vec(seed))[1], 0.99)
+
+    def test_forget_removes_every_look(self):
+        self.store.enroll("fay", [self._vec(5)])
+        self.store.enroll("fay", [self._vec(6)])
+        self.assertTrue(self.store.forget("fay"))
+        self.assertEqual(self.store.template_count("fay"), 0)
+        self.assertIsNone(self.store.match(self._vec(6))[0])
+
+    def test_add_template_and_runner_up(self):
+        self.assertFalse(self.store.add_template("nobody", self._vec(7)))
+        self.store.enroll("gus", [self._vec(7)])
+        self.store.enroll("hal", [self._vec(8)])
+        self.assertTrue(self.store.add_template("gus", self._vec(9)))
+        self.assertEqual(self.store.template_count("gus"), 2)
+        self.assertGreater(self.store.runner_up(self._vec(8), "gus"), 0.99)
+        self.assertLess(self.store.runner_up(self._vec(7), "gus"), 0.5)
 
     def test_persistence(self):
         self.store.enroll("dev", [self._vec(5)])

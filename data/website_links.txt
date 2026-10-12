@@ -1,0 +1,203 @@
+# data/website_links.txt — the college website pages Luna must always know,
+# grouped the way the college organises them (from "LINKS OF TKMCE").
+#
+# web_rag.py indexes every page here, on top of what it finds in the site's
+# menus, and routes questions to each page under its group: "who is the
+# principal" -> Administration > Administration -> /principal.
+#
+#   [Group] or [Group > Subgroup]   starts a group
+#   one URL per line                belongs to the group above it
+#   # ...                           a comment
+#
+# Other departments' pages are searched only when a question names that
+# department; the other TKM institutions' sites only when a question is about
+# them. Editing this file makes Luna re-read the website on her next refresh
+# (when online). Check every link with:  python web_rag.py --verify
+
+[Main]
+https://tkmce.ac.in/
+
+[TKM institutions]
+https://tkmsa.ac.in/
+http://www.tkmcas.ac.in/
+https://tkmim.ac.in/
+https://tkmit.ac.in/
+https://tkmcps.org/                  # slow site (~24 s): may time out on a refresh
+https://tkmhss.org/
+
+[About]
+https://tkmce.ac.in/tkm-founder
+https://tkmce.ac.in/vision-mission
+
+[Administration > General]
+https://tkmce.ac.in/governing-body
+https://tkmce.ac.in/academiccouncil
+https://tkmce.ac.in/financecommittee
+https://tkmce.ac.in/board-of-studies
+https://tkmce.ac.in/committee
+https://tkmce.ac.in/rti-queries
+https://tkmce.ac.in/tenders
+https://tkmce.ac.in/office-proceedings.php
+
+[Administration > Administration]
+https://tkmce.ac.in/principal
+https://tkmce.ac.in/deans
+https://tkmce.ac.in/hods
+https://tkmce.ac.in/administrative-office
+
+[Academics > Programmes]
+https://tkmce.ac.in/ug-programmes
+https://tkmce.ac.in/pg-programmes
+https://tkmce.ac.in/phd-programmes
+
+[Academics > Curriculum Regulations]
+https://tkmce.ac.in/syllabus
+https://tkmce.ac.in/curriculum-2022.php
+https://tkmce.ac.in/regulation-2022.php
+https://tkmce.ac.in/2022-syllabus.php
+https://tkmce.ac.in/curriculum-2023
+https://tkmce.ac.in/Regulations-2023.php
+https://tkmce.ac.in/2023-Syllabus-1.php
+https://tkmce.ac.in/2023-Syllabus-2.php
+https://tkmce.ac.in/curriculum-24.php
+https://tkmce.ac.in/regulation-2024.php
+https://tkmce.ac.in/2024-Syllabus-1.php
+
+[Academics > Academic Calendar]
+https://tkmce.ac.in/academic-calendar
+
+[Academics > Policies]
+https://tkmce.ac.in/code-of-conduct
+https://tkmce.ac.in/college-policies
+
+[Academics > Facilities]
+https://tkmce.ac.in/central-library
+https://tkmce.ac.in/ccf
+https://tkmce.ac.in/hostel-facility
+
+[Academics > Admissions]
+https://tkmce.ac.in/admission-policy
+https://tkmce.ac.in/LET-Btech
+
+[Academics > Scholarships]
+https://tkmce.ac.in/scholarship.php
+https://tkmce.ac.in/downloads
+
+[Departments]
+https://dap.tkmce.ac.in/
+https://tkmce.ac.in/chemical-engineering
+https://tkmce.ac.in/department-of-chemistry
+https://tkmce.ac.in/civil-engineering
+https://tkmce.ac.in/computer-science-and-engineering
+https://tkmce.ac.in/electrical-and-electronics-engineering
+https://tkmce.ac.in/centre-for-artificial-intelligence
+https://tkmce.ac.in/industrial-instrumentation-and-control
+https://tkmce.ac.in/electronics-and-communication-engineering
+https://tkmce.ac.in/computer-application
+https://tkmce.ac.in/mechanical-engineering
+https://tkmce.ac.in/mathematics
+https://tkmce.ac.in/physical-education
+https://tkmce.ac.in/physics
+https://tkmce.ac.in/humanities
+
+# ── Computer Science and Engineering — Luna's own department ──────────────
+# A page may sit in more than one group (faculty achievements is both
+# "Faculty" and "Achievements"); text after a URL is its name.
+
+[CSE Department > General]
+https://tkmce.ac.in/cse.php                       CSE Department
+
+[CSE Department > Vision Mission]
+https://tkmce.ac.in/vision-cse.php                Department Vision and Mission
+
+[CSE Department > Programmes]
+https://tkmce.ac.in/ug-cse.php                    BTech CSE programme
+https://tkmce.ac.in/pg-cse.php                    MTech CSE programme
+https://tkmce.ac.in/phd-cse.php                   PhD in CSE
+
+[CSE Department > Faculty]
+https://tkmce.ac.in/faculty-cse.php               Faculty
+https://tkmce.ac.in/adhoc-cse.php                 Adhoc Faculty
+https://tkmce.ac.in/faculty-achievements-cse.php  Faculty Achievements
+
+[CSE Department > Staff]
+https://tkmce.ac.in/nts-cse.php                   Non Teaching Staff
+
+[CSE Department > Students]
+https://tkmce.ac.in/mtech-cse.php                 MTech Students
+https://tkmce.ac.in/btech-cse.php                 BTech Students
+https://tkmce.ac.in/student-achievements-cse.php  Student Achievements
+
+[CSE Department > Facilities]
+https://tkmce.ac.in/facilities-cse.php            Facilities
+https://tkmce.ac.in/labs-cse.php                  Labs
+
+[CSE Department > Achievements]
+https://tkmce.ac.in/faculty-achievements-cse.php
+https://tkmce.ac.in/student-achievements-cse.php
+https://tkmce.ac.in/innovations-cse.php           Innovations
+
+[CSE Department > Others]
+https://tkmce.ac.in/expert-talks-cse.php          Expert Talks
+https://tkmce.ac.in/student-chapter-cse.php       Student Chapters
+
+[CSE Department > Innovations]
+https://tkmce.ac.in/innovations-cse.php
+
+[Research]
+https://tkmce.ac.in/research-council
+https://tkmce.ac.in/research-supervisors.php
+https://tkmce.ac.in/research-scholars.php
+https://tkmce.ac.in/research-centre
+https://tkmce.ac.in/research-thrust-areas
+https://tkmce.ac.in/research-facilities
+https://tkmce.ac.in/funded-projects.php
+https://tkmce.ac.in/seed-money.php
+
+[Research > Collaborations]
+https://tkmce.ac.in/collaboration.php
+https://tkmce.ac.in/MOUs-Collaborations.php
+
+[Research > Consultancy]
+https://tkmce.ac.in/industry-institute-interaction
+https://tkmce.ac.in/govt-projects
+https://tkmce.ac.in/mou
+
+[Research > Patent]
+https://tkmce.ac.in/patent
+https://tkmce.ac.in/ipr-cell.php
+
+[Placements]
+https://tkmce.ac.in/placement.php
+
+[Examinations]
+https://tkmce.ac.in/exams.php
+https://tkmce.ac.in/exam-notification.php
+https://tkmce.ac.in/exam-manual.php
+https://tkmce.ac.in/exam-calender.php
+https://tkmce.ac.in/exam-result.php
+https://tkmce.ac.in/exam-end-sem.php
+https://tkmce.ac.in/exam-form.php
+https://tkmce.ac.in/series-exam.php
+
+[NIRF]
+https://tkmce.ac.in/nirf
+
+[IQAC]
+https://tkmce.ac.in/iqac-breif
+https://tkmce.ac.in/iqac-members
+https://tkmce.ac.in/iqac-meeting
+https://tkmce.ac.in/iqac-best-pracices
+https://tkmce.ac.in/iqac-po-pso-programmes
+https://tkmce.ac.in/iqac-student-satisfaction-survey
+https://tkmce.ac.in/iqac-naac
+https://tkmce.ac.in/strategic-plan.php
+https://tkmce.ac.in/iqac-formats
+https://tkmce.ac.in/iqac-aqar-report
+https://tkmce.ac.in/iqac-accreditation
+https://tkmce.ac.in/iqac-distinctiveness
+https://tkmce.ac.in/ugc.php
+https://tkmce.ac.in/audit.php
+
+[Contact]
+https://tkmce.ac.in/contact.php

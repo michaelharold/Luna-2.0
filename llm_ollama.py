@@ -29,15 +29,20 @@ knowledge base instead of ever raising into the voice loop.
 """
 
 import json
+import os
+import shutil
+import subprocess
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from config import (LLM_ENABLED, LLM_MAX_TOKENS, LLM_TEMPERATURE,
                     OLLAMA_HOST, OLLAMA_MODEL, OLLAMA_BASE_MODEL,
                     OLLAMA_NUM_CTX, OLLAMA_NUM_THREAD, OLLAMA_KEEP_ALIVE,
-                    OLLAMA_TIMEOUT)
+                    OLLAMA_TIMEOUT, OLLAMA_AUTOSTART, OLLAMA_LOG)
+import console
 
 # Boot: while the server is merely unreachable (ollama.service still starting
 # — the realistic systemd ordering on the Pi) warmup() retries with backoff
@@ -69,6 +74,7 @@ _model_override = None          # set_model(): bench/tests pick the model
 _available = False
 _supports_thinking = False      # send "think": false only when True
 _last_attempt = 0.0             # time.monotonic() of the last warmup attempt
+_server_proc = None             # the `ollama serve` Luna started, if any
 _last_stats = {}                # final-chunk stats of the latest generation
 
 
@@ -153,6 +159,35 @@ def _options():
     }
 
 
+def _start_server():
+    """Start `ollama serve` in the background, its output going to
+    OLLAMA_LOG. Its runner logs every request at high verbosity, which
+    buried Luna's own output when it shared her terminal (`ollama serve &`).
+    Only for a local server, only once, only if the binary is installed. The
+    server outlives Luna, so the next start finds the model still loaded.
+    Returns True if a server was launched."""
+    global _server_proc
+    if not OLLAMA_AUTOSTART or _server_proc is not None:
+        return False
+    host = urllib.parse.urlparse(OLLAMA_HOST).hostname
+    exe = shutil.which("ollama")
+    if host not in ("127.0.0.1", "localhost") or not exe:
+        return False
+    path = OLLAMA_LOG if os.path.isabs(OLLAMA_LOG) else os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), OLLAMA_LOG)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "ab") as log:
+            _server_proc = subprocess.Popen(
+                [exe, "serve"], stdin=subprocess.DEVNULL, stdout=log,
+                stderr=subprocess.STDOUT, start_new_session=True)
+    except OSError as e:
+        print(f"[llm] Could not start the Ollama server ({e})")
+        return False
+    print(f"[llm] Started the Ollama server (its logs: {path})")
+    return True
+
+
 def _warmup_locked():
     """The real warmup; caller holds _lock. Never raises. Returns None on
     success, otherwise a short reason: "disabled", "unreachable", "no-model"
@@ -167,6 +202,10 @@ def _warmup_locked():
     try:
         tags = _json("/api/tags", timeout=min(OLLAMA_TIMEOUT, 10.0))
     except (urllib.error.URLError, OSError, ValueError) as e:
+        if _start_server() or (_server_proc is not None
+                               and _server_proc.poll() is None):
+            console.detail(f"[llm] Waiting for the Ollama server to start ({e})")
+            return "unreachable"         # warmup() retries while it comes up
         print(f"[llm] Ollama server not reachable at {OLLAMA_HOST} ({e}) — "
               f"knowledge-base-only. Is the ollama service running?")
         return "unreachable"
@@ -185,7 +224,7 @@ def _warmup_locked():
         _json("/api/chat", {"model": name, "messages": [],
                             "keep_alive": OLLAMA_KEEP_ALIVE,
                             "options": _options()})
-        print(f"[llm] Ollama model {name} ready "
+        console.detail(f"[llm] Ollama model {name} ready "
               f"({time.monotonic() - t0:.1f}s, thinking="
               f"{'yes' if _supports_thinking else 'no'})")
     except Exception as e:
@@ -255,7 +294,7 @@ def warmup():
             print("[llm] Still no Ollama server — giving up for now; will "
                   "retry in the background when a question comes in.")
             return
-        print(f"[llm] Retrying the Ollama server in {delay:.0f}s")
+        console.detail(f"[llm] Retrying the Ollama server in {delay:.0f}s")
         _sleep(delay)
         delay = min(delay * 2, 30.0)
 
@@ -305,7 +344,7 @@ def _record_stats(final):
     n = _last_stats["eval_count"] or 0
     secs = (_last_stats["eval_duration"] or 0) / 1e9
     rate = n / secs if secs > 0 else 0.0
-    print(f"[llm] {n} tok in {secs:.1f}s ({rate:.1f} tok/s, "
+    console.detail(f"[llm] {n} tok in {secs:.1f}s ({rate:.1f} tok/s, "
           f"prefill {_last_stats['prompt_eval_count'] or 0} tok)")
 
 

@@ -52,20 +52,26 @@ from config import (MODEL_PATH, VISION_FPS, DEEPFACE_EVERY,
                     RECOGNIZE_EVERY, FACE_LOG_PATH, FACE_LOG_ENABLED,
                     FACE_LOG_COOLDOWN, ENROLL_FRAMES,
                     ENROLL_GUIDED_POSES, ENROLL_FRAMES_PER_POSE,
-                    ENROLL_MIN_FRAMES, VISION_DETECT_SCALE)
+                    ENROLL_MIN_FRAMES, VISION_DETECT_SCALE,
+                    PERSON_AWAY_SECS, RECOG_SWITCH_SECS,
+                    FACE_AUTO_LEARN, FACE_LEARN_MIN_SIM,
+                    FACE_LEARN_NOVEL_BELOW, FACE_LEARN_MARGIN,
+                    FACE_LEARN_STABLE_SECS, FACE_LEARN_EVERY_SECS,
+                    FACE_LEARN_SAMPLES)
 import config as _config
 from shared_state import state
 from models.emotion_mobilenet import EmotionMobileNet
 import face_store
+import console
 
 # ── PyTorch emotion model ─────────────────────────────────────────────────────
 EMOTIONS_PT = ["Angry", "Disgust", "Fear", "Happy", "Neutral", "Surprise"]
 
-print("[vision] Loading PyTorch emotion model...")
+console.detail("[vision] Loading PyTorch emotion model...")
 pt_model = EmotionMobileNet(num_classes=6)
 pt_model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
 pt_model.eval()
-print("[vision] PyTorch model ready")
+console.detail("[vision] PyTorch model ready")
 
 # ── Face detector — YuNet with a Haar fallback ────────────────────────────────
 _haar = cv2.CascadeClassifier(
@@ -80,7 +86,7 @@ if FACE_DETECTOR == "yunet":
                 YUNET_MODEL_PATH, "", (320, 240),
                 score_threshold=FACE_DETECT_CONF,
                 nms_threshold=0.3, top_k=500)
-            print("[vision] YuNet face detector ready")
+            console.detail("[vision] YuNet face detector ready")
         else:
             print("[vision] YuNet unavailable "
                   f"(model at {YUNET_MODEL_PATH}?) — using Haar cascade")
@@ -169,7 +175,7 @@ if ENABLE_FACE_RECOGNITION:
     try:
         if hasattr(cv2, "FaceRecognizerSF") and os.path.exists(SFACE_MODEL_PATH):
             _sface = cv2.FaceRecognizerSF.create(SFACE_MODEL_PATH, "")
-            print(f"[vision] SFace recogniser ready "
+            console.detail(f"[vision] SFace recogniser ready "
                   f"({len(face_store.known_names())} people enrolled)")
         else:
             print(f"[vision] SFace unavailable (model at {SFACE_MODEL_PATH}?) "
@@ -194,7 +200,7 @@ def _embed(frame, det_row):
 # ── DeepFace (optional — see ENABLE_DEEPFACE in config) ───────────────────────
 DEEPFACE_OK = False
 if ENABLE_DEEPFACE:
-    print("[vision] Loading DeepFace (ENABLE_DEEPFACE=True)...")
+    console.detail("[vision] Loading DeepFace (ENABLE_DEEPFACE=True)...")
     try:
         from deepface import DeepFace
         _dummy = np.zeros((48, 48, 3), dtype=np.uint8)
@@ -204,7 +210,7 @@ if ENABLE_DEEPFACE:
         except Exception:
             pass
         DEEPFACE_OK = True
-        print("[vision] DeepFace ready")
+        console.detail("[vision] DeepFace ready")
     except ImportError:
         print("[vision] DeepFace not installed — Sad detection reduced")
 
@@ -250,6 +256,12 @@ def _run_deepface(bgr_crop):
 _recog_last   = None    # last raw match (may be None = stranger)
 _recog_conf   = 0.0
 _recog_streak = 0
+_recog_first  = 0.0     # when the current run of _recog_last began
+_faceless_since = None  # first faceless frame, while no face is in view
+_face_run_start = None  # when the current unbroken stretch of "a face is in
+                        # view" began (a gap > FACE_GAP_SECS starts a new one)
+_confirmed_at = None    # last time the published name was matched
+FACE_GAP_SECS = 1.5
 _last_logged  = {}      # name -> time.time() of last log entry
 
 
@@ -272,20 +284,23 @@ def _log_sighting(name, conf):
         print(f"[vision] Could not write face log: {e}")
 
 
-def _update_recognition(frame, det_row):
+def _update_recognition(frame, det_row, now=None):
     """Match the largest face against the store, publish the (debounced)
     result, and log enrolled people as they appear."""
-    global _recog_last, _recog_conf, _recog_streak
+    global _recog_last, _recog_conf, _recog_streak, _recog_first, _confirmed_at
 
+    now = time.time() if now is None else now
     emb = _embed(frame, det_row)
     if emb is None:
         return
     name, conf = face_store.match(emb)
+    _maybe_learn(name, conf, emb, now)
 
     if name == _recog_last:
         _recog_streak += 1
     else:
         _recog_last, _recog_conf, _recog_streak = name, conf, 1
+        _recog_first = now
 
     # Two agreeing samples before anything is published — recognition
     # flicker must never cause a mis-greeting.
@@ -294,10 +309,26 @@ def _update_recognition(frame, det_row):
 
     with state.lock:
         previous = state.person_name
+        # Letting go of a name Luna knows takes longer than learning one: a
+        # turned head or a blurry frame fails to match for a moment, and that
+        # must not make her forget who she is talking to (and then
+        # "recognise" them again a second later).
+        if previous and name == previous:
+            _confirmed_at = now
+        # The face never left the frame since the name was last confirmed —
+        # failed matches (looking down at the keyboard, a turned head) do not
+        # make it someone else. Only another KNOWN face takes over.
+        if (previous and name is None and _face_run_start is not None
+                and _confirmed_at is not None and _face_run_start <= _confirmed_at):
+            return
+        if previous and name != previous and now - _recog_first < RECOG_SWITCH_SECS:
+            return
         state.person_name = name
         state.person_conf = conf if name else 0.0
         if name != previous:
-            state.person_since = time.time() if name else 0.0
+            state.person_since = now if name else 0.0
+        if name:
+            _confirmed_at = now
     if name and name != previous:
         print(f"[vision] Recognised {name} ({conf:.2f})")
         _log_sighting(name, conf)
@@ -328,8 +359,78 @@ def _sight_moment(name):
         print(f"[vision] recognition moment failed: {e}")
 
 
+# ── Learning new looks (face_store keeps several per person) ─────────────────
+_learn_buf = []        # consecutive qualifying embeddings of _learn_for
+_learn_for = None
+_learned_at = {}       # name -> time.time() of their last learned look
+
+
+def should_learn(name, conf, published, since, faces, enrolling, runner_up,
+                 last_learned, now):
+    """May this sighting count toward a new look for `name`? Only when Luna
+    is VERY sure: the person shown is `name` and has been for
+    FACE_LEARN_STABLE_SECS, exactly one face is in view, no registration is
+    running, the match is strong (>= FACE_LEARN_MIN_SIM, far above the 0.36
+    cut-off) yet new (< FACE_LEARN_NOVEL_BELOW), every other enrolled person
+    is at least FACE_LEARN_MARGIN further away, and no look was learned for
+    them in the last FACE_LEARN_EVERY_SECS. Pure."""
+    return bool(FACE_AUTO_LEARN and name is not None and name == published
+                and since and now - since >= FACE_LEARN_STABLE_SECS
+                and faces == 1 and not enrolling
+                and FACE_LEARN_MIN_SIM <= conf < FACE_LEARN_NOVEL_BELOW
+                and runner_up <= conf - FACE_LEARN_MARGIN
+                and now - last_learned >= FACE_LEARN_EVERY_SECS)
+
+
+def _maybe_learn(name, conf, emb, now):
+    """Collect qualifying sightings; FACE_LEARN_SAMPLES in a row become one
+    new look (their average) in face_store. A single sighting that does not
+    qualify starts the count again. Returns True when a look was added."""
+    global _learn_for
+    if name != _learn_for:
+        _learn_buf.clear()
+        _learn_for = name
+    with state.lock:
+        published, since = state.person_name, state.person_since
+        faces, enrolling = state.face_count, bool(state.enroll_request)
+    other = face_store.runner_up(emb, name) if name else 1.0
+    if not should_learn(name, conf, published, since, faces, enrolling, other,
+                        _learned_at.get(name, float("-inf")), now):
+        _learn_buf.clear()
+        return False
+    _learn_buf.append(np.asarray(emb, dtype=np.float32))
+    if len(_learn_buf) < FACE_LEARN_SAMPLES:
+        return False
+    look = np.mean(_learn_buf, axis=0)
+    _learn_buf.clear()
+    if not face_store.add_template(name, look):
+        return False
+    _learned_at[name] = now
+    print(f"[vision] Learned a new look for {name} (match {conf:.2f}, "
+          f"{face_store.template_count(name)} looks)")
+    return True
+
+
+def _track_absence(face_visible, now):
+    """Forget the recognised person once NO face has been in view for
+    PERSON_AWAY_SECS. Shorter gaps — looking down, turning to a friend,
+    missed detections — keep the name and the visit (person_since), so they
+    are not greeted or "recognised" all over again when the face returns."""
+    global _faceless_since, _face_run_start
+    if face_visible:
+        if _face_run_start is None or (_faceless_since is not None
+                                       and now - _faceless_since > FACE_GAP_SECS):
+            _face_run_start = now
+        _faceless_since = None
+    elif _faceless_since is None:
+        _faceless_since = now
+    elif now - _faceless_since > PERSON_AWAY_SECS:
+        _clear_recognition()
+
+
 def _clear_recognition():
-    global _recog_last, _recog_streak
+    global _recog_last, _recog_streak, _confirmed_at
+    _confirmed_at = None
     _recog_last, _recog_streak = None, 0
     with state.lock:
         state.person_name = None
@@ -445,7 +546,9 @@ def _feed_scene_memory(face_count, emotion):
             import scene_memory
             _scene_memory = scene_memory
         with state.lock:
-            name = state.person_name
+            # The name outlives brief dropouts (see _track_absence); scene
+            # memory runs its own departure timer on what is actually seen.
+            name = state.person_name if face_count else None
         _scene_memory.observe(face_count=face_count, person_name=name,
                               emotion=emotion)
     except Exception as e:
@@ -460,7 +563,6 @@ def vision_loop():
     sleep_time  = 1.0 / VISION_FPS
     target_size = (48, 48)
     recog_counter = 0
-    faceless_since = None
 
     while True:
         t0 = time.monotonic()
@@ -477,8 +579,8 @@ def vision_loop():
         emotion = "Neutral"
         det_row = None
 
+        _track_absence(face_detected, time.time())
         if face_detected:
-            faceless_since = None
             x, y, w, h, det_row = detections[0]
             x, y = max(0, x), max(0, y)
             w = min(w, frame.shape[1] - x)
@@ -533,12 +635,6 @@ def vision_loop():
                 state.emotion       = "Neutral"
                 state.face_detected = False
                 state.face_count    = 0
-            # Don't drop the name on a single missed frame — detection
-            # flickers. A full second with no face means they really left.
-            if faceless_since is None:
-                faceless_since = time.monotonic()
-            elif time.monotonic() - faceless_since > 1.0:
-                _clear_recognition()
 
         _update_enrollment(frame, det_row)
         _feed_scene_memory(len(detections), emotion)

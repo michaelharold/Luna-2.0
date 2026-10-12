@@ -70,7 +70,6 @@ def _set_mode(state, mode, now):
         state.face_y = 0.5
         state.speaking = mode == "speaking"
         state.audio_energy = 0.7 if mode == "speaking" else 0.0
-        state.frozen_emotion = None
         state.listening = False
         state.conversation_active = mode == "overlays"
         state.luna_mode = "processing" if mode == "overlays" else "idle"

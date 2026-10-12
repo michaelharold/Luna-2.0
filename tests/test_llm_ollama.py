@@ -121,7 +121,10 @@ class OllamaCase(unittest.TestCase):
 
     def setUp(self):
         llm_ollama.set_model(None)
-        for name, value in (("WARMUP_BOOT_WAIT", 0.0),):
+        # never launch a real `ollama serve` from a test
+        for name, value in (("WARMUP_BOOT_WAIT", 0.0),
+                            ("OLLAMA_AUTOSTART", False),
+                            ("_server_proc", None)):
             patcher = mock.patch.object(llm_ollama, name, value)
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -291,6 +294,37 @@ class TestRecovery(OllamaCase):
         self.assertEqual(llm_ollama.model_name(), "luna")
         self.assertEqual(sleeps, [2.0, 4.0])      # exponential backoff
         self.assertEqual("".join(llm_ollama.stream(MESSAGES)), "Hi")
+
+    def test_starts_a_local_server_with_logs_in_a_file(self):
+        """No server running: Luna starts `ollama serve` herself, its output
+        going to OLLAMA_LOG instead of her terminal — once."""
+        self.serve(fail=True)
+        log = os.path.join(tempfile.mkdtemp(), "logs", "ollama.log")
+        popen = mock.Mock(return_value=mock.Mock(poll=lambda: None))
+        with mock.patch.object(llm_ollama, "OLLAMA_AUTOSTART", True), \
+                mock.patch.object(llm_ollama, "OLLAMA_LOG", log), \
+                mock.patch.object(llm_ollama.shutil, "which",
+                                  lambda n: "/opt/bin/ollama"), \
+                mock.patch.object(llm_ollama.subprocess, "Popen", popen):
+            llm_ollama._warmup_once()
+            llm_ollama._warmup_once()
+        popen.assert_called_once()
+        args, kw = popen.call_args
+        self.assertEqual(args[0], ["/opt/bin/ollama", "serve"])
+        self.assertEqual(kw["stdout"].name, log)
+        self.assertTrue(os.path.exists(log))
+
+    def test_no_autostart_for_a_remote_server(self):
+        self.serve(fail=True)
+        popen = mock.Mock()
+        with mock.patch.object(llm_ollama, "OLLAMA_AUTOSTART", True), \
+                mock.patch.object(llm_ollama, "OLLAMA_HOST",
+                                  "http://10.0.0.5:11434"), \
+                mock.patch.object(llm_ollama.shutil, "which",
+                                  lambda n: "/opt/bin/ollama"), \
+                mock.patch.object(llm_ollama.subprocess, "Popen", popen):
+            llm_ollama._warmup_once()
+        popen.assert_not_called()
 
     def test_warmup_gives_up_after_boot_wait(self):
         server = self.serve(fail=True)

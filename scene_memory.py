@@ -21,7 +21,7 @@ Design rules (all deliberate):
     one smiling frame is not a mood (MOOD_HOLD_SECS). Recognition flicker
     (name → None → name while the face is still there) is ignored: a named
     presence persists as long as *a* face is visible. A DIFFERENT name only
-    replaces the current visitor once it has held for LEAVE_DEBOUNCE_SECS —
+    replaces the current visitor once it has held for SWITCH_DEBOUNCE_SECS —
     with two people in view the recogniser can alternate between them, and
     that must not read as a stream of arrivals and departures.
   • Pure and light. No numpy, no models, no other Luna modules — just config
@@ -45,10 +45,16 @@ import threading
 import time
 from collections import deque
 
-from config import SCENE_MEMORY_EVENTS, SCENE_MEMORY_MAX_AGE
+from config import SCENE_MEMORY_EVENTS, SCENE_MEMORY_MAX_AGE, PERSON_AWAY_SECS
 
 # ── Module tunables (not in config.py — see new_tunables in the report) ───────
-LEAVE_DEBOUNCE_SECS = 1.5    # face/name must be gone this long to count as "left"
+# Face/name must be gone this long to count as "left". It used to be 1.5 s, so
+# glancing at a phone was a departure and the return a "came back" — which
+# the LLM then turned into "you're back again". Shared with vision, which
+# holds on to the recognised name for the same time.
+LEAVE_DEBOUNCE_SECS = PERSON_AWAY_SECS
+SWITCH_DEBOUNCE_SECS = 1.5   # a different name must hold this long to replace
+                             # the visitor (vision has already debounced it)
 MOOD_HOLD_SECS      = 2.0    # a non-neutral emotion must last this long to be a mood
 OBJECT_FORGET_SECS  = 300.0  # an object seen again after this long is "new" again
 ASKED_RELEVANT_SECS = 120.0  # Luna's own open question stays the top history item this long
@@ -156,7 +162,7 @@ def _join_labels(labels):
 # ══════════════════════════════════════════════════════════════════════════════
 # Summary composition (pure — takes a snapshot, returns text)
 # ══════════════════════════════════════════════════════════════════════════════
-def _presence_sentence(presence, now):
+def _presence_sentence(presence, now, moods=True):
     """'Alice has been in front of you for 3 minutes and looks happy.' etc."""
     if not presence or not presence.get("present"):
         return "Nobody is in front of you right now."
@@ -164,7 +170,7 @@ def _presence_sentence(presence, now):
     name    = presence.get("name")
     count   = int(presence.get("count") or 1)
     held    = max(0.0, now - float(presence.get("since") or now))
-    mood    = presence.get("mood")
+    mood    = presence.get("mood") if moods else None
     looks   = f" and looks {_mood_word(mood)}" if mood and not _is_neutral(mood) else ""
     others  = max(0, count - 1)
 
@@ -229,19 +235,27 @@ def _event_sentence(ev, now, presence):
     return None
 
 
-def compose_summary(presence, events, now):
+def compose_summary(presence, events, now, moods=True, objects=True):
     """Pure: presence snapshot + event list → the one-or-two-sentence summary.
 
     presence — {"present": bool, "name": str|None, "since": ts, "count": int,
                 "mood": str|None}   (as returned by presence())
     events   — [{ts, kind, who, detail}] oldest → newest
+    moods / objects — False leaves out what the camera GUESSED (expressions,
+               things on the desk): on an ordinary question those are noise
+               a small model will happily start talking about.
     """
-    events = list(events or ())
+    skip = set()
+    if not moods:
+        skip.add("mood")
+    if not objects:
+        skip.add("objects")
+    events = [e for e in (events or ()) if e.get("kind") not in skip]
     anyone = bool(presence and presence.get("present"))
     if not anyone and not events:
         return ""
 
-    first = _presence_sentence(presence, now)
+    first = _presence_sentence(presence, now, moods)
 
     # The most useful bit of history, in priority order: a question Luna has
     # just asked (the reply is coming), then the newest departure or mood
@@ -347,7 +361,7 @@ def _observe_locked(face_count, person_name, emotion, objects, now):
                 # has held (two people in view can make the recogniser flip).
                 if name != _switch_name:
                     _switch_name, _switch_since = name, now
-                elif now - _switch_since >= LEAVE_DEBOUNCE_SECS:
+                elif now - _switch_since >= SWITCH_DEBOUNCE_SECS:
                     since = _switch_since
                     old = _present_name
                     _end_visit(_last_seen.get(old, since) if old else since)
@@ -413,19 +427,34 @@ def observe(face_count, person_name, emotion, objects=None, now=None):
         _print_once("observe", e)
 
 
-def summary(now=None):
+def summary(now=None, moods=True, objects=True):
     """One or two spoken-style sentences for the LLM, or "" when there is
-    nothing to say. Never raises."""
+    nothing to say. moods / objects=False: people only (see compose_summary).
+    Never raises."""
     try:
         now = _now(now)
         with _lock:
             _prune(now)
             presence = _presence_locked(now)
             events   = [dict(e) for e in _events]
-        return compose_summary(presence, events, now)
+        return compose_summary(presence, events, now, moods, objects)
     except Exception as e:                                  # noqa: BLE001
         _print_once("summary", e)
         return ""
+
+
+def asked_recently(now=None, within=ASKED_RELEVANT_SECS):
+    """Did Luna ask someone a question in the last `within` seconds? Then the
+    next thing said is probably the answer, and the scene notes (which hold
+    her question) belong in the prompt. Never raises."""
+    try:
+        now = _now(now)
+        with _lock:
+            return any(e["kind"] == "asked" and 0 <= now - e["ts"] <= within
+                       for e in _events)
+    except Exception as e:                                  # noqa: BLE001
+        _print_once("asked_recently", e)
+        return False
 
 
 def seconds_since_left(name, now=None):

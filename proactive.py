@@ -9,8 +9,10 @@ Luna is otherwise idle:
   greet   — a recognised face appears → the recognition moment (face.py),
             a wave, and "Hi Alice!" — or "Welcome back, Alice!" when scene
             memory says she left less than WELCOME_BACK_SECS ago. Once per
-            person per GREET_COOLDOWN_SECS. If the greeting is a question the
-            conversation window opens, so she can answer without the wake word.
+            VISIT (a new visit only starts after PERSON_AWAY_SECS out of
+            sight), and not again within GREET_COOLDOWN_SECS. If the greeting
+            is a question the conversation window opens, so she can answer
+            without the wake word.
   starter — a known person who has lingered SCENE_LINGER_SECS, was greeted a
             while ago and still hasn't said anything gets ONE friendly opener
             per visit ("So Alice, what brings you here today?").
@@ -34,7 +36,8 @@ The touch-enroll request is the one exception to "not mid-conversation": it is
 the person asking, not Luna volunteering — but it still waits for her to stop
 speaking.
 
-Pure policy helpers (unit-tested): choose_greeting, should_start_conversation.
+Pure policy helpers (unit-tested): choose_greeting, should_greet,
+should_start_conversation.
 """
 
 import random
@@ -54,12 +57,14 @@ from config import (ENABLE_PROACTIVE, PROACTIVE_GREET_RECOGNIZED,
                     WELCOME_BACK_PHRASES, ENABLE_SCENE_MEMORY,
                     SCENE_LINGER_SECS, PROACTIVE_CONVERSATION_STARTERS,
                     CONVERSATION_STARTERS, TOUCH_ENROLL)
+import console
 
 # A conversation starter waits at least this long after the greeting, so the
 # two never land back to back.
 STARTER_AFTER_GREET_SECS = GREET_COOLDOWN_SECS / 5.0
 
 _last_greet = {}          # name -> time.time() of last greeting
+_greet_decided = {}       # name -> visit id whose greeting is decided
 _started_visits = set()   # visit ids (person_since) that already got a starter
 
 
@@ -74,6 +79,25 @@ def choose_greeting(name, seconds_since_left, rng=random):
             and seconds_since_left < WELCOME_BACK_SECS)
     phrases = WELCOME_BACK_PHRASES if back else GREET_PHRASES
     return rng.choice(phrases).format(name=name)
+
+
+def should_greet(name, seen, visit, decided, last_greet_at, now,
+                 cooldown=GREET_COOLDOWN_SECS):
+    """Should Luna greet `name` now?
+
+    Once per visit: `visit` is the visit id (vision's person_since, which
+    survives brief dropouts), and `decided` maps name -> the visit already
+    dealt with. The decision is recorded there, so a visit is decided exactly
+    once — greeting on a timer instead re-greeted people every couple of
+    minutes while they sat still. Only while the face is actually in view,
+    and not if the last greeting was under `cooldown` ago (popping out for a
+    minute and straight back needs no second hello)."""
+    if not name or not seen or not visit:
+        return False
+    if decided.get(name) == visit:
+        return False
+    decided[name] = visit
+    return not (last_greet_at and now - last_greet_at < cooldown)
 
 
 def should_start_conversation(name, now, person_since, greeted_at,
@@ -157,7 +181,7 @@ def _open_conversation():
         state.conversation_active = True
         state.awaiting_answer     = True
         state.last_activity_time  = time.time()
-    print("[proactive] Asked a question — conversation window open")
+    console.detail("[proactive] Asked a question — conversation window open")
 
 
 def _recognition_moment(name):
@@ -259,7 +283,10 @@ def proactive_loop():
 
         sm = _scene_memory()
         if sm is not None:
-            sm.observe(face_count if seen else 0, person, emotion)
+            # person_name outlives brief dropouts; scene memory times
+            # departures on what is actually in view
+            sm.observe(face_count if seen else 0, person if seen else None,
+                       emotion)
 
         # Track how long the CURRENT emotion has been continuously held —
         # a single smiling frame is noise, two seconds of it is a mood.
@@ -276,8 +303,10 @@ def proactive_loop():
 
         now = time.time()
 
-        if (PROACTIVE_GREET_RECOGNIZED and person
-                and now - _last_greet.get(person, 0.0) > GREET_COOLDOWN_SECS):
+        if (PROACTIVE_GREET_RECOGNIZED
+                and should_greet(person, seen, _visit_id(person_since),
+                                 _greet_decided, _last_greet.get(person),
+                                 now)):
             _greet(person)
             continue
 

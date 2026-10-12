@@ -10,7 +10,6 @@ class SharedState:
         "frame",
         "face_detected", "face_x", "face_y",
         "emotion",
-        "frozen_emotion",        # emotion locked while speaking
         "gesture",
         "heard_text", "response",
         "speaking",              # audio is actually coming out of the speaker —
@@ -58,6 +57,12 @@ class SharedState:
         "utterance_loudness",    # 0..1 closeness of the last utterance (audio)
         "person_since",          # time.time() the current person was first seen
         "enroll_preview_until",  # time.time() until which the camera preview shows
+        # ── full-screen cards in place of the face (face.py / face_cards.py) ─
+        "card",                  # {"kind": "date"|"time"|"person"|"greeting", ...}
+        "card_set_at",           # time.time() the card was requested
+        "card_since",            # time.time() it may appear (later = delayed)
+        "card_until",            # time.time() it goes, or None = "while Luna
+                                 # speaks the answer, then CARD_LINGER_SECS"
     )
 
     def __init__(self):
@@ -67,7 +72,6 @@ class SharedState:
         self.face_x              = 0.5
         self.face_y              = 0.5
         self.emotion             = "Neutral"
-        self.frozen_emotion      = None
         self.gesture             = None
         self.heard_text          = ""
         self.response            = ""
@@ -105,6 +109,10 @@ class SharedState:
         self.utterance_loudness  = 0.0
         self.person_since        = 0.0
         self.enroll_preview_until = 0.0
+        self.card                = None
+        self.card_set_at         = 0.0
+        self.card_since          = 0.0
+        self.card_until          = None
 
 
 state = SharedState()

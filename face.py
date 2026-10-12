@@ -13,6 +13,8 @@ Every expression is a plain function call. Import it and say what you mean:
     face.wake()             # wake up
     face.clear()            # drop back to whatever vision says
     face.recognition_moment("Alice")   # the "I know you!" beat
+    face.date_card()        # the face fades to a calendar card while Luna
+                            # speaks, then back (also time_card, person_card)
 
 These are safe to call from ANY thread — the brain, the gesture handler, a
 REPL — and they never touch pygame. They set a face override on the shared
@@ -32,7 +34,9 @@ import time
 
 from shared_state import state
 from config import (FACE_OVERRIDE_SECS, GREET_BANNER_SECS,
-                    RECOG_ANIMATION, RECOG_EXPRESSION_SECS)
+                    RECOG_ANIMATION, RECOG_EXPRESSION_SECS,
+                    SCREEN_CARDS, GREET_CARD, GREET_CARD_DELAY,
+                    GREET_CARD_SECS, RECOG_DEDUP_SECS)
 try:
     from config import RECOG_EXPRESSION
 except ImportError:                      # older config.py
@@ -44,6 +48,8 @@ __all__ = [
     "curious", "annoyed", "amazed", "recognised",
     "sleep", "wake", "neutral", "clear", "show", "current", "available",
     "banner", "recognition_moment",
+    "show_card", "date_card", "time_card", "person_card", "greeting_card",
+    "clear_card", "card_showing", "greeting_line",
 ]
 
 #: Passed as `seconds` to keep an expression up until something clears it.
@@ -106,16 +112,31 @@ def banner(text, seconds=None):
         _set_banner(text, seconds, time.time())
 
 
-def recognition_moment(name):
+_moments = {}      # name -> time.time() of their last recognition moment
+
+
+def recognition_moment(name, line=None):
     """The "I know you!" beat, when Luna recognises someone she has met.
 
-    Wears "recognised" for RECOG_EXPRESSION_SECS, posts "Hi {name}!" and
-    stamps recog_event_time, which the renderer turns into a quick eye
-    double-take. All three are written under ONE lock acquisition, so the
-    render thread can never see the banner without the face (or vice versa).
-    With RECOG_ANIMATION off it degrades to the plain V2 look: a happy face
-    and the banner, no double-take."""
+    Wears RECOG_EXPRESSION for RECOG_EXPRESSION_SECS and stamps
+    recog_event_time, which the renderer turns into a quick eye double-take;
+    then the face fades to the greeting card — the name, big, with a short
+    line under it (greeting_line) — for GREET_CARD_SECS. With GREET_CARD off
+    it posts the small "Hi {name}!" banner instead. Everything is written
+    under ONE lock acquisition, so the render thread never sees half of it.
+    With RECOG_ANIMATION off: a happy face, no double-take.
+
+    Once per arrival: vision plays the moment the instant it recognises
+    someone, and the spoken greeting asks for it again a moment later —
+    within RECOG_DEDUP_SECS the second call does nothing and returns False,
+    so the double-take never plays twice."""
     now = time.time()
+    if now - _moments.get(name, float("-inf")) < RECOG_DEDUP_SECS:
+        return False
+    _moments[name] = now
+    card = SCREEN_CARDS and GREET_CARD
+    if card and line is None:
+        line = greeting_line(name, now)
     with state.lock:
         if RECOG_ANIMATION:
             expr = RECOG_EXPRESSION if RECOG_EXPRESSION in NAMES else "recognised"
@@ -123,8 +144,111 @@ def recognition_moment(name):
             state.recog_event_time = now
         else:
             _set_override("happy", RECOG_EXPRESSION_SECS, now)
-        _set_banner(f"Hi {name}!", None, now)
+        if card:
+            _set_card({"kind": "greeting", "name": name, "line": line or ""},
+                      now, GREET_CARD_SECS,
+                      GREET_CARD_DELAY if RECOG_ANIMATION else 0.0)
+        else:
+            _set_banner(f"Hi {name}!", None, now)
     return True
+
+
+def greeting_line(name, now=None):
+    """The short line under a recognised person's name: their role when
+    Luna knows them from the knowledge base or the website ("Associate
+    Professor · Computer Science"), otherwise the time of day — with
+    "welcome back" for someone she has met before."""
+    now = time.time() if now is None else now
+    try:
+        import people                       # deferred: never block a greeting
+        person = people.directory().lookup(name)
+        if person is not None and person.role:
+            return person.role
+    except Exception:                       # noqa: BLE001
+        pass
+    hour = time.localtime(now).tm_hour
+    part = ("Good morning" if 5 <= hour < 12 else
+            "Good afternoon" if 12 <= hour < 17 else
+            "Good evening" if 17 <= hour < 22 else "Hello")
+    return f"{part} · welcome back" if _met_before(name) else \
+        f"{part} · nice to see you"
+
+
+def _met_before(name):
+    """Has Luna talked to `name` before (a learning profile), or seen them
+    leave earlier today (scene memory)?"""
+    try:
+        import scene_memory
+        if scene_memory.seconds_since_left(name) is not None:
+            return True
+    except Exception:                       # noqa: BLE001
+        pass
+    try:
+        import learning
+        return name in (learning.profiles() or {})
+    except Exception:                       # noqa: BLE001
+        return False
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Cards — the face fades out and a full-screen card fades in (face_cards.py)
+# ══════════════════════════════════════════════════════════════════════════════
+def _set_card(card, now, seconds, delay=0.0):
+    """Caller holds state.lock. seconds=None ties the card to speech."""
+    state.card = card
+    state.card_set_at = now
+    state.card_since = now + max(0.0, delay)
+    state.card_until = None if seconds is None else state.card_since + seconds
+
+
+def show_card(kind, seconds=None, delay=0.0, **content):
+    """Show a card in place of the face.
+
+    seconds=None — up while Luna speaks the answer that follows, then
+                   CARD_LINGER_SECS more (the usual way: set the card, speak)
+    seconds=N    — up for N seconds
+    delay        — appear this many seconds from now
+    Returns False when SCREEN_CARDS is off."""
+    if not SCREEN_CARDS:
+        return False
+    with state.lock:
+        _set_card(dict(kind=kind, **content), time.time(), seconds, delay)
+    return True
+
+
+def date_card(seconds=None):
+    """Today's date as a calendar tile (the macOS widget look)."""
+    return show_card("date", seconds)
+
+
+def time_card(seconds=None):
+    """The time as a live analog clock tile."""
+    return show_card("time", seconds)
+
+
+def person_card(name, role="", highlight="", seconds=None):
+    """A name in big rounded bold, the role under it, one highlight line.
+    Only for answers Luna is certain of — see people.py."""
+    return show_card("person", seconds, name=name, role=role,
+                     highlight=highlight)
+
+
+def greeting_card(name, line="", delay=0.0, seconds=GREET_CARD_SECS):
+    """A recognised person's name, big, with a short line under it."""
+    return show_card("greeting", seconds, delay, name=name, line=line)
+
+
+def clear_card():
+    """Take any card down; the face fades back."""
+    with state.lock:
+        state.card = None
+        state.card_until = None
+
+
+def card_showing():
+    """The kind of card requested right now, or None."""
+    with state.lock:
+        return (state.card or {}).get("kind")
 
 
 def current():
@@ -161,7 +285,7 @@ def sad(seconds=None, hold=False):
 
 
 def angry(seconds=None, hold=False):
-    """Hard squint, angled brows, a red throb and venting steam."""
+    """Hard squint, angled brows, red eyes and venting steam."""
     return show("angry", seconds, hold)
 
 

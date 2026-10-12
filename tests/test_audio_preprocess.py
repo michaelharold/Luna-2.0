@@ -38,6 +38,11 @@ def _run_blocks(pre, x):
     return np.concatenate(out)
 
 
+def _rms(x):
+    x = np.asarray(x, dtype=np.float64)
+    return float(np.sqrt(np.mean(x * x))) if x.size else 0.0
+
+
 def _level_db(x, freq):
     """Magnitude (dB) of one frequency, measured on the middle 1 s so the
     filter's start-up transient is excluded. 1 s at 16 kHz -> 1 Hz bins."""
@@ -46,10 +51,15 @@ def _level_db(x, freq):
     return 20.0 * np.log10(spec[int(freq)] + 1e-9)
 
 
+# The hum-filter and gain tests below feed steady sine tones as "speech". A
+# tone that never changes is exactly what the noise suppressor is built to
+# remove (real speech never holds still), so those tests run with it off —
+# TestNoiseSuppressor covers it on its own.
+
 class TestHighpass(unittest.TestCase):
     def setUp(self):
         # filter only: no gate, no gain — so we measure the filter itself
-        self.pre = ap.AudioPreprocessor(RATE, normalize=False, gate_db=None)
+        self.pre = ap.AudioPreprocessor(RATE, noise_floor_db=None, normalize=False, gate_db=None)
 
     def test_hum_removed_speech_kept(self):
         x = _to_i16(_sine(50, 0.3) + _sine(1000, 0.3))
@@ -70,7 +80,7 @@ class TestHighpass(unittest.TestCase):
         x = _to_i16(_sine(50, 0.2) + _sine(300, 0.2) + _sine(2500, 0.1)
                     + rng.normal(0, 0.02 * FS, T.size))
         whole = np.frombuffer(
-            ap.AudioPreprocessor(RATE, normalize=False, gate_db=None)
+            ap.AudioPreprocessor(RATE, noise_floor_db=None, normalize=False, gate_db=None)
             .process(x.tobytes()), dtype=np.int16)
         blocks = _run_blocks(self.pre, x)
         diff = np.max(np.abs(whole.astype(np.int64) - blocks.astype(np.int64)))
@@ -100,7 +110,7 @@ class TestGateAndGain(unittest.TestCase):
         return _to_i16(sig / np.max(np.abs(sig)) * peak * FS)
 
     def test_quiet_speech_boosted_up_to_max_gain(self):
-        pre = ap.AudioPreprocessor(RATE)          # config defaults
+        pre = ap.AudioPreprocessor(RATE, noise_floor_db=None)          # config defaults
         x = self._speechlike(0.02)                # ~-34 dBFS peak: quiet
         gains = []
         out = []
@@ -116,14 +126,14 @@ class TestGateAndGain(unittest.TestCase):
         self.assertFalse(pre.last_gated)
 
     def test_loud_speech_not_pushed_past_target(self):
-        pre = ap.AudioPreprocessor(RATE)
+        pre = ap.AudioPreprocessor(RATE, noise_floor_db=None)
         x = self._speechlike(0.6)
         y = _run_blocks(pre, x)
         self.assertLessEqual(np.abs(y).max(), pre.target_peak * FS * 1.02 + 2)
         self.assertLess(pre.last_gain, pre.max_gain)
 
     def test_near_silence_is_gated_to_zeros(self):
-        pre = ap.AudioPreprocessor(RATE)
+        pre = ap.AudioPreprocessor(RATE, noise_floor_db=None)
         rng = np.random.default_rng(0)
         x = _to_i16(rng.normal(0, 10 ** (-70 / 20) * FS, T.size))   # -70 dBFS
         y = _run_blocks(pre, x)
@@ -141,7 +151,7 @@ class TestGateAndGain(unittest.TestCase):
 
         # filter off: an abruptly starting tone gives the high-pass a start-up
         # overshoot, and this test is about the AGC alone
-        held = ap.AudioPreprocessor(RATE, highpass_hz=None, hold_s=1.5)
+        held = ap.AudioPreprocessor(RATE, noise_floor_db=None, highpass_hz=None, hold_s=1.5)
         gains_held = []
         for blk in pattern:
             held.process(blk)
@@ -149,7 +159,7 @@ class TestGateAndGain(unittest.TestCase):
         self.assertLess(max(gains_held) - min(gains_held), 0.05)
         self.assertAlmostEqual(gains_held[0], 0.85 / 0.6, places=2)
 
-        pumping = ap.AudioPreprocessor(RATE, highpass_hz=None,
+        pumping = ap.AudioPreprocessor(RATE, noise_floor_db=None, highpass_hz=None,
                                        hold_s=0.0)             # hold 0 must not crash
         gains_pump = []
         for blk in pattern:
@@ -160,7 +170,7 @@ class TestGateAndGain(unittest.TestCase):
     def test_hold_releases_for_quieter_talker(self):
         loud = _to_i16(_sine(300, 0.6)[:BLOCK]).tobytes()
         soft = _to_i16(_sine(300, 0.05)[:BLOCK]).tobytes()
-        pre = ap.AudioPreprocessor(RATE, highpass_hz=None, hold_s=1.0,
+        pre = ap.AudioPreprocessor(RATE, noise_floor_db=None, highpass_hz=None, hold_s=1.0,
                                    release_db_per_s=6.0)
         pre.process(loud)
         g0 = pre.last_gain
@@ -170,12 +180,121 @@ class TestGateAndGain(unittest.TestCase):
         self.assertLessEqual(pre.last_gain, pre.max_gain)
 
     def test_gate_disabled_keeps_quiet_audio(self):
-        pre = ap.AudioPreprocessor(RATE, gate_db=None, normalize=False)
+        pre = ap.AudioPreprocessor(RATE, noise_floor_db=None, gate_db=None, normalize=False)
         rng = np.random.default_rng(0)
         x = _to_i16(rng.normal(0, 10 ** (-60 / 20) * FS, BLOCK))
         y = np.frombuffer(pre.process(x.tobytes()), dtype=np.int16)
         self.assertTrue(y.any())
         self.assertFalse(pre.last_gated)
+
+
+class TestResampler(unittest.TestCase):
+    """Mic rate -> 16 kHz for Vosk. The old np.interp resampler had no
+    anti-alias filter: room noise above 8 kHz (fans, hiss, the s/sh of
+    background chatter) folded straight into the speech band — a 10 kHz
+    hiss came out as a full-strength 6 kHz tone."""
+
+    def _blocks(self, rate, freq, secs=2.0, ampl=0.5):
+        t = np.arange(int(rate * secs)) / rate
+        x = _to_i16(ampl * FS * np.sin(2 * np.pi * freq * t))
+        rs = ap.Resampler(rate)
+        step = int(rate * 0.25)
+        return np.concatenate([np.frombuffer(rs(x[i:i + step].tobytes()),
+                                             dtype=np.int16)
+                               for i in range(0, x.size, step)]).astype(float)
+
+    @staticmethod
+    def _rms(y):
+        y = y[800:-800]
+        return float(np.sqrt(np.mean(y * y))) / FS
+
+    def test_exact_length_over_many_blocks(self):
+        for rate in (44100, 48000, 32000, 22050):
+            with self.subTest(rate=rate):
+                self.assertEqual(self._blocks(rate, 1000).size, 32000)
+
+    def test_speech_band_passes(self):
+        full = 0.5 / np.sqrt(2)
+        for rate in (44100, 48000):
+            for f in (300, 1000, 3000, 5000):
+                with self.subTest(rate=rate, freq=f):
+                    self.assertAlmostEqual(self._rms(self._blocks(rate, f)),
+                                           full, delta=0.02)
+            # the top of the band dips a little (linear interpolation's
+            # roll-off, the same as before) — well under 1 dB
+            with self.subTest(rate=rate, freq=6500):
+                db = 20 * np.log10(self._rms(self._blocks(rate, 6500)) / full)
+                self.assertGreater(db, -1.0)
+
+    def test_noise_above_8khz_does_not_fold_into_speech(self):
+        for rate in (44100, 48000):
+            for f in (9000, 10000, 14000):
+                with self.subTest(rate=rate, freq=f):
+                    self.assertLess(self._rms(self._blocks(rate, f)), 0.003)
+
+    def test_no_clicks_at_block_seams(self):
+        y = self._blocks(44100, 440)
+        jumps = np.abs(np.diff(y[800:-800]))
+        # a 440 Hz sine at 16 kHz moves at most ~0.6 x amplitude per sample
+        self.assertLess(jumps.max(), 0.5 * FS * 2 * np.pi * 440 / 16000 * 1.2)
+
+    def test_16k_is_passed_through(self):
+        x = _to_i16(_sine(1000, 0.5))[:4000].tobytes()
+        self.assertEqual(ap.Resampler(16000)(x), x)
+
+
+class TestNoiseSuppressor(unittest.TestCase):
+    """Steady room noise (fans, AC, the dongle's hiss) turned down before
+    Vosk hears it. Optional (config.AUDIO_NOISE_SUPPRESS, off by default):
+    scripts/bench_stt_noise.py shows it halving errors in loud fan noise but
+    hurting crowd chatter."""
+
+    def _noise(self, secs, level=1000.0, seed=1):
+        return np.random.default_rng(seed).standard_normal(int(RATE * secs)) * level
+
+    def _run(self, ns, x, block=BLOCK):
+        return np.concatenate([ns(x[i:i + block]) for i in range(0, x.size, block)])
+
+    def test_steady_noise_is_turned_down(self):
+        ns = ap.NoiseSuppressor(RATE)
+        x = self._noise(3.0)
+        y = self._run(ns, x)
+        drop = 20 * np.log10(np.std(x[RATE:]) / np.std(y[RATE:]))
+        self.assertGreater(drop, 8.0)
+
+    def test_speech_over_noise_passes(self):
+        ns = ap.NoiseSuppressor(RATE)
+        tone = 0.3 * FS * np.sin(2 * np.pi * 500 * np.arange(RATE) / RATE)
+        x = np.concatenate([self._noise(1.0), tone + self._noise(1.0, seed=2)])
+        y = self._run(ns, x)
+        lag = ns.latency
+        level = lambda v: 20 * np.log10(_rms(v))
+        self.assertAlmostEqual(level(y[RATE + lag + 800:]),
+                               level(tone[800 + lag:]), delta=1.5)
+
+    def test_same_length_out_for_any_block(self):
+        ns = ap.NoiseSuppressor(RATE)
+        for n in (BLOCK, 1234, 1, 0, 513):
+            self.assertEqual(ns(self._noise(n / RATE)).size, n)
+
+    def test_digital_silence_is_safe(self):
+        ns = ap.NoiseSuppressor(RATE)
+        y = self._run(ns, np.zeros(RATE))
+        self.assertTrue(np.all(np.isfinite(y)))
+        self.assertEqual(np.abs(y).max(), 0.0)
+
+    def test_off_by_default(self):
+        self.assertIsNone(ap.AudioPreprocessor(RATE)._ns)
+
+    def test_in_the_preprocessor_and_switchable(self):
+        x = _to_i16(self._noise(2.0, level=3000.0))
+        on = _run_blocks(ap.AudioPreprocessor(RATE, normalize=False,
+                                              gate_db=None,
+                                              noise_floor_db=-12.0), x)
+        off = _run_blocks(ap.AudioPreprocessor(RATE, normalize=False,
+                                               gate_db=None,
+                                               noise_floor_db=None), x)
+        self.assertLess(_rms(on[RATE:]), _rms(off[RATE:]) / 2)
 
 
 class TestShapeAndPassthrough(unittest.TestCase):
@@ -192,7 +311,7 @@ class TestShapeAndPassthrough(unittest.TestCase):
         x = _to_i16(_sine(50, 0.4) + _sine(700, 0.3) + 3000.0)[:BLOCK]
         for hp in (None, 0, 0.0):
             pre = ap.AudioPreprocessor(RATE, highpass_hz=hp, normalize=False,
-                                       gate_db=None)
+                                       gate_db=None, noise_floor_db=None)
             self.assertEqual(pre.process(x.tobytes()), x.tobytes())
             self.assertEqual(pre.last_gain, 1.0)
 

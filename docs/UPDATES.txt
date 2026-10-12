@@ -4,6 +4,119 @@
   Format: date · area · what changed · why
 ══════════════════════════════════════════════════════════════════
 
+─── 2026-10-12 — Screen cards, touch = angry, certain people, face looks ────────
+
+[face] face_cards.py: full-screen cards the face cross-fades into (robot_face
+  CardTimer; face.py date_card / time_card / person_card / greeting_card).
+  Date = macOS calendar-widget tile, time = live analog clock tile, person =
+  name in rounded bold + role + one highlight, greeting = recognised name +
+  "Good afternoon · welcome back" (or their role). Cards stay while Luna
+  speaks the answer + CARD_LINGER_SECS. Fonts: SF Pro Rounded cut locally on
+  a Mac (never copied); bundled Nunito (assets/fonts, OFL) on the Pi.
+[face] A tap makes Luna angry (TOUCH_ANGRY_SECS, red eyes) and takes a card
+  down; press-and-hold still registers a face. Not while she is speaking.
+[face] One recognition moment per arrival (RECOG_DEDUP_SECS): vision's
+  on-sight moment and the spoken greeting no longer double-take twice; the
+  name card follows the double-take.
+[brain] intents.py: date / time questions answered from the clock with the
+  card (an unset clock is admitted to). people.py: person cards only when
+  certain — the question names exactly one known person by their whole name
+  or 2+ of its words (KB "Who is" entries + website staff lists), or matches
+  a KB role entry ("who is the principal"). Card text is stored facts only;
+  the highlight is the newest dated website SENTENCE (no data rows) else the
+  KB qualification.
+[context] Scene notes only for questions about who is / was around or right
+  after Luna asked something; "nobody seen" is said explicitly (the model had
+  invented people) and such questions never fall back to the website.
+[vision] face_store keeps up to FACE_MAX_TEMPLATES looks per person:
+  re-registering adds one; Luna learns a look herself only when very sure
+  (steady 10 s, match 0.55-0.80, margin 0.15 over everyone else, one face,
+  once per 10 min, 5 averaged sightings). "Forget me" removes every look.
+  Tests: 413 passing.
+
+─── 2026-10-12 — Hearing in noise: anti-aliased capture ─────────────────────────
+
+[stt] Root cause: the mic (44.1 kHz Mac / 48 kHz Pi) was resampled to Vosk's
+  16 kHz with np.interp and NO anti-alias filter — room noise above 8 kHz
+  folded into the speech band (a 10 kHz hiss became a full-strength 6 kHz
+  tone). audio_preprocess.Resampler: 8th-order elliptic low-pass at 7.2 kHz
+  + exact streaming decimation, state carried across 250 ms blocks.
+  scripts/bench_stt_noise.py (say voices + babble / fan noise -> Vosk WER),
+  48 kHz: clean 3.7 -> 2.6 %, fan 0 dB 16.4 -> 13.8 %, chatter 10 dB
+  28.6 -> 27.0 %.
+[stt] audio_preprocess.NoiseSuppressor (Wiener, minimum-tracking noise):
+  AUDIO_NOISE_SUPPRESS, OFF by default — halves errors in loud fan noise
+  (16.4 -> 8.5 %) but hurts crowd chatter (27 -> 39 % at 10 dB). On only for
+  fan / AC / machine noise. Crowd chatter itself needs a closer or
+  directional mic: no filter separates speech from speech. Tests: 360.
+
+─── 2026-10-12 — CSE department links + related search (second hop) ───────────
+
+[rag] website_links.txt gains the CSE department's 17 pages in their groups
+  (General, Vision Mission, Programmes, Faculty, Staff, Students, Facilities,
+  Achievements, Others, Innovations). A page may sit in several groups and
+  carry a name after its URL ("… student-chapter-cse.php  Student Chapters").
+  Fixed: expert-talks-cse.php-Talks (404) -> expert-talks-cse.php.
+[rag] web_rag.related(): a question about a person / company / club also
+  pulls what else the site says about them — "tell me about Reshma Sheik"
+  adds her 2024 award; "who is the HOD?" follows the name in the answer to
+  his ongoing funded project; "placed in Oracle" finds the student. Names come
+  from the data (words the site only writes capitalised), not a page map;
+  ranked by shared question words, the department's own pages, newest year.
+  A knowledge-base answer with such extras goes through the LLM to weave one
+  in. WEB_RAG_RELATED = False turns it off. Tests: 349 passing.
+
+─── 2026-10-12 — Curated website links (LINKS OF TKMCE) ───────────────────────
+
+[rag] data/website_links.txt (WEB_RAG_LINKS_FILE): the college's 100 important
+  pages in 22 groups ([Administration > General], [Academics > Admissions],
+  [Examinations], …). Always indexed; the group is the page's topic path for
+  routing. Other departments' pages = scope "other" (searched only when the
+  question names that department); the six TKM institutions + dap.tkmce.ac.in
+  = scope "affiliate" (searched only when routed to). Editing the file marks
+  the cache stale → re-read on the next online refresh. Live check: 99/100 ok
+  (www.tkmcps.org timed out). Tests: 337 passing.
+
+─── 2026-10-12 — Meaningful recognition/context, clean terminal, smooth audio ──
+
+[vision] A face out of view < PERSON_AWAY_SECS (30 s) is the same visit: name
+  and person_since kept (was cleared after 1 s, so Luna "recognised" people
+  again and again). A known name is only replaced after RECOG_SWITCH_SECS.
+[scene] Departures need PERSON_AWAY_SECS of absence (was 1.5 s, which became
+  "you're back again"). summary(moods=False, objects=False) = people only.
+[proactive] Greets once per visit (was every 120 s while you sat there).
+[brain] Ordinary turns get scene memory as do-not-mention BACKGROUND, people
+  only; it used to sit under "What your camera sees RIGHT NOW (answer from
+  this)", so the model narrated guessed moods. Vision questions unchanged.
+[log] console.py + LOG_VERBOSE (default False): clean terminal = [heard],
+  [source] (website pages / KB entry), [Luna], recognitions, errors.
+  OLLAMA_AUTOSTART starts `ollama serve` with logs in data/logs/ollama.log.
+  MediaPipe no longer imported when gestures are off.
+[tts] Mac playback uses PortAudio blocking writes: sd.play's Python callback
+  was starved by the face/vision threads (2 s of audio took 8 s → juddering
+  voice). Tests: 332 passing.
+
+─── 2026-10-11 — Calm face transitions, red angry eyes, voice-synced mouth ──
+
+[face] Moods no longer flicker: face_renderer.EmotionFilter only adopts a
+  camera emotion once it has been steady for EMOTION_ONSET_SECS (0.8 s) and
+  then holds it for EMOTION_MIN_HOLD_SECS (2.5 s). Simulated flickery vision:
+  50 label flips in 20 s -> 2 face changes.
+[face] Speaking no longer snaps the face: the old frozen_emotion swapped in
+  the raw vision label when audio started, wiping a face.happy()/love() set
+  just before the reply. Talking now keeps the mood's eye size and shaping.
+[face] Angry eyes are red (all 3 styles), fading in over ~0.5 s with a
+  gentle simmer; was a 0-60 % pulse. Expression field red_pulse -> red_eyes.
+[face] Smoother exits: the old mouth fades out before the new one forms,
+  old particles fade over ~0.5 s instead of vanishing, angry cut eases in.
+[tts] Mouth starts when the voice is AUDIBLE, not when TTS was asked. Every
+  chunk is a wav first (Mac `say -o` too — it had a ~1.2 s head start);
+  playback reports when sound is heard (in-process sounddevice on the Mac;
+  paplay + self-calibrated latency on the Pi). lip_sync.py drives the mouth
+  from the real loudness envelope — it closes in pauses and between
+  sentences. New config: TTS_INPROCESS_PLAYBACK, TTS_PLAYER_LATENCY,
+  TTS_LIPSYNC_LEAD. Tests: 310 passing (tests/test_face_transitions.py).
+
 ─── 2026-09-24 — LUNA 2.0: Ollama brain, attention, recognition, learning ──
 
 [llm] Ollama backend (llm_ollama.py; llm_local.py dispatches). Default model

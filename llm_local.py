@@ -32,6 +32,7 @@ import threading
 
 from config import (LLM_BACKEND, LLM_ENABLED, LLM_MODEL_PATH, LLM_CTX,
                     LLM_THREADS, LLM_MAX_TOKENS, LLM_TEMPERATURE)
+import console
 
 _lock = threading.Lock()        # serializes load + generation
 _llm = None
@@ -50,13 +51,13 @@ def _load():
         return
     try:
         from llama_cpp import Llama
-        print(f"[llm] Loading {os.path.basename(LLM_MODEL_PATH)} "
+        console.detail(f"[llm] Loading {os.path.basename(LLM_MODEL_PATH)} "
               f"(ctx={LLM_CTX}, threads={LLM_THREADS})...")
         _llm = Llama(model_path=LLM_MODEL_PATH,
                      n_ctx=LLM_CTX,
                      n_threads=LLM_THREADS,
                      verbose=False)
-        print("[llm] Model ready")
+        console.detail("[llm] Model ready")
     except Exception as e:
         _failed = True
         print(f"[llm] Could not load model ({e}) — knowledge-base-only.")

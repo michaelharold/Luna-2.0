@@ -14,7 +14,12 @@ network at all. How:
      discover() reads the menus of the seed pages (the home page and the focus
      department's page) and keeps only the general college pages and the focus
      department's pages; other departments, files and other sites are skipped,
-     each with a reason (verify()).
+     each with a reason (verify()). The hand-picked list in WEB_RAG_LINKS_FILE
+     (data/website_links.txt) is always added, each page under its group from
+     that file — including other departments' pages (scope "other": searched
+     only when a question names another department) and the other TKM
+     institutions' sites (scope "affiliate": searched only when a question
+     is routed to them).
   2. FETCH. refresh() downloads every catalog page in parallel, verifies it
      (broken / not a web page / duplicate), and indexes its text passages, its
      table rows ("Name: Dr. A; Department: Mechanical") and the JSON data the
@@ -52,6 +57,7 @@ builds its own embedder:
 
 import concurrent.futures
 import gzip
+import hashlib
 import html as htmllib
 import json
 import os
@@ -67,6 +73,7 @@ from datetime import datetime
 from html.parser import HTMLParser
 
 import numpy as np
+import console
 
 _DEFAULTS = dict(                       # used when config.py lacks a setting
     WEB_RAG_URL="", WEB_RAG_SEEDS=(), WEB_RAG_FOCUS_NAME="",
@@ -76,6 +83,7 @@ _DEFAULTS = dict(                       # used when config.py lacks a setting
     WEB_RAG_ROUTE_MIN=0.35, WEB_RAG_CACHE_DIR="data/rag_cache",
     WEB_RAG_REFRESH_HOURS=24, WEB_RAG_FETCH_TIMEOUT=8.0,
     WEB_RAG_ONLINE_TIMEOUT=1.5, WEB_RAG_LIVE_PAGES=2, WEB_RAG_LIVE_TIMEOUT=6.0,
+    WEB_RAG_LINKS_FILE="",
 )
 try:
     import config as _config
@@ -155,6 +163,7 @@ _settings = dict(
     online_timeout=_cfg("WEB_RAG_ONLINE_TIMEOUT"),
     live_pages=_cfg("WEB_RAG_LIVE_PAGES"),
     live_timeout=_cfg("WEB_RAG_LIVE_TIMEOUT"),
+    links_file=_cfg("WEB_RAG_LINKS_FILE"),
 )
 
 _lock         = threading.Lock()   # guards _index swaps and reads
@@ -911,7 +920,7 @@ def _data_pages(endpoints, rules, data_seen, title_hint="", delay=0.0,
         try:
             data = _fetch_json(ep)
         except Exception as e:
-            print(f"[web_rag] skip data {ep}: {type(e).__name__}: {e}")
+            console.detail(f"[web_rag] skip data {ep}: {type(e).__name__}: {e}")
             if failures is not None:
                 failures.append(ep)
             continue
@@ -1042,27 +1051,115 @@ def discover():
             p = " > ".join(path)
             if p and p not in e["paths"]:
                 e["paths"].append(p)
+    groups = {}                           # url -> its groups, in list order
+    for url, group, label in curated_links():
+        url = _normalize(url)
+        e = found.setdefault(url, {"texts": [], "paths": []})
+        if group and group not in groups.setdefault(url, []):
+            groups[url].append(group)
+        if label and label not in e["texts"]:
+            e["texts"].insert(0, label)
+        e["curated"] = True
+    for url, gs in groups.items():        # the list's grouping comes first
+        e = found[url]
+        e["paths"] = gs + [p for p in e["paths"] if p not in gs]
+    for url, e in found.items():
+        if e.get("curated") and not e["texts"]:
+            e["texts"].append(_slug_title(url))   # "computer science and …"
+    home = _host_of(_settings["url"])
     catalog, skipped = {}, {}
     for url, info in found.items():
-        scope, why = classify(url, info["texts"], info["paths"])
+        if not _same_site(_host_of(url), home):
+            # only the curated list reaches other hosts: the TKM institutions
+            scope, why = ((None, "file (PDF, image or document)")
+                          if _looks_binary(url) else ("affiliate", ""))
+        else:
+            scope, why = classify(url, info["texts"], info["paths"])
+            if scope is None and info.get("curated") and why == "other department":
+                scope = "other"           # wanted, but kept apart (retrieve)
         if scope:
             catalog[url] = dict(info, scope=scope)
         else:
             skipped[url] = why
-    if len(catalog) > _settings["max_pages"]:     # focus pages first
-        keep = sorted(catalog, key=lambda u: catalog[u]["scope"] != "focus")
+    if len(catalog) > _settings["max_pages"]:     # curated, then focus first
+        keep = sorted(catalog, key=lambda u: (not catalog[u].get("curated"),
+                                              catalog[u]["scope"] != "focus"))
         for u in keep[_settings["max_pages"]:]:
             skipped[u] = "over WEB_RAG_MAX_PAGES"
             del catalog[u]
     return catalog, skipped
 
 
+def parse_links(text):
+    """[(url, group, label)] from a curated links file: a "[Group > Sub]"
+    line starts a group; every http(s) URL after it belongs to that group,
+    optionally followed by a label ("... student-chapter-cse.php  Student
+    Chapters"); "#" starts a comment; anything else is ignored. A page may be
+    listed under several groups (faculty achievements is both "Faculty" and
+    "Achievements"); the same page twice in one group counts once. Pure."""
+    out, seen, group = [], set(), ""
+    for line in (text or "").splitlines():
+        line = line.split(" #", 1)[0].strip()       # trailing comment
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            group = " > ".join(p.strip() for p in line[1:-1].split(">")
+                               if p.strip())
+            continue
+        if line.startswith(("http://", "https://")):
+            url, _, label = line.partition(" ")
+            if (url, group) not in seen:
+                seen.add((url, group))
+                out.append((url, group, " ".join(label.split())))
+    return out
+
+
+def _links_path():
+    path = _settings.get("links_file") or ""
+    if path and not os.path.isabs(path):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+    return path
+
+
+def curated_links():
+    """parse_links() of WEB_RAG_LINKS_FILE, or [] when unset / unreadable."""
+    path = _links_path()
+    if not path:
+        return []
+    try:
+        with open(path, encoding="utf-8") as f:
+            return parse_links(f.read())
+    except OSError as e:
+        print(f"[web_rag] links file unreadable ({e}) — using the site menus only")
+        return []
+
+
+def _links_signature():
+    """Fingerprint of the curated list: a cache built from another list is
+    stale (_is_stale), so editing the file is picked up on the next refresh."""
+    return hashlib.sha1(repr(curated_links()).encode("utf-8")).hexdigest()
+
+
+def _slug_title(url):
+    """A readable name from a URL: ".../computer-science-and-engineering" ->
+    "computer science and engineering", "https://tkmit.ac.in/" -> "tkmit"."""
+    parts = urllib.parse.urlsplit(url)
+    slug = re.sub(r"\.(php|html?|aspx?|jsp)$", "", parts.path.strip("/"))
+    if not slug:
+        host = parts.netloc.lower()
+        return (host[4:] if host.startswith("www.") else host).split(".")[0]
+    return " ".join(w for w in re.split(r"[^a-z0-9]+", slug.lower()) if w)
+
+
 def topic_label(url, info, title=""):
     """What a catalog page is about, for routing: where it lives (the focus
     department or the college), its menu path, link text and URL words
     spelled out, and its title."""
+    scope = info.get("scope")
     where = (_settings["focus_name"] + " department"
-             if info.get("scope") == "focus" and _settings["focus_name"]
+             if scope == "focus" and _settings["focus_name"]
+             else "another TKM institution" if scope == "affiliate"
+             else "another department" if scope == "other"
              else "college")
     paths = " / ".join(info.get("paths") or [])
     return " | ".join(s for s in (where, paths,
@@ -1088,8 +1185,11 @@ def _display_title(url, info, page_title):
 def _fetch_page(url, info, rules, data_seen, data_lock):
     """One catalog page: (docs, status). docs = its passages, table rows and
     the sections of the JSON it loads; status = the verification line
-    ("ok", "HTTP 404", "not a web page", …). Never raises."""
-    if not robots_allows(rules, url):
+    ("ok", "HTTP 404", "not a web page", …). Never raises. An "affiliate"
+    page (another TKM institution's site, from the curated list) may live on
+    another host; the college's robots.txt says nothing about it."""
+    affiliate = info.get("scope") == "affiliate"
+    if not affiliate and not robots_allows(rules, url):
         return [], "blocked by robots.txt"
     try:
         final, html = _fetch_html(url)
@@ -1099,7 +1199,8 @@ def _fetch_page(url, info, rules, data_seen, data_lock):
         return [], f"unreachable ({type(e).__name__})"
     if html is None:
         return [], "not a web page"
-    if not _same_site(_host_of(final), _host_of(_settings["url"])):
+    if not affiliate and not _same_site(_host_of(final),
+                                        _host_of(_settings["url"])):
         return [], "redirects to another site"
     page = parse_page(html)
     title = _display_title(url, info, page["title"])
@@ -1305,6 +1406,7 @@ def _build_index(docs, catalog=None, report=None):
         "chunks": chunks, "matrix": matrix,
         "links": topics, "link_matrix": topic_matrix,
         "report": report or {},
+        "links_sig": _links_signature(),
     }
 
 
@@ -1345,6 +1447,7 @@ def _save_cache(index):
     meta["version"] = CACHE_VERSION
     meta["links"] = index.get("links") or []
     meta["report"] = index.get("report") or {}
+    meta["links_sig"] = index.get("links_sig", "")
     meta["dim"] = int(index["matrix"].shape[1])
     arrays = {"matrix": index["matrix"]}
     if index.get("link_matrix") is not None and meta["links"]:
@@ -1404,6 +1507,9 @@ def _load_cache():
 
 
 def _is_stale(index):
+    """Too old, or built from a different curated links list."""
+    if index.get("links_sig", "") != _links_signature():
+        return True
     age_h = (time.time() - float(index.get("fetched_at", 0))) / 3600.0
     return age_h >= float(_settings["refresh_hours"])
 
@@ -1424,7 +1530,7 @@ def start(embed_fn, background=True):
         with _lock:
             _index = cached
         if cached:
-            print(f"[web_rag] cache loaded: {len(cached['pages'])} pages, "
+            console.detail(f"[web_rag] cache loaded: {len(cached['pages'])} pages, "
                   f"{len(cached['chunks'])} chunks, {len(cached['links'])} "
                   f"topics from {cached['host']}")
         else:
@@ -1449,7 +1555,7 @@ def _background():
         with _lock:
             idx = _index
         if idx is not None and not _is_stale(idx):
-            print("[web_rag] online, cache fresh — no refresh")
+            console.detail("[web_rag] online, cache fresh — no refresh")
             return
         refresh()
     except Exception as e:
@@ -1521,7 +1627,7 @@ def refresh(force=False):
             catalog, skipped = discover()
             if not catalog:
                 raise RuntimeError("no pages found in the site's menus")
-            print(f"[web_rag] catalog: {len(catalog)} pages "
+            console.detail(f"[web_rag] catalog: {len(catalog)} pages "
                   f"({sum(i['scope'] == 'focus' for i in catalog.values())} "
                   f"{_settings['focus_name'] or 'focus'}), {len(skipped)} "
                   f"links skipped — fetching {_settings['workers']} at a time")
@@ -1545,7 +1651,7 @@ def refresh(force=False):
         _dim_warned = False
         bad = sum(1 for s in report.values()
                   if s.startswith(("broken", "unreachable")))
-        print(f"[web_rag] indexed {len(new['pages'])} pages / "
+        console.detail(f"[web_rag] indexed {len(new['pages'])} pages / "
               f"{len(new['chunks'])} chunks / {len(new['links'])} topics in "
               f"{time.time() - t0:.1f}s ({bad} broken)")
         return True
@@ -1684,9 +1790,15 @@ def route(text):
         return []
     fixed = correct_spelling(text, idx)
     if fixed != text:
-        print(f"[web_rag] spelling: {text!r} -> {fixed!r}")
+        console.detail(f"[web_rag] spelling: {text!r} -> {fixed!r}")
     q = _query_vec(fixed)
-    return [] if q is None else _route_scores(idx, q, _keywords(fixed))
+    if q is None:
+        return []
+    routed = _route_scores(idx, q, _keywords(fixed))
+    if not _names_other_department(fixed):
+        scope = {t["url"]: t.get("scope") for t in idx.get("links") or []}
+        routed = [(u, s) for u, s in routed if scope.get(u) != "other"]
+    return routed
 
 
 # ── Live fetch (a routed page that isn't cached yet) ─────────────────────────
@@ -1736,7 +1848,7 @@ def _late(f, url):
         docs, status = f.result()
         if status.startswith("ok"):
             n = _merge_live([(url, docs)])
-            print(f"[web_rag] live: late page {url} cached ({n} chunks)")
+            console.detail(f"[web_rag] live: late page {url} cached ({n} chunks)")
         else:
             _tried.add(url)
     except Exception as e:
@@ -1761,7 +1873,7 @@ def _fetch_routed(urls, wait_s):
     results = []
     for f, url in futs.items():
         if f not in done:
-            print(f"[web_rag] live: {url} still downloading — cached when it lands")
+            console.detail(f"[web_rag] live: {url} still downloading — cached when it lands")
             f.add_done_callback(lambda f, url=url: _late(f, url))
             continue
         docs, status = f.result()
@@ -1785,7 +1897,7 @@ def lookup(text, force=False, top_k=None):
             idx = _index
         routed = route(text)
         if routed:
-            print("[web_rag] route: " + ", ".join(
+            console.detail("[web_rag] route: " + ", ".join(
                 f"{u.replace('https://', '').replace('http://', '')[-40:]} "
                 f"({s:.2f})" for u, s in routed[:3]))
         known = _known_urls(idx)
@@ -1800,7 +1912,7 @@ def lookup(text, force=False, top_k=None):
             return hits
         with _live_lock:
             wait_s = float(_settings["live_timeout"]) * (2 if force else 1)
-            print(f"[web_rag] live: fetching {', '.join(missing)}")
+            console.detail(f"[web_rag] live: fetching {', '.join(missing)}")
             if _fetch_routed(missing, wait_s):
                 hits = retrieve(text, top_k)
     except Exception as e:
@@ -1851,11 +1963,24 @@ def retrieve(text, top_k=None):
                 [min(2, sum(w in st for w in words)) for st in stems],
                 dtype=np.float32)
         routed = _with_groups(idx, _route_scores(idx, q, words))
-        if routed and _names_other_department(text):
+        scope = {t["url"]: t.get("scope") for t in idx.get("links") or []}
+        named = _names_other_department(text)
+        if routed and named:
             # "HOD of mechanical": the focus department's pages are not
             # about that — only the general (college-wide) pages are
-            scope = {t["url"]: t.get("scope") for t in idx.get("links") or []}
             routed = {u: v for u, v in routed.items() if scope.get(u) != "focus"}
+        if not named:                     # other departments: only by name
+            routed = {u: v for u, v in routed.items() if scope.get(u) != "other"}
+        # Other departments' and other TKM institutions' pages answer only
+        # questions routed to them — never a blind search, or the college's
+        # own facts could come from a sister institution's page.
+        apart = np.array([scope.get(c.get("page", c["url"].partition("#")[0]))
+                          in ("other", "affiliate")
+                          and c.get("page", c["url"]) not in routed
+                          and c["url"] not in routed
+                          for c in idx["chunks"]], dtype=bool)
+        if apart.any():
+            scores = np.where(apart, -1.0, scores)
     except Exception as e:
         print(f"[web_rag] retrieve failed: {e}")
         return []
@@ -1900,6 +2025,230 @@ def retrieve(text, top_k=None):
             else f"{title}: {c['text']}"
         out.append((c["url"], text_out, s))
     return out
+
+# ── Related search: a second hop through the site ─────────────────────────────
+# A question about a person, a company, a club or an event is answered by one
+# page (the faculty list), while the extra worth saying lives on another (the
+# achievements page). _related() finds it by NAME: the names come from the
+# site's own text and the question, not from a hard-wired page map, so the
+# same hop links a teacher to her award, a student to his placement, a
+# company to the students it hired.
+
+RELATED_SENTENCES = 3      # related sentences added to a prompt
+RELATED_MAX_WORDS = 60     # a longer sentence is cut
+RELATED_HOP_NAMES = 4      # the answer's names are followed only when it is
+                           # about one or two people, not a whole staff list
+NAME_LOWER_SHARE  = 0.2    # a word written in lower case more often than
+                           # this is an ordinary word ("labs"), not a name
+NAME_MAX_SHARE    = 0.06   # a name in more than this share of passages
+                           # ("Kerala", 13 %) is too common to follow; the
+                           # HOD's name is on ~2 % of them and must not be
+
+_NAME_STOP = frozenset((
+    "dr", "prof", "professor", "mr", "mrs", "ms", "smt", "sri", "shri",
+    "associate", "assistant", "head", "hod", "hods", "dean", "principal",
+    "department", "dept", "college", "engineering", "faculty", "staff",
+    "student", "students", "phd", "btech", "mtech", "tkm", "tkmce", "cse",
+))
+_ABBREV_END = re.compile(r"(?:^|\s)(?:Dr|Prof|Mr|Mrs|Ms|Smt|Sri|Shri|St|No|[A-Z])\.$")
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z(])")
+_WORD = re.compile(r"[A-Za-z][A-Za-z'-]*")
+_ASKS_WHO = re.compile(r"\bwho(?:m|se)?\b", re.I)
+_YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
+
+
+def _sentences(text):
+    """Split into sentences without breaking "Dr. Anu" or "Aneesh G. Nath"."""
+    out = []
+    for piece in _SENTENCE_SPLIT.split(text or ""):
+        if out and _ABBREV_END.search(out[-1]):
+            out[-1] = f"{out[-1]} {piece}"
+        else:
+            out.append(piece)
+    return [p.strip() for p in out if p.strip()]
+
+
+def _name_vocab(idx):
+    """The words the site only ever writes as names — capitalised or upper
+    case ("reshma", "oracle"), never lower case like "labs" — and not so
+    common that they say nothing. Cached on the index."""
+    chunks = idx["chunks"]
+    cached = idx.get("_names")
+    if cached is not None and cached[0] == len(chunks):
+        return cached[1]
+    cap, low, docs = {}, {}, {}
+    for c in chunks:
+        seen = set()
+        for w in _WORD.findall(c["text"]):
+            lw = w.lower()
+            if w[0].isupper():
+                cap[lw] = cap.get(lw, 0) + 1
+            else:
+                low[lw] = low.get(lw, 0) + 1
+            seen.add(lw)
+        for lw in seen:
+            docs[lw] = docs.get(lw, 0) + 1
+    limit = max(5, NAME_MAX_SHARE * len(chunks))
+    vocab = {w for w, n in cap.items()
+             if len(w) >= 3 and w not in _NAME_STOP
+             and low.get(w, 0) <= NAME_LOWER_SHARE * (n + low.get(w, 0))
+             and docs.get(w, 0) <= limit}
+    idx["_names"] = (len(chunks), vocab)
+    return vocab
+
+
+def _names_in(text, vocab):
+    return {w.lower() for w in _WORD.findall(text or "")} & vocab
+
+
+_QUESTION_STOP = frozenset((
+    "what", "when", "where", "which", "who", "whom", "whose", "how", "why",
+    "tell", "about", "does", "did", "done", "have", "has", "had", "the",
+    "this", "that", "there", "their", "with", "from", "for", "any", "anyone",
+    "some", "someone", "please", "know", "give", "show", "list", "are", "was",
+    "were", "been", "your", "college", "department",
+))
+
+
+def _question_words(text, names):
+    """The question's other content words, as 4-letter stems ("placed" and
+    "placement" -> "plac", "talks" -> "talk"): a sentence that shares them
+    is about what was asked."""
+    return {w.lower()[:4] for w in _WORD.findall(text or "")
+            if len(w) >= 4 and w.lower() not in _QUESTION_STOP
+            and w.lower() not in names}
+
+
+def _around(words, names, before=25, after=35):
+    """A long sentence (a table row) cut to the words around the first
+    name it mentions, not just its first words."""
+    at = next((i for i, w in enumerate(words)
+               if w.strip(".,;:|()").lower() in names), 0)
+    lo, hi = max(0, at - before), at + after
+    return (("… " if lo else "") + " ".join(words[lo:hi])
+            + (" …" if hi < len(words) else ""))
+
+
+def _recency(sentence, now_year):
+    years = [int(y) for y in _YEAR.findall(sentence)]
+    if not years:
+        return 0.5
+    newest = max(years)
+    return 2.0 if newest >= now_year - 1 else 1.0 if newest >= now_year - 3 else 0.0
+
+
+def _related_sentences(idx, text, hits, now_year=None):
+    """[(page url, title, sentence)] best first — sentences elsewhere on the
+    site about the names in the question, or, when the question names none
+    ("who is the HOD?"), about the one or two people the best answer names.
+    Only the sentences that mention the most of those names are kept, then
+    ranked: sharing the question's other words ("placed" for a placement
+    question), on the focus department's own pages, newest year. Nothing
+    already in `hits` is repeated."""
+    now_year = now_year or time.localtime().tm_year
+    vocab = _name_vocab(idx)
+    names = _names_in(text, vocab)
+    # Follow the ANSWER's names only when the question asks for a person
+    # ("who is the HOD?") — "where is the college?" must not chase the
+    # place names in the address.
+    hopped = False
+    if not names and hits and _ASKS_WHO.search(text or ""):
+        found = _names_in(hits[0][1], vocab)
+        if len(found) <= RELATED_HOP_NAMES:
+            names, hopped = found, True
+    if not names:
+        return []
+    scope = {t["url"]: t.get("scope") for t in idx.get("links") or []}
+    others_ok = _names_other_department(text)
+    # After a hop the question's words describe the person's ROLE ("head of
+    # the computer science department"), not what is worth adding about
+    # them: rank by the department's own pages and recency alone.
+    asked = set() if hopped else _question_words(text, names)
+    shown = " ".join(t for _, t, _ in hits)
+    found = []        # (names, shared words, focus, recency, order, ...)
+    for order, c in enumerate(idx["chunks"]):
+        page = c.get("page", c["url"].partition("#")[0])
+        sc = scope.get(page)
+        if sc == "affiliate" or (sc == "other" and not others_ok):
+            continue
+        for sent in _sentences(c["text"]):
+            tokens = {w.lower() for w in _WORD.findall(sent)}
+            n = len(names & tokens)
+            if not n or sent in shown:
+                continue
+            shared = len(asked & {t[:4] for t in tokens if len(t) >= 4})
+            words = sent.split()
+            if len(words) > RELATED_MAX_WORDS:
+                sent = _around(words, names)
+            found.append((n, shared, sc == "focus", _recency(sent, now_year),
+                          -order, page, c.get("title") or "", sent))
+    if not found:
+        return []
+    best = max(f[0] for f in found)
+    found = sorted((f for f in found if f[0] == best), reverse=True)
+    out, seen = [], set()
+    for *_, page, title, sent in found:
+        if sent not in seen:
+            seen.add(sent)
+            out.append((page, title, sent))
+    return out
+
+
+def _related(idx, text, hits, now_year=None):
+    """[(page url, "Title: sentence(s)", score)] — the best
+    RELATED_SENTENCES of _related_sentences(), grouped by page."""
+    by_page = {}
+    for page, title, sent in _related_sentences(
+            idx, text, hits, now_year)[:RELATED_SENTENCES]:
+        by_page.setdefault(page, (title, []))[1].append(sent)
+    return [(page, f"{title}: {' '.join(sents)}" if title else " ".join(sents),
+             0.5) for page, (title, sents) in by_page.items()]
+
+
+def related(text, hits=()):
+    """_related() on the live index — the second hop brain.py adds to a
+    website answer. [] without an index. Never raises."""
+    with _lock:
+        idx = _index
+    if idx is None or not text:
+        return []
+    try:
+        return _related(idx, text, list(hits))
+    except Exception as e:
+        print(f"[web_rag] related search failed: {e}")
+        return []
+
+
+def related_sentences(text, hits=()):
+    """_related_sentences() on the live index: [(page, title, sentence)]
+    best first. [] without an index. Never raises."""
+    with _lock:
+        idx = _index
+    if idx is None or not text:
+        return []
+    try:
+        return _related_sentences(idx, text, list(hits))
+    except Exception as e:
+        print(f"[web_rag] related search failed: {e}")
+        return []
+
+
+def staff_sections():
+    """[(section title, text)] of the indexed staff lists — the JSON data
+    sections named "...staff" or "hod" — for people.py's directory of who
+    Luna can describe with certainty. [] without an index."""
+    with _lock:
+        idx = _index
+    if idx is None:
+        return []
+    out, seen = [], set()
+    for c in idx["chunks"]:
+        frag = c["url"].partition("#")[2].lower()
+        if frag and ("staff" in frag or frag == "hod") and c["text"] not in seen:
+            seen.add(c["text"])
+            out.append((c.get("title") or "", c["text"]))
+    return out
+
 
 def available():
     with _lock:

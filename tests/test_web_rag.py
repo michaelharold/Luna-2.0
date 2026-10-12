@@ -559,7 +559,8 @@ class _SiteCase(unittest.TestCase):
             cache_dir=self.tmp, max_pages=50, workers=4, chunk_words=40,
             chunk_overlap=10, top_k=3, min_sim=0.05, route_topics=5,
             route_min=0.05, online_timeout=0.5, fetch_timeout=3.0,
-            refresh_hours=24, live_pages=2, live_timeout=5.0)
+            refresh_hours=24, live_pages=2, live_timeout=5.0,
+            links_file="")                # never the real college list here
 
     def tearDown(self):
         web_rag.wait(5)
@@ -616,6 +617,205 @@ class TestCatalog(_SiteCase):
         self.assertNotIn("/s/private/x.html", reqs)       # never fetched
         self.assertNotIn("/s/mechanical.html", reqs)      # out of scope
         self.assertEqual(reqs.count("/s/get-qs.php?id=7"), 1)   # JSON once
+
+
+class TestCuratedLinks(_SiteCase):
+    """data/website_links.txt: a hand-picked, grouped list of pages that are
+    always indexed, each routed under its group."""
+
+    def _links(self, text):
+        path = os.path.join(self.tmp, "links.txt")
+        with open(path, "w") as f:
+            f.write(text)
+        web_rag.configure(links_file=path)
+        self.addCleanup(web_rag.configure, links_file="")
+        return path
+
+    def test_parse_links(self):
+        got = web_rag.parse_links("""# the college's important pages
+            https://a.example/            # before any group
+            [Main]
+            https://a.example/
+            [Administration > General]
+            https://a.example/governing-body
+            https://a.example/governing-body
+            not a link
+            https://a.example/x.php
+            """)
+        self.assertEqual(got, [
+            ("https://a.example/", "", ""),
+            ("https://a.example/", "Main", ""),        # listed in two groups
+            ("https://a.example/governing-body", "Administration > General", ""),
+            ("https://a.example/x.php", "Administration > General", "")])
+
+    def test_labels_and_pages_in_several_groups(self):
+        got = web_rag.parse_links("""[CSE > Students]
+            https://a.example/student-achievements-cse.php
+            [CSE > Others]
+            https://a.example/student-chapter-cse.php   Student Chapters
+            [CSE > Achievements]
+            https://a.example/student-achievements-cse.php""")
+        self.assertEqual(got, [
+            ("https://a.example/student-achievements-cse.php", "CSE > Students", ""),
+            ("https://a.example/student-chapter-cse.php", "CSE > Others",
+             "Student Chapters"),
+            ("https://a.example/student-achievements-cse.php",
+             "CSE > Achievements", "")])
+
+    def test_every_group_of_a_page_is_a_path(self):
+        self._links(f"[About]\n{self.base}about.html   About us\n"
+                    f"[History]\n{self.base}about.html\n")
+        catalog, _ = web_rag.discover()
+        info = catalog[self.base + "about.html"]
+        self.assertEqual(info["paths"][:2], ["About", "History"])
+        self.assertIn("About us", info["texts"])
+
+    def test_curated_pages_join_the_catalog_under_their_group(self):
+        self._links(f"[About]\n{self.base}about.html\n"
+                    f"[Departments]\n{self.base}mechanical.html\n")
+        catalog, skipped = web_rag.discover()
+        self.assertEqual(catalog[self.base + "about.html"]["paths"][0], "About")
+        mech = catalog[self.base + "mechanical.html"]     # no longer skipped
+        self.assertEqual(mech["scope"], "other")
+        self.assertNotIn(self.base + "mechanical.html", skipped)
+
+    def test_other_department_answers_only_when_named(self):
+        self._links(f"[Departments]\n{self.base}mechanical.html\n")
+        self._build()
+        text = lambda q: " ".join(t for _, t, _ in web_rag.retrieve(q, top_k=5))
+        self.assertNotIn("MECHWORD", text("gears and engines taught"))
+        self.assertIn("MECHWORD", text("mechanical gears and engines taught"))
+
+    def test_another_tkm_site_is_indexed_but_kept_apart(self):
+        PAGES["/s/sister.html"] = ("text/html",
+            "<html><head><title>Sister Institute</title></head><body><p>"
+            "ZEBRAWORD the sister institute teaches gears and engines too, "
+            "on its own campus with its own staff and students."
+            "</p></body></html>")
+        self.addCleanup(PAGES.pop, "/s/sister.html", None)
+        other = self.base.replace("127.0.0.1", "localhost") + "sister.html"
+        self._links(f"[TKM institutions]\n{other}\n")
+        self._build()
+        scope = {t["url"]: t["scope"] for t in web_rag._index["links"]}
+        self.assertEqual(scope.get(other), "affiliate")
+        text = lambda q: " ".join(t for _, t, _ in web_rag.retrieve(q, top_k=5))
+        self.assertIn("ZEBRAWORD", text("sister institute"))
+        self.assertNotIn("ZEBRAWORD", text("when are the exams"))
+
+    def test_changing_the_list_triggers_a_rebuild(self):
+        path = self._links(f"[About]\n{self.base}about.html\n")
+        self._build()
+        self.assertFalse(web_rag._is_stale(web_rag._index))
+        with open(path, "a") as f:
+            f.write(f"[Exams]\n{self.base}exam.html\n")
+        self.assertTrue(web_rag._is_stale(web_rag._index))
+
+
+class TestRelatedSearch(unittest.TestCase):
+    """Second hop: passages elsewhere on the site about the people / things a
+    question (or its best answer) names — a faculty member's achievements, a
+    student's placement — found from the data, not a hard-coded page map."""
+
+    PAGES = {
+        "u/faculty":  ("Faculty", "Head of department HOD, 1 in total: "
+                       "Dr. MIRA K VANCE, Associate Professor. Dr. OREN DALE, "
+                       "Assistant Professor."),
+        "u/achieve":  ("Faculty achievements", "Prof. Oren Dale was awarded "
+                       "a Ph.D. in 2019. Prof. Mira Vance received the Best "
+                       "Teacher award in 2019. Prof. Mira Vance won the "
+                       "national innovation grant in 2025."),
+        "u/students": ("Student achievements", "Lena Fox got placed in "
+                       "Zentrix with a package of 12 lakhs. The students "
+                       "attended a workshop."),
+        "u/labs":     ("Labs", "The labs are open to all students. Computer "
+                       "labs have sixty systems for the students. Zentrix "
+                       "donated two servers to the labs."),
+        "u/fest":     ("Arts fest", "Prof. Mira Vance was the convenor of "
+                       "the arts fest."),
+    }
+
+    def setUp(self):
+        self.idx = {"chunks": [{"url": u, "page": u, "title": t, "text": x}
+                               for u, (t, x) in self.PAGES.items()],
+                    "links": [{"url": u, "scope": "general" if u == "u/fest"
+                               else "focus"} for u in self.PAGES]}
+
+    def related(self, q, hits=()):
+        return web_rag._related(self.idx, q, list(hits), now_year=2026)
+
+    def text(self, q, hits=()):
+        return " ".join(t for _, t, _ in self.related(q, hits))
+
+    def test_a_named_person_brings_their_achievements(self):
+        out = self.text("tell me about mira vance")
+        self.assertIn("national innovation grant in 2025", out)
+        self.assertNotIn("Oren Dale", out)
+
+    def test_recent_first(self):
+        out = self.text("what has mira vance done")
+        self.assertLess(out.index("2025"), out.index("2019"))
+
+    def test_hop_from_the_answer(self):
+        hod = ("u/faculty", "Faculty: Head of department HOD, 1 in total: "
+                            "Dr. MIRA K VANCE, Associate Professor.", 0.8)
+        out = self.text("who is the hod", [hod])
+        self.assertIn("national innovation grant", out)
+
+    def test_the_department_s_own_pages_come_first(self):
+        out = self.text("tell me about mira vance")
+        fest = out.find("convenor")             # may be past the cap entirely
+        self.assertTrue(fest == -1 or out.index("innovation grant") < fest)
+
+    def test_sentences_sharing_the_question_s_words_come_first(self):
+        out = self.text("did anyone get placed in zentrix")
+        self.assertLess(out.index("Lena Fox"), out.index("donated"))
+
+    def test_a_long_row_is_cut_around_the_name(self):
+        row = " | ".join(f"Talk {i} by Speaker{i}" for i in range(40))
+        self.idx["chunks"].append({"url": "u/talks", "page": "u/talks",
+                                   "title": "Talks", "text": row +
+                                   " | Talk 41 by Mira Vance on robots"})
+        out = self.text("what talks did mira vance give")
+        self.assertIn("Mira Vance on robots", out)
+
+    def test_no_hop_unless_the_question_asks_who(self):
+        hod = ("u/faculty", "Faculty: Head of department HOD, 1 in total: "
+                            "Dr. MIRA K VANCE, Associate Professor.", 0.8)
+        self.assertEqual(self.related("where is the department office", [hod]),
+                         [])
+
+    def test_sentences_one_by_one(self):
+        out = web_rag._related_sentences(self.idx, "tell me about mira vance",
+                                         [], now_year=2026)
+        self.assertTrue(all(len(r) == 3 for r in out))
+        self.assertIn("national innovation grant in 2025", out[0][2])
+
+    def test_staff_sections(self):
+        idx = {"chunks": [
+            {"url": "u/staff#regular_teaching_staff", "page": "u/staff",
+             "title": "CSE — Regular teaching staff",
+             "text": "Regular teaching staff, 1 in total: Dr. MIRA K VANCE, Professor"},
+            {"url": "u/staff#hod", "page": "u/staff", "title": "CSE — HOD",
+             "text": "Head of department HOD, 1 in total: Dr. MIRA K VANCE"},
+            {"url": "u/news#dept_news", "page": "u/news", "title": "News",
+             "text": "Dept news, 3 in total: something"}], "links": []}
+        with mock.patch.object(web_rag, "_index", idx):
+            got = web_rag.staff_sections()
+        self.assertEqual([t for t, _ in got], ["CSE — Regular teaching staff",
+                                               "CSE — HOD"])
+
+    def test_things_too_not_just_people(self):
+        self.assertIn("Lena Fox", self.text("did anyone get placed in zentrix"))
+
+    def test_ordinary_words_are_not_names(self):
+        self.assertEqual(self.related("what labs are there for students"), [])
+
+    def test_nothing_already_in_the_answer_is_repeated(self):
+        hit = ("u/students", "Student achievements: Lena Fox got placed in "
+                             "Zentrix with a package of 12 lakhs.", 0.9)
+        out = self.text("who got placed in zentrix", [hit])
+        self.assertNotIn("Lena Fox", out)              # already said
+        self.assertIn("donated two servers", out)      # still related
 
 
 class TestRouting(_SiteCase):

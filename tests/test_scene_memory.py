@@ -57,12 +57,13 @@ class TestSceneEvents(unittest.TestCase):
 
     def test_departure_after_debounce(self):
         feed(1, "Alice", "Neutral", T0, 5)
-        feed(0, None, "Neutral", T0 + 5.5, 2.0)            # > 1.5 s gone
+        feed(0, None, "Neutral", T0 + 5.5, sm.LEAVE_DEBOUNCE_SECS + 0.5)   # gone long enough
         self.assertEqual(kinds(), ["arrived", "left"])
         left = sm.last_events()[-1]
         self.assertEqual(left["who"], "Alice")
         self.assertEqual(left["ts"], T0 + 5.5)             # when she vanished
-        self.assertIsNone(sm.present_since(now=T0 + 8))
+        self.assertIsNone(sm.present_since(
+            now=T0 + 6.5 + sm.LEAVE_DEBOUNCE_SECS))
 
     def test_recognition_flicker_is_ignored(self):
         t = T0
@@ -113,7 +114,7 @@ class TestSceneEvents(unittest.TestCase):
         self.assertIsNone(sm.seconds_since_left("Alice", now=T0))
         self.assertIsNone(sm.seconds_since_left(None, now=T0))
         feed(1, "Alice", "Neutral", T0, 5)
-        feed(0, None, "Neutral", T0 + 5.5, 2)
+        feed(0, None, "Neutral", T0 + 5.5, sm.LEAVE_DEBOUNCE_SECS + 0.5)
         self.assertAlmostEqual(sm.seconds_since_left("Alice", now=T0 + 65.5), 60.0)
         feed(1, "Alice", "Neutral", T0 + 70, 1)             # still answers when back
         self.assertAlmostEqual(sm.seconds_since_left("Alice", now=T0 + 71), 65.5)
@@ -171,7 +172,7 @@ class TestSceneSummary(unittest.TestCase):
 
     def test_somebody_left(self):
         feed(1, "Bob", "Neutral", T0, 30)
-        feed(0, None, "Neutral", T0 + 30.5, 2)
+        feed(0, None, "Neutral", T0 + 30.5, sm.LEAVE_DEBOUNCE_SECS + 0.5)
         s = sm.summary(now=T0 + 30.5 + 300)
         self.assertEqual(s, "Nobody is in front of you right now. "
                             "Bob stopped by 5 minutes ago.")
@@ -202,6 +203,12 @@ class TestSceneSummary(unittest.TestCase):
         feed(1, "Alice", "Sad", T0 + 20, 10)
         s = sm.summary(now=T0 + 30)
         self.assertLessEqual(s.count(". ") + 1, 2, s)
+
+    def test_asked_recently(self):
+        self.assertFalse(sm.asked_recently(now=T0))
+        sm.note("asked", "Alice", "How was your day?", now=T0)
+        self.assertTrue(sm.asked_recently(now=T0 + 30))
+        self.assertFalse(sm.asked_recently(now=T0 + sm.ASKED_RELEVANT_SECS + 1))
 
     def test_human_durations(self):
         self.assertEqual(sm.human_duration(3), "a moment")

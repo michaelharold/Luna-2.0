@@ -82,7 +82,9 @@ from config import (
     HANDSHAKE_DEGREES,
     HANDSHAKE_RAISE_SECS,
     HANDSHAKE_SHAKE_SECS,
+    IS_MAC,
 )
+import console
 
 # ── Pin assignments ───────────────────────────────────────────────────────────
 PIN_LEFT_ARM  = SERVO_LEFT_PIN
@@ -199,7 +201,7 @@ class _RPiGPIOBackend:
 
 def _make_backend():
     if not ENABLE_SERVOS:
-        print("[SERVO] Servos disabled (ENABLE_SERVOS=False) — simulation mode")
+        console.detail("[SERVO] Servos disabled (ENABLE_SERVOS=False) — simulation mode")
         return _SimBackend()
 
     wanted = (SERVO_BACKEND or "auto").lower()
@@ -212,13 +214,15 @@ def _make_backend():
     for label, cls in attempts:
         try:
             backend = cls()
-            print(f"[SERVO] Using {backend.name} backend "
+            console.detail(f"[SERVO] Using {backend.name} backend "
                   f"(left=GPIO{PIN_LEFT_ARM}, right=GPIO{PIN_RIGHT_ARM})")
             return backend
         except Exception as e:
-            print(f"[SERVO] {label} unavailable ({e})")
+            console.detail(f"[SERVO] {label} unavailable ({e})")
 
-    print("[SERVO] No servo backend available — falling back to simulation")
+    # Expected on a Mac (no GPIO at all); worth a warning on the Pi.
+    (console.detail if IS_MAC else print)(
+        "[SERVO] No servo backend available — falling back to simulation")
     return _SimBackend()
 
 
@@ -355,7 +359,7 @@ class ServoController:
 
             if action is not None:
                 name, fn = action
-                print(f"[SERVO] {name}()")
+                console.detail(f"[SERVO] {name}()")
                 # Always begin from rest. If the sway was mid-stroke when this
                 # gesture arrived, an arm would otherwise sit frozen a few
                 # degrees off-centre for the whole gesture.

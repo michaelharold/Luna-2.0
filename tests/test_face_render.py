@@ -52,7 +52,7 @@ class TestRenderSmoke(unittest.TestCase):
 
     def test_every_expression_tilted_and_speaking(self):
         _set(face_detected=True, face_x=0.15, speaking=True, audio_energy=0.7,
-             frozen_emotion=None, conversation_active=True,
+             conversation_active=True,
              luna_mode="processing", banner_text="Hi Test!",
              banner_until=1e12)
         for name in expressions.NAMES:

@@ -6,7 +6,9 @@ Improvements over the old version:
   • Persistent input stream (opened once, not per-listen) — lower latency,
     no device re-open glitches between turns.
   • Auto-detects the mic's native sample rate and resamples to 16 kHz for
-    Vosk with numpy interpolation — works with 16k/32k/44.1k/48k mics.
+    Vosk through an anti-aliasing low-pass (audio_preprocess.Resampler) —
+    works with 16k/32k/44.1k/48k mics without folding room noise above
+    8 kHz into the speech band.
   • Graceful "microphone not found" handling: Luna keeps running (face,
     vision, gestures) and retries the mic every 5 seconds instead of crashing.
   • Multiple wake words (WAKE_WORDS in config), matched on word boundaries.
@@ -41,7 +43,9 @@ from config import (
     ADDRESSED_SCORING,
     AUDIO_PREPROCESS,
 )
+import console
 import addressing
+from audio_preprocess import Resampler
 
 _model = Model(VOSK_MODEL_PATH)
 _q     = queue.Queue(maxsize=50)   # bounded — audio can't pile up unbounded
@@ -49,6 +53,9 @@ _q     = queue.Queue(maxsize=50)   # bounded — audio can't pile up unbounded
 _mic_rate     = None    # actual sample rate the stream runs at
 _mic_ok       = False
 _stream       = None
+_resampler    = None    # audio_preprocess.Resampler for the open stream —
+                        # declared up here, before the mic thread starts, so
+                        # the thread's assignment can never be overwritten
 _help_printed = False
 
 # Sentinel returned by listen() when a wake word was heard with no question
@@ -91,7 +98,7 @@ def _pick_input_device():
             dev = sd.query_devices(AUDIO_INPUT_DEVICE)
             if dev["max_input_channels"] > 0:
                 rate = MIC_SAMPLE_RATE or int(dev["default_samplerate"])
-                print(f"[STT] Using configured device {AUDIO_INPUT_DEVICE}: "
+                console.detail(f"[STT] Using configured device {AUDIO_INPUT_DEVICE}: "
                       f"{dev['name']} @ {rate} Hz")
                 return AUDIO_INPUT_DEVICE, rate
             print(f"[STT] Configured device {AUDIO_INPUT_DEVICE} has no "
@@ -126,7 +133,7 @@ def _pick_input_device():
             # verify the device actually accepts this configuration
             sd.check_input_settings(device=i, samplerate=rate,
                                     channels=1, dtype="int16")
-            print(f"[STT] Auto-detected input device {i}: "
+            console.detail(f"[STT] Auto-detected input device {i}: "
                   f"{dev['name']} @ {rate} Hz")
             return i, rate
         except Exception:
@@ -136,7 +143,7 @@ def _pick_input_device():
                 rate = int(dev["default_samplerate"])
                 sd.check_input_settings(device=i, samplerate=rate,
                                         channels=1, dtype="int16")
-                print(f"[STT] Auto-detected input device {i}: "
+                console.detail(f"[STT] Auto-detected input device {i}: "
                       f"{dev['name']} @ {rate} Hz (device default)")
                 return i, rate
             except Exception:
@@ -171,7 +178,7 @@ def _callback(indata, frames, time_info, status):
 
 def _stream_keeper():
     """Keeps a mic stream open forever; retries every 5 s if the mic vanishes."""
-    global _stream, _mic_ok, _mic_rate, _help_printed
+    global _stream, _mic_ok, _mic_rate, _help_printed, _resampler
 
     while True:
         if _mic_ok:
@@ -196,13 +203,14 @@ def _stream_keeper():
                 device=device,
             )
             stream.start()
+            _resampler    = Resampler(rate, VOSK_SAMPLE_RATE)
             _stream       = stream
             _mic_rate     = rate
             _mic_ok       = True
             _help_printed = False
             with state.lock:
                 state.mic_ok = True
-            print(f"[STT] Microphone stream running @ {rate} Hz")
+            console.detail(f"[STT] Microphone stream running @ {rate} Hz")
         except Exception as e:
             print(f"[STT] Could not open microphone: {e} — retrying in 5s")
             _print_mic_help()
@@ -217,18 +225,17 @@ threading.Thread(target=_stream_keeper, daemon=True, name="mic").start()
 # ── Audio helpers ─────────────────────────────────────────────────────────────
 
 def _resample_to_16k(raw_bytes):
-    """Resample int16 mono audio from _mic_rate to VOSK_SAMPLE_RATE."""
-    audio = np.frombuffer(raw_bytes, dtype=np.int16)
+    """Resample int16 mono audio from _mic_rate to VOSK_SAMPLE_RATE.
+
+    Low-pass first, then decimate (audio_preprocess.Resampler). The old
+    np.interp version had no anti-alias filter: a 10 kHz hiss came out as a
+    full-strength 6 kHz tone, so fans and chatter landed on the consonants."""
+    global _resampler
     if _mic_rate == VOSK_SAMPLE_RATE or _mic_rate is None:
         return raw_bytes
-    ratio   = VOSK_SAMPLE_RATE / _mic_rate
-    n_out   = int(len(audio) * ratio)
-    if n_out == 0:
-        return b""
-    x_old = np.linspace(0.0, 1.0, num=len(audio), endpoint=False)
-    x_new = np.linspace(0.0, 1.0, num=n_out,      endpoint=False)
-    resampled = np.interp(x_new, x_old, audio).astype(np.int16)
-    return resampled.tobytes()
+    if _resampler is None or _resampler.rate != _mic_rate:
+        _resampler = Resampler(_mic_rate, VOSK_SAMPLE_RATE)
+    return _resampler(raw_bytes)
 
 
 # ── Audio preprocessing (audio_preprocess.py) ─────────────────────────────────
@@ -249,7 +256,7 @@ def _preprocess(data):
         if _pre is None:
             from audio_preprocess import AudioPreprocessor
             _pre = AudioPreprocessor(VOSK_SAMPLE_RATE)
-            print(f"[audio] Preprocessing on: high-pass {_pre.highpass_hz} Hz, "
+            console.detail(f"[audio] Preprocessing on: high-pass {_pre.highpass_hz} Hz, "
                   f"gate {_pre.gate_db} dBFS, AGC x{_pre.max_gain:g} max")
         return _pre.process(data)
     except Exception as e:
@@ -426,7 +433,7 @@ def _convo_timeout():
 def _expire_conversation():
     """Conversation window ran out — back to wake-word mode.
     Stamps convo_expired_time so the face can play its subtle 'rest' cue."""
-    print("[STT] Conversation timed out — waiting for wake word")
+    console.detail("[STT] Conversation timed out — waiting for wake word")
     with state.lock:
         state.conversation_active = False
         state.awaiting_answer     = False
@@ -558,8 +565,8 @@ def listen():
                 continue   # keep listening — don't restart the whole cycle
 
             conf = _avg_conf(result)
-            print(f"[Luna heard] {text}  (conf={conf:.2f}, "
-                  f"level={utt_db:.0f} dBFS, loud={loudness:.2f})")
+            console.detail(f"[Luna heard] {text}  (conf={conf:.2f}, "
+                           f"level={utt_db:.0f} dBFS, loud={loudness:.2f})")
 
             # password-protected voice shutdown — before any gating
             cmd = _shutdown_command(text)
@@ -570,7 +577,8 @@ def listen():
 
             cleaned = _match_wake_word(text)
             if cleaned is not None:
-                print("[STT] Wake word — conversation active")
+                console.heard(text)
+                console.detail("[STT] Wake word — conversation active")
                 _note_heard(cleaned or text, conf, loudness, "wake word")
                 with state.lock:
                     state.conversation_active = True
@@ -590,7 +598,8 @@ def listen():
                 accepted, why = (False, "wake word required") if strict_block \
                     else _accept_utterance(text, conf, awaiting, loudness)
                 if accepted:
-                    print(f"[STT] Accepted ({why}): \"{text}\"")
+                    console.heard(text)
+                    console.detail(f"[STT] Accepted ({why}): \"{text}\"")
                     _note_heard(text, conf, loudness, why)
                     with state.lock:
                         # they answered — drop back to the normal timeout until
@@ -599,7 +608,10 @@ def listen():
                         state.last_activity_time = time.time()
                     return text
 
-                print(f"[STT] Ignored ({why}): \"{text}\"")
+                console.heard(text, ignored=(
+                    why if why == "wake word required"
+                    else "not addressed to Luna"))
+                console.detail(f"[STT] Ignored ({why}): \"{text}\"")
                 try:                  # a wrongly ignored question is fixable
                     import conversation_log      # only if it's on record
                     conversation_log.log_ignored(text, conf, loudness, why)
@@ -610,6 +622,7 @@ def listen():
                     state.listening = True
                 continue
 
+            console.heard(text, ignored="no wake word")
             with state.lock:
                 state.luna_mode = "idle"
             return ""

@@ -38,9 +38,13 @@ import numpy as np
 
 from config import (AUDIO_HIGHPASS_HZ, AUDIO_NORMALIZE, AUDIO_TARGET_PEAK,
                     AUDIO_MAX_GAIN, AUDIO_GATE_DB)
+try:
+    from config import AUDIO_NOISE_SUPPRESS, AUDIO_NOISE_FLOOR_DB
+except ImportError:                     # an older config.py
+    AUDIO_NOISE_SUPPRESS, AUDIO_NOISE_FLOOR_DB = False, -12.0
 
 try:                                    # scipy is a transitive dependency
-    from scipy.signal import butter, sosfilt, sosfilt_zi
+    from scipy.signal import butter, ellip, sosfilt, sosfilt_zi
     _HAVE_SCIPY = True
 except Exception:                       # pragma: no cover — Pi always has it
     _HAVE_SCIPY = False
@@ -120,6 +124,138 @@ def _sosfilt_numpy(sos, x, zi):
 
 # ── The preprocessor ──────────────────────────────────────────────────────────
 
+# ── Resampling: mic rate -> 16 kHz ────────────────────────────────────────────
+# Vosk wants 16 kHz; the MacBook mic runs at 44.1 kHz and the Pi's dongle at
+# 48 kHz. Going down by ~3x without a low-pass first ALIASES everything above
+# 8 kHz into the speech band: measured, a 10 kHz hiss came out of the old
+# np.interp resampler as a full-strength 6 kHz tone. In a quiet room there is
+# little up there; in a noisy one (fans, chatter's s / sh / t) it lands right
+# where Vosk tells consonants apart.
+RESAMPLE_CUTOFF_HZ = 7200.0   # pass band edge: speech energy that matters for
+                              # recognition is below ~7 kHz; Vosk's own
+                              # features stop at 8 kHz
+
+
+class Resampler:
+    """Streaming mic-rate -> 16 kHz: an 8th-order elliptic low-pass (80 dB
+    stop band) at RESAMPLE_CUTOFF_HZ, then interpolation at exact running
+    sample positions. Filter state and position carry across blocks, so 250
+    ms blocks come out exactly as one long signal would — no seams, no drift
+    (44.1 kHz blocks of 11025 samples are 4000 samples each, every time)."""
+
+    def __init__(self, rate, out_rate=16000, cutoff_hz=RESAMPLE_CUTOFF_HZ):
+        self.rate, self.out_rate = int(rate), int(out_rate)
+        self.passthrough = self.rate == self.out_rate
+        self.step = self.rate / self.out_rate
+        self.sos = None
+        if not self.passthrough and _HAVE_SCIPY and cutoff_hz < self.rate / 2:
+            self.sos = ellip(8, 0.1, 80, cutoff_hz, btype="low",
+                             fs=self.rate, output="sos")
+        self.reset()
+
+    def reset(self):
+        self.zi = (sosfilt_zi(self.sos) * 0.0) if self.sos is not None else None
+        self.pos = 0.0          # next output position, in input samples
+        self.prev = 0.0         # last filtered sample of the previous block
+
+    def __call__(self, block_bytes):
+        if self.passthrough:
+            return block_bytes
+        x = np.frombuffer(block_bytes, dtype=np.int16).astype(np.float64)
+        if not x.size:
+            return b""
+        if self.sos is not None:
+            x, self.zi = sosfilt(self.sos, x, zi=self.zi)
+        # sample k of this block sits at index k + 1 of `ext`; index 0 is the
+        # previous block's last sample, so interpolation spans the seam
+        ext = np.concatenate(([self.prev], x))
+        n = max(0, int(np.floor((x.size - 1 - self.pos) / self.step)) + 1)
+        t = self.pos + self.step * np.arange(n) + 1.0
+        y = np.interp(t, np.arange(ext.size), ext)
+        self.pos += self.step * n - x.size
+        self.prev = x[-1]
+        return np.clip(np.rint(y), -32768, 32767).astype(np.int16).tobytes()
+
+
+# ── Noise suppression ─────────────────────────────────────────────────────────
+class NoiseSuppressor:
+    """Streaming spectral (Wiener) noise suppression for float blocks.
+
+    32 ms frames, half-overlapped, with root-Hann windows so an untouched
+    signal comes back exactly. The noise spectrum is tracked by its minimum —
+    it falls at once to any quieter frame and creeps up ~3 dB/s — so it
+    learns the room from the gaps between words and follows slow changes,
+    while speech, which never sits still, stays above it. Each bin is scaled
+    by a decision-directed Wiener gain, never below `floor_db`: a gentle
+    floor keeps speech natural (a deep one left "musical" artefacts that
+    Vosk misheard). Always returns as many samples as it is given, `latency`
+    samples late.
+
+    Off by default (config.AUDIO_NOISE_SUPPRESS): it halves Vosk's errors in
+    loud steady noise but raises them in crowd chatter — see config.py and
+    scripts/bench_stt_noise.py."""
+
+    NOISE_RISE = 1.012          # per frame (16 ms): ~+3 dB/s
+    SMOOTH = 0.8                # power smoothing between frames
+    DD_ALPHA = 0.98             # decision-directed a-priori SNR smoothing
+    WARMUP_FRAMES = 8           # pass audio untouched while learning the room
+    MIN_POWER = 1e3             # never let the noise estimate reach zero
+
+    def __init__(self, rate, floor_db=AUDIO_NOISE_FLOOR_DB, frame_s=0.032):
+        n = int(round(rate * frame_s))
+        self.n = n + (n % 2)                    # even frame length
+        self.hop = self.n // 2
+        self.win = np.sqrt(np.hanning(self.n + 1)[:-1])
+        self.gmin = 10.0 ** (float(floor_db) / 20.0)
+        self.latency = self.n
+        self.reset()
+
+    def reset(self):
+        self._in = np.zeros(0)
+        self._ola = np.zeros(self.n)
+        self._out = np.zeros(self.n)            # primed: a fixed delay of n
+        self._noise = self._psd = self._g2 = None
+        self._frames = 0
+
+    def _frame(self, seg):
+        spec = np.fft.rfft(seg * self.win)
+        p = np.abs(spec) ** 2
+        if self._noise is None:
+            self._noise = np.maximum(p, self.MIN_POWER)
+            self._psd = p.copy()
+            self._g2 = np.ones_like(p)
+        self._psd = self.SMOOTH * self._psd + (1.0 - self.SMOOTH) * p
+        self._noise = np.maximum(np.where(self._psd < self._noise, self._psd,
+                                          self._noise * self.NOISE_RISE),
+                                 self.MIN_POWER)
+        post = p / self._noise
+        prio = (self.DD_ALPHA * self._g2 * post
+                + (1.0 - self.DD_ALPHA) * np.maximum(post - 1.0, 0.0))
+        g = np.maximum(prio / (1.0 + prio), self.gmin)
+        self._g2 = g * g
+        self._frames += 1
+        if self._frames <= self.WARMUP_FRAMES:
+            g = np.ones_like(g)
+        return np.fft.irfft(spec * g, self.n) * self.win
+
+    def __call__(self, x):
+        x = np.asarray(x, dtype=np.float64)
+        if not x.size:
+            return x
+        self._in = np.concatenate([self._in, x])
+        made = []
+        while self._in.size >= self.n:
+            self._ola += self._frame(self._in[:self.n])
+            made.append(self._ola[:self.hop].copy())
+            self._ola = np.concatenate([self._ola[self.hop:],
+                                        np.zeros(self.hop)])
+            self._in = self._in[self.hop:]
+        if made:
+            self._out = np.concatenate([self._out] + made)
+        y, self._out = self._out[:x.size], self._out[x.size:]
+        return y
+
+
 class AudioPreprocessor:
     """Streaming high-pass + gate + slow AGC for int16 mono blocks.
 
@@ -133,7 +269,9 @@ class AudioPreprocessor:
                  normalize=AUDIO_NORMALIZE, target_peak=AUDIO_TARGET_PEAK,
                  max_gain=AUDIO_MAX_GAIN, gate_db=AUDIO_GATE_DB,
                  filter_order=HIGHPASS_ORDER, hold_s=AGC_HOLD_S,
-                 release_db_per_s=AGC_RELEASE_DB_PER_S):
+                 release_db_per_s=AGC_RELEASE_DB_PER_S,
+                 noise_floor_db=(AUDIO_NOISE_FLOOR_DB if AUDIO_NOISE_SUPPRESS
+                                 else None)):
         self.rate = int(rate)
         self.highpass_hz = highpass_hz
         self.normalize = bool(normalize)
@@ -144,6 +282,8 @@ class AudioPreprocessor:
         self.release_db_per_s = float(release_db_per_s)
 
         self._sos = _design_highpass(self.rate, highpass_hz, filter_order)
+        self._ns = (NoiseSuppressor(self.rate, noise_floor_db)
+                    if noise_floor_db is not None else None)
         self.reset()
 
     def reset(self):
@@ -160,6 +300,8 @@ class AudioPreprocessor:
         self.last_gain = 1.0        # stats for logging
         self.last_rms_db = -math.inf
         self.last_gated = False
+        if getattr(self, "_ns", None) is not None:
+            self._ns.reset()
 
     # ── stages ────────────────────────────────────────────────────────────────
 
@@ -230,8 +372,13 @@ class AudioPreprocessor:
         x = x.astype(np.float64)
 
         x = self._highpass(x)                                   # (a)
+        gated = self._gated(x)      # level measured BEFORE suppression: it
+                                    # is addressing's "how close" signal
+        if self._ns is not None:                                 # (a2)
+            x = self._ns(x)         # runs on quiet blocks too — that is
+                                    # where it learns the room's noise
 
-        if self._gated(x):                                       # (b)
+        if gated:                                                # (b)
             # The envelope HOLDS through silence: the next word after a pause
             # then gets the same gain as the last one, instead of a boosted
             # onset that the attack has to yank back down.
