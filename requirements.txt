@@ -7,7 +7,9 @@ torch==2.3.1                  # emotion model
 pygame==2.5.2                 # the face
 sounddevice                   # microphone
 vosk                          # offline speech-to-text
+sherpa-onnx                   # STT_ENGINE 1-3: Parakeet / Whisper re-transcription
 sentence-transformers==2.6.1  # knowledge retrieval, website index, learning
+pypdf                         # website PDFs (text ones; scanned ones need OCR)
 
 # The LLM runs in Ollama (installed separately, see README). Only needed if
 # you switch config.LLM_BACKEND to "llamacpp" — compiles for 10-20 min on a Pi:

@@ -194,6 +194,15 @@ class TestSceneDescribe(unittest.TestCase):
         self.assertFalse(self.sc.is_vision_query("what is the fee structure"))
 
 
+class TestPersonaGreeting(unittest.TestCase):
+    def test_no_second_hello_mid_conversation(self):
+        import persona
+        first = persona.format_context(person="Ann")
+        later = persona.format_context(person="Ann", greeted=True)
+        self.assertNotIn("greet", first)
+        self.assertIn("do not greet them again", later)
+
+
 def tearDownModule():
     shutil.rmtree(_tmpdir, ignore_errors=True)
 

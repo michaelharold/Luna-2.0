@@ -113,6 +113,16 @@ STT_RESCUE_MATCH_MIN      = 0.70   # how strong that match must be (higher =
                                    # stricter; independent of LOCAL_MATCH_THRESH)
 STT_REQUIRE_WAKE_EACH_TURN = False # True = only answer wake-word utterances
                                    # (plus the reply to Luna's own question)
+STT_MIN_LOUDNESS   = 0.10   # 0..1 closeness (addressing.loudness_score). An
+                            # utterance quieter than this is background noise
+                            # Vosk turned into a word ("laughs" at 0.00, "gina"
+                            # at 0.01; people at the mic measure 0.35-0.85) —
+                            # ignored unless it says Luna's name
+STT_UNCLEAR_CONF   = 0.60   # below this Vosk confidence a sentence that matches
+                            # nothing Luna knows was probably misheard ("who is
+                            # an issue", 0.56): she asks to hear it again
+STT_ONE_WORD_CONF  = 0.85   # a lone word needs this much confidence ("good",
+                            # 0.998) unless it is a reply / known topic
 
 # ── Conversation mode ─────────────────────────────────────────────────────────
 CONVO_TIMEOUT      = 10    # seconds of silence before deactivating conversation
@@ -388,18 +398,54 @@ WEB_RAG_SKIP_SLUGS     = (                 # URL words of other departments
     "physical", "humanities", "iic", "instrumentation",
 )
 WEB_RAG_MAX_PAGES      = 250           # catalog cap
+WEB_RAG_DATA_HOSTS     = ("tkmce.etlab.in",)  # other hosts the site's pages
+                                       # load their data from (ETLab serves
+                                       # the CSE staff, student lists,
+                                       # publications and news as JSON)
+WEB_RAG_STUDENT_ROSTERS = True         # index the student lists (name,
+                                       # batch, admission no.) the BTech /
+                                       # MTech / research scholar pages
+                                       # show. False = only the batch counts
+WEB_RAG_PDFS           = True          # read the PDFs pages link to (pypdf;
+                                       # placement stats, NAAC, notices).
+                                       # Scanned PDFs have no text: listed as
+                                       # "needs OCR" in the crawl report
+WEB_RAG_MAX_PDFS       = 300           # PDFs read per refresh, CSE pages first
 WEB_RAG_FETCH_WORKERS  = 8             # pages downloaded at the same time
 WEB_RAG_CHUNK_WORDS    = 120           # words per passage
-WEB_RAG_TOP_K          = 3             # passages added to a prompt
+WEB_RAG_TOP_K          = 5             # passages / rows / pages added to a
+                                       # prompt (page text shares the
+                                       # WEB_RAG_PAGE_WORDS budget)
+WEB_RAG_PAGE_WORDS     = 1200          # website PAGES go to the LLM whole,
+                                       # not as 120-word scraps: every page an
+                                       # answer draws on, whole while they fit
+                                       # in this many words (shared), else
+                                       # their most relevant passages in
+                                       # reading order. ~1.3 tokens per word:
+                                       # 1200 words + the rest of the prompt
+                                       # fits OLLAMA_NUM_CTX 4096. Bigger =
+                                       # fuller answers but a slower first
+                                       # word (Mac M3: ~1 s per 1000 words;
+                                       # the Pi's CPU far slower — measure)
+WEB_RAG_PAGES_TXT      = True          # also write one readable .txt per
+                                       # page to <WEB_RAG_CACHE_DIR>/pages/,
+                                       # rewritten on every refresh — what
+                                       # Luna knows about each page
 WEB_RAG_MIN_SIM        = 0.35          # below this a passage is noise
 WEB_RAG_ROUTE_TOPICS   = 5             # best-matching topics a question is routed to
 WEB_RAG_ROUTE_MIN      = 0.30          # a topic must match at least this well
                                        # (unrelated questions score ~0.2)
 WEB_RAG_CACHE_DIR      = "data/rag_cache"
-WEB_RAG_REFRESH_HOURS  = 24            # re-fetch when online and older than this
+WEB_RAG_REFRESH_HOURS  = 168           # re-index the website once a week
+                                       # (when online and older than this);
+                                       # force one: python web_rag.py --refresh
 WEB_RAG_FETCH_TIMEOUT  = 8.0           # seconds per page
 WEB_RAG_ONLINE_TIMEOUT = 1.5           # seconds for the "are we online?" probe
-WEB_RAG_LIVE_PAGES     = 2             # routed-but-uncached pages fetched per question
+WEB_RAG_LIVE_PAGES     = 0             # routed-but-uncached pages fetched per
+                                       # question. 0 = answers come only from
+                                       # the weekly index (no downloads while
+                                       # a visitor waits, no second "let me
+                                       # check the website" reply)
 WEB_RAG_LIVE_TIMEOUT   = 6.0           # s a question waits for those (later
                                        # arrivals are still cached)
 WEB_RAG_LIVE_MIN_KB    = 0.3           # only questions this close to the
@@ -433,6 +479,28 @@ AUDIO_OUTPUT_DEVICE = None
 # real cost is RAM (~1.7 GB resident vs ~0.17 GB), which the 8 GB Pi affords.
 # Drop back to "vosk-model-small-en-in-0.4" if RAM ever gets tight.
 VOSK_MODEL_PATH = "vosk-model-en-in-0.5"
+
+# ── Speech-to-text engine (pick by number) ───────────────────────────────────
+#   0  Vosk only — streaming, the original path
+#   1  Parakeet-TDT 0.6B v2 (NVIDIA)  — most accurate overall, fast  [default]
+#   2  Whisper small.en (OpenAI)      — best in very loud chatter, ~4x slower
+#   3  Whisper base.en  (OpenAI)      — lighter Whisper
+# With 1-3, Vosk still listens live and decides when an utterance ended
+# (and catches the wake word); the chosen engine then re-reads that
+# utterance's audio and its words are what Luna answers. An utterance the
+# engine hears no words in (a cough, a laugh, room noise) is dropped.
+# Missing model / sherpa-onnx → Luna says so at start-up and uses Vosk.
+# Word error rate, scripts/bench_stt_noise.py (Mac M3, 72 clips):
+#                 quiet   fan 0 dB  chatter 10 dB  chatter 5 dB  compute/s
+#   0 Vosk         2.6%    13.8%       26.5%         56.6%        (live)
+#   1 Parakeet     0.5%     4.2%        1.6%          4.8%        0.036 s
+#   2 Whisper sm   1.6%     5.3%        2.1%          2.1%        0.144 s
+#   3 Whisper base 1.6%     6.3%        4.2%         10.6%        0.048 s
+# Models: models/stt/ (scripts/download_models.sh). Re-measure on the Pi:
+#   venv/bin/python scripts/bench_stt_noise.py  (needs a Mac for `say`), or
+#   time a real utterance there with LOG_VERBOSE = True.
+STT_ENGINE         = 1
+STT_ENGINE_THREADS = 4      # CPU threads for engines 1-3
 
 # None = auto-detect the device's native sample rate (recommended).
 # Set to a number (e.g. 48000, 44100, 32000, 16000) only if auto-detect fails.
@@ -529,8 +597,15 @@ TTS_FIRST_SYNTH_TIMEOUT = 60.0
 
 # ── Brain ─────────────────────────────────────────────────────────────────────
 LLM_MAX_TOKENS      = 150   # max tokens per response (keep short for speech)
-LLM_TEMPERATURE     = 0.7   # creativity (0.0 = factual, 1.0 = creative)
+LLM_TEMPERATURE     = 0.3   # creativity (0.0 = factual, 1.0 = creative). Was
+                            # 0.7: it invented "85% placement last year" next
+                            # to a knowledge-base fact that said 90%
 LLM_MAX_HISTORY     = 6     # max conversation history turns kept in the prompt
+# When the model's first word takes longer than this (s), Luna says a short
+# filler while it keeps writing, so a slow answer never starts as a silent
+# pause. 0 = never.
+LLM_FILLER_AFTER    = 1.2
+LLM_FILLERS         = ("Hmm, let me think.", "Let me see.", "One moment.")
 LOCAL_MATCH_THRESH  = 0.55  # min similarity score for local knowledge match
 
 # ── Offline-first answering ───────────────────────────────────────────────────

@@ -55,6 +55,7 @@ class SharedState:
         "enroll_pose",           # which guided pose is being captured (int)
         "touch_enroll_request",  # renderer → voice loop: face was held, enrol
         "utterance_loudness",    # 0..1 closeness of the last utterance (audio)
+        "utterance_conf",        # 0..1 Vosk confidence of the last utterance
         "person_since",          # time.time() the current person was first seen
         "enroll_preview_until",  # time.time() until which the camera preview shows
         # ── full-screen cards in place of the face (face.py / face_cards.py) ─
@@ -107,6 +108,7 @@ class SharedState:
         self.enroll_pose         = 0
         self.touch_enroll_request = False
         self.utterance_loudness  = 0.0
+        self.utterance_conf      = None   # None = not from the mic (typed/tests)
         self.person_since        = 0.0
         self.enroll_preview_until = 0.0
         self.card                = None

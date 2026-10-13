@@ -24,8 +24,12 @@ network at all. How:
      (broken / not a web page / duplicate), and indexes its text passages, its
      table rows ("Name: Dr. A; Department: Mechanical") and the JSON data the
      page loads with JavaScript (department staff lists — the names never
-     appear in the HTML). Student rosters, e-mails and phone numbers are left
-     out. Everything is embedded with brain.py's sentence transformer.
+     appear in the HTML) — also from the other hosts in WEB_RAG_DATA_HOSTS
+     (the college's ETLab). Student rosters only with
+     WEB_RAG_STUDENT_ROSTERS; e-mails and phone numbers are left out. The
+     PDFs a page links to are read too (WEB_RAG_PDFS; a scanned PDF has no
+     text and is reported "needs OCR"). Everything is embedded with
+     brain.py's sentence transformer.
   3. ROUTE. A question is matched against the catalog's TOPICS first — one per
      page (its menu path, link text, title) and one per data section ("Computer
      Science and Engineering — Non teaching staff"). Only the passages of the
@@ -59,6 +63,7 @@ import concurrent.futures
 import gzip
 import hashlib
 import html as htmllib
+import io
 import json
 import os
 import re
@@ -66,6 +71,7 @@ import zlib
 import socket
 import threading
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -83,7 +89,9 @@ _DEFAULTS = dict(                       # used when config.py lacks a setting
     WEB_RAG_ROUTE_MIN=0.35, WEB_RAG_CACHE_DIR="data/rag_cache",
     WEB_RAG_REFRESH_HOURS=24, WEB_RAG_FETCH_TIMEOUT=8.0,
     WEB_RAG_ONLINE_TIMEOUT=1.5, WEB_RAG_LIVE_PAGES=2, WEB_RAG_LIVE_TIMEOUT=6.0,
-    WEB_RAG_LINKS_FILE="",
+    WEB_RAG_LINKS_FILE="", WEB_RAG_PAGE_WORDS=0, WEB_RAG_PAGES_TXT=False,
+    WEB_RAG_DATA_HOSTS=(), WEB_RAG_STUDENT_ROSTERS=False, WEB_RAG_PDFS=False,
+    WEB_RAG_MAX_PDFS=80,
 )
 try:
     import config as _config
@@ -106,12 +114,21 @@ EMBED_BATCH         = 64           # chunks per embed_fn() call during a refresh
 EMBED_BATCH_PAUSE_S = 0.05         # breather between batches so the daemon
                                    # thread doesn't starve vosk/LLM on the Pi
 MAX_DATA_ENDPOINTS  = 40           # JSON endpoints fetched per refresh
-JSON_MAX_ITEMS      = 40           # list entries kept per JSON section
+JSON_MAX_ITEMS      = 400          # list entries kept per JSON section (all
+                                   # 166 CSE publications; a long section is
+                                   # chunked like any page)
 JSON_ITEM_WORDS     = 40           # words kept per JSON text value
 DATA_EMBED_WORDS    = 12           # words of a data section that get embedded
 THIN_PAGE_WORDS     = 60           # a page that loads its content as data and
                                    # has fewer words of its own is just a shell
-TABLE_MAX_ROWS      = 60           # rows indexed one by one per table
+TABLE_MAX_ROWS      = 400          # rows indexed one by one per table
+PDF_MAX_BYTES       = 15_000_000   # never read more than this from one PDF
+PDF_MAX_PAGES       = 60           # pages of text read per PDF
+PDF_MIN_WORDS       = 20           # fewer words = a scanned PDF (needs OCR)
+BLIND_ROW_MIN       = 0.45         # a table row / data section found by a
+                                   # blind search (no topic routed) needs this
+                                   # much: a lone row at 0.37 is noise ("tracker
+                                   # day children" -> a PTA parent's address)
 MAX_HITS_PER_PAGE   = 2            # retrieve(): rows/sections per page; its
                                    # plain text gets 1 slot, so one long page
                                    # can't fill the top-K with near-duplicates
@@ -132,6 +149,11 @@ ROUTE_ALSO_TOP      = 0            # also consider the N best passages outside
                                    # the routed topics (0 = routed only)
 RELATIVE_CUT        = 0.12         # drop passages this far below the best one:
                                    # near-misses only confuse the small LLM
+SECTION_CUT         = 0.06         # ... and this far once the best page went
+                                   # in as a whole section: "placement last
+                                   # year" got the placement page (0.49) plus
+                                   # dept news (0.42) and a PTA row (0.37),
+                                   # and the model wove them together
 SPELL_MIN_LEN       = 6            # shorter words are never "corrected"
 SPELL_CUTOFF        = 0.82         # difflib ratio a correction must reach
 SPELL_SAME_STEM     = 0.85         # ... when the word starts like a site word
@@ -164,6 +186,12 @@ _settings = dict(
     live_pages=_cfg("WEB_RAG_LIVE_PAGES"),
     live_timeout=_cfg("WEB_RAG_LIVE_TIMEOUT"),
     links_file=_cfg("WEB_RAG_LINKS_FILE"),
+    page_words=_cfg("WEB_RAG_PAGE_WORDS"),
+    pages_txt=_cfg("WEB_RAG_PAGES_TXT"),
+    data_hosts=[h.lower() for h in _cfg("WEB_RAG_DATA_HOSTS")],
+    rosters=_cfg("WEB_RAG_STUDENT_ROSTERS"),
+    pdfs=_cfg("WEB_RAG_PDFS"),
+    max_pdfs=_cfg("WEB_RAG_MAX_PDFS"),
 )
 
 _lock         = threading.Lock()   # guards _index swaps and reads
@@ -251,17 +279,38 @@ def _normalize(url):
         (parts.scheme.lower(), parts.netloc.lower(), path, query, ""))
 
 
+def _is_pdf(url):
+    return urllib.parse.urlsplit(url).path.lower().endswith(".pdf")
+
+
+def _data_host_ok(url, page_url):
+    """A data endpoint the crawler may fetch: the page's own site, or one of
+    WEB_RAG_DATA_HOSTS (the college's ETLab serves its JSON)."""
+    host = _host_of(url)
+    strip = lambda h: h[4:] if h.startswith("www.") else h
+    return (_same_site(host, _host_of(page_url))
+            or strip(host) in {strip(h) for h in _settings["data_hosts"]})
+
+
 def _looks_binary(url):
     path = urllib.parse.urlsplit(url).path.lower()
     return os.path.splitext(path)[1] in _SKIP_EXT
 
 
+def _cache_dir():
+    d = _settings["cache_dir"]
+    return d if os.path.isabs(d) else os.path.join(_PROJECT_DIR, d)
+
+
 def _cache_paths():
     host = re.sub(r"[^A-Za-z0-9.-]+", "_", _host_of(_settings["url"]) or "site")
-    d = _settings["cache_dir"]
-    if not os.path.isabs(d):
-        d = os.path.join(_PROJECT_DIR, d)
+    d = _cache_dir()
     return os.path.join(d, host + ".json"), os.path.join(d, host + ".npz")
+
+
+def _pages_dir():
+    """Where the per-page .txt mirror goes (inside the cache dir), or None."""
+    return os.path.join(_cache_dir(), "pages") if _settings["pages_txt"] else None
 
 
 # ── HTML -> text (stdlib only) ────────────────────────────────────────────────
@@ -285,6 +334,10 @@ _BLOCK_TAGS = {"p", "div", "br", "li", "ul", "ol", "h1", "h2", "h3", "h4",
                "figure", "figcaption", "address", "details", "summary",
                "body", "title", "nav", "header", "footer", "form"}
 
+
+_HEADING_TAGS = {"h1", "h2", "h3", "h4"}
+OUTLINE_MAX_HEADINGS = 12          # headlines kept per page
+OUTLINE_MAX_WORDS    = 16          # a longer "heading" is a paragraph
 
 _CF_EMAIL_RE = re.compile(r"\[email\s*protected\]", re.I)
 # The site abbreviates ("Mechanical Engg. Dept"); spelled out, a row says
@@ -322,10 +375,13 @@ class _TextExtractor(HTMLParser):
         self._cell = None               # text parts of the open <td>/<th>
         self.parts = []
         self.links = []
+        self.content_links = []         # hrefs outside nav / header / footer
         self.anchors = []               # (href, anchor text)
         self.scripts = []               # inline <script> bodies
         self.tables = []                # finished tables: [[cell, ...], ...]
         self.table_heads = []           # per finished table: has a header row
+        self._heading = None            # text parts of the open <h1>-<h4>
+        self.headings = []              # finished headings, in page order
 
     def _close_cell(self):
         if self._cell is not None and self._row is not None:
@@ -370,6 +426,8 @@ class _TextExtractor(HTMLParser):
             return
         if tag == "title":
             self._in_title = True
+        if tag in _HEADING_TAGS:
+            self._heading = []
         if tag == "table":
             self._tables.append([])
             self._heads.append(None)
@@ -386,6 +444,8 @@ class _TextExtractor(HTMLParser):
             href = (a.get("href") or "").strip()
             if href:
                 self.links.append(href)
+                if not self._skip:
+                    self.content_links.append(href)
                 if tag == "a":
                     self._anchor = [href, [a.get("title") or ""]]
                 else:
@@ -401,6 +461,9 @@ class _TextExtractor(HTMLParser):
     def handle_endtag(self, tag):
         if tag == "a":
             self.close_anchor()
+        if tag in _HEADING_TAGS and self._heading is not None:
+            self.headings.append("".join(self._heading))
+            self._heading = None
         if tag in _CELL_TAGS:
             self._close_cell()
         elif tag == "tr":
@@ -433,6 +496,8 @@ class _TextExtractor(HTMLParser):
             return
         if not self._skip:              # source line breaks are just spaces;
             self.parts.append(data.replace("\n", " "))   # blocks make lines
+            if self._heading is not None:
+                self._heading.append(data)
             if self._cell is not None:
                 self._cell.append(data)
 
@@ -459,7 +524,25 @@ def parse_page(html):
     lines = [re.sub(r"(\|\s*)+\|", "|", l) for l in lines]   # empty cells
     text  = "\n".join(l for l in lines if l)
     return dict(title=p.title, text=text, links=p.links, anchors=p.anchors,
-                scripts=p.scripts, tables=p.tables, table_heads=p.table_heads)
+                content_links=p.content_links, scripts=p.scripts, tables=p.tables, table_heads=p.table_heads,
+                headings=_clean_headings(p.headings, p.title))
+
+
+def _clean_headings(headings, title=""):
+    """The page's own headlines: whitespace collapsed, styled Unicode
+    letters made plain ("𝐀 𝐠𝐢𝐚𝐧𝐭 𝐥𝐞𝐚𝐩" -> "A giant leap"), duplicates, the
+    title, template placeholders ("'+data['x'].heading+'") and paragraph-
+    length "headings" dropped."""
+    out, seen = [], {(title or "").strip().lower()}
+    for h in headings:
+        h = _unabbreviate(" ".join(unicodedata.normalize("NFKC", h).split()))
+        key = h.lower()
+        if (not h or key in seen or "+" in h and "'" in h
+                or len(h.split()) > OUTLINE_MAX_WORDS):
+            continue
+        seen.add(key)
+        out.append(h)
+    return out
 
 
 def html_to_text(html):
@@ -554,7 +637,8 @@ def _js_params(body):
 
 
 def find_data_endpoints(scripts, page_url):
-    """Same-site URLs the page's inline scripts load data from — $.ajax({url:
+    """Same-site (or WEB_RAG_DATA_HOSTS) URLs the page's inline scripts load
+    data from — $.ajax({url:
     …, data: {…}}), fetch('…'), $.getJSON('…') — with literal data params
     folded into the query string, in order of appearance."""
     out, host = [], _host_of(page_url)
@@ -586,7 +670,7 @@ def find_data_endpoints(scripts, page_url):
                 path = urllib.parse.urlsplit(url).path.lower()
                 if os.path.splitext(path)[1] in _DATA_SKIP_EXT:
                     continue
-                if _same_site(_host_of(url), host) and url not in out:
+                if _data_host_ok(url, page_url) and url not in out:
                     out.append(url)
     return out
 
@@ -683,6 +767,84 @@ def _json_label(data, depth=0):
     return ""
 
 
+# ETLab's section names next to the words a question uses ("who are the
+# faculty" never matched "Regular teaching staff"): a section's title is
+# its routing topic.
+_SECTION_ALIASES = {
+    "regular_teaching_staff": "faculty, teachers",
+    "adhoc_teaching_staff": "guest faculty, teachers",
+    "regular_staff": "faculty, teachers",
+    "professors": "faculty", "associate_professors": "faculty",
+    "assistant_professors": "faculty",
+    "non_teaching_staff": "lab staff, technical and office staff",
+    "non_staff": "lab staff, technical and office staff",
+    "publications": "research papers",
+    "dept_news": "department news", "general_news": "college news",
+    "dept_events": "department events",
+}
+
+_ROSTER_NAMES = {"btech": "B.Tech", "mtech": "M.Tech", "mca": "MCA",
+                 "barch": "B.Arch", "mplan": "M.Plan",
+                 "research_scholars": "PhD research scholar"}
+
+
+def _is_roster(val):
+    """A class list: [{batch, count, students: [{name, admission_no}, …]}]."""
+    return any(isinstance(v, dict) and isinstance(v.get("students"), list)
+               for v in val)
+
+
+def _person_name(s):
+    s = " ".join(s.split())
+    return s.title() if s.isupper() else s
+
+
+def _roster_sections(batches, url, key, name, title):
+    """A class list ("btech", "mtech", "research_scholars"): one data section
+    with every batch and its size, plus — with WEB_RAG_STUDENT_ROSTERS — one
+    row per student ("Name: Pranav Prasanth; Batch: CSE 2K23A; Admission No:
+    220032"). The rows are routed by that section (their "topic"), so 700
+    students don't become 700 topics."""
+    topic = f"{url}#{key}"
+    name = _ROSTER_NAMES.get(str(key).lower(), name)
+    sizes, rows, total = [], [], 0
+    for b in batches:
+        if not isinstance(b, dict):
+            continue
+        batch = _json_scalar(b.get("batch")) or name
+        studs = [s for s in b.get("students") or () if isinstance(s, dict)]
+        try:
+            n = int(b.get("count"))
+        except (TypeError, ValueError):
+            n = len(studs)
+        total += n
+        sizes.append(f"{batch}, {n} students")
+        if not _settings["rosters"]:
+            continue
+        for s in studs:
+            who = _json_scalar(s.get("name"))
+            if not who:
+                continue
+            text = f"Name: {_person_name(who)}; Batch: {batch}"
+            adm = _json_scalar(s.get("admission_no"))
+            if adm:
+                text += f"; Admission No: {adm}"
+            slug = re.sub(r"[^A-Za-z0-9]+", "-", batch).strip("-")
+            rows.append({"url": f"{topic}/{slug}/{len(rows)}",
+                         "title": title(f"{name} student"),
+                         "text": text + ".", "topic": topic})
+    if not sizes:
+        return []
+    # the number first, said plainly: "Btech, 8 batches, 604 students in
+    # total" left the 3B model unsure 604 counted the B.Tech students
+    head = {"url": topic, "title": title(f"{name} students"), "data": True,
+            "text": (f"Number of {name} students: {total}, in {len(sizes)} "
+                     f"batches ({'; '.join(sizes)})."),
+            # matched as said: "how many btech students" (not "B.Tech")
+            "embed": f"how many {name} {_humanize(key).lower()} students: {total}"}
+    return [head] + rows
+
+
 def json_to_sections(data, url, fallback_title=""):
     """Flatten a JSON document into page-like sections [{url, title, text}]:
     one per list/object field ("Non teaching staff, 11 in total: …") plus an
@@ -692,6 +854,10 @@ def json_to_sections(data, url, fallback_title=""):
     if not isinstance(data, dict):
         return []
     label = _json_label(data) or fallback_title
+    if (label and _settings["focus_name"] and _settings["focus_slugs"]
+            and not _other_department(f"{label} — x")):
+        # "Computer Science & Engineering (CSE)": the name people say
+        label += f" ({'/'.join(_settings['focus_slugs']).upper()})"
 
     def title(name):
         return f"{label} — {name}" if label else name
@@ -702,6 +868,11 @@ def json_to_sections(data, url, fallback_title=""):
         if k in _JSON_SKIP_FIELDS or any(s in k for s in _JSON_SKIP_KEYS):
             continue
         name = _humanize(key)
+        if k in _SECTION_ALIASES:         # the words a visitor uses for it
+            name += f" ({_SECTION_ALIASES[k]})"
+        if isinstance(val, list) and _is_roster(val):
+            sections += _roster_sections(val, url, key, name, title)
+            continue
         if isinstance(val, list):
             items = [s for s in (_json_item(v) for v in val[:JSON_MAX_ITEMS])
                      if s]
@@ -896,24 +1067,29 @@ def _page_docs(page, url, title, endpoints):
     docs = []
     n = len(page["text"].split())
     if n >= MIN_PAGE_WORDS and not (endpoints and n < THIN_PAGE_WORDS):
-        docs.append({"url": url, "title": title, "text": page["text"]})
+        docs.append({"url": url, "title": title, "text": page["text"],
+                     "outline": [h for h in page.get("headings") or ()
+                                 if h.lower() != (title or "").lower()]})
     return docs + table_rows(page["tables"], url, title,
                              page.get("table_heads"))
 
 
 def _data_pages(endpoints, rules, data_seen, title_hint="", delay=0.0,
-                skip=frozenset(), failures=None):
+                skip=frozenset(), failures=None, statuses=None):
     """Sections of the JSON endpoints a page's scripts load, each endpoint
     fetched once per crawl (`data_seen`, at most MAX_DATA_ENDPOINTS), never
     when already indexed (`skip`), and only if robots.txt allows. Endpoints
-    that fail are appended to `failures` (a list) when given."""
+    that fail are appended to `failures` (a list) when given; `statuses`
+    (a dict) gets each endpoint's verification line."""
     out = []
     for ep in endpoints:
         if (ep in data_seen or ep in skip
                 or len(data_seen) >= MAX_DATA_ENDPOINTS):
             continue
         data_seen.add(ep)
+        note = statuses.__setitem__ if statuses is not None else (lambda *a: None)
         if not robots_allows(rules, ep):
+            note(ep, "blocked by robots.txt")
             continue
         if delay:
             time.sleep(delay)
@@ -921,11 +1097,95 @@ def _data_pages(endpoints, rules, data_seen, title_hint="", delay=0.0,
             data = _fetch_json(ep)
         except Exception as e:
             console.detail(f"[web_rag] skip data {ep}: {type(e).__name__}: {e}")
+            note(ep, f"unreachable ({type(e).__name__})")
             if failures is not None:
                 failures.append(ep)
             continue
-        if data is not None:
-            out.extend(json_to_sections(data, ep, title_hint))
+        if data is None:
+            note(ep, "not JSON")
+            continue
+        secs = json_to_sections(data, ep, title_hint)
+        note(ep, f"ok ({len(secs)} sections, JSON data)" if secs
+             else "ok but empty (JSON data)")
+        out.extend(secs)
+    return out
+
+
+# ── PDFs a page links to ──────────────────────────────────────────────────────
+
+def _pdf_title(url):
+    """"Batchwise placement status 2022 to 2025" from its file name."""
+    name = urllib.parse.unquote(os.path.basename(urllib.parse.urlsplit(url).path))
+    name = re.sub(r"(?i)\.pdf$", "", name)
+    name = re.sub(r"(?i)[_ -]*11zon$", "", name)          # a compressor's tag
+    return " ".join(name.replace("_", " ").split()) or url
+
+
+def _fetch_pdf(url):
+    """(text, status) for one PDF. A scanned PDF is pictures of pages: no
+    text to extract, reported as "needs OCR"."""
+    try:
+        import logging
+        from pypdf import PdfReader
+        logging.getLogger("pypdf").setLevel(logging.ERROR)
+    except ImportError:
+        return "", "skipped: pypdf not installed (pip install pypdf)"
+    try:
+        with _open(url, _settings["fetch_timeout"] * 3) as resp:
+            data = _read_body(resp, PDF_MAX_BYTES + 1)
+    except urllib.error.HTTPError as e:
+        return "", f"broken (HTTP {e.code})"
+    except Exception as e:
+        return "", f"unreachable ({type(e).__name__})"
+    if len(data) > PDF_MAX_BYTES:
+        return "", f"skipped: PDF over {PDF_MAX_BYTES // 1_000_000} MB"
+    if not data.lstrip()[:5].startswith(b"%PDF"):
+        return "", "not a PDF"
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        n_pages = len(reader.pages)
+        parts = [pg.extract_text() or "" for pg in reader.pages[:PDF_MAX_PAGES]]
+    except Exception as e:                   # noqa: BLE001 — a broken PDF
+        return "", f"unreadable PDF ({type(e).__name__})"
+    lines = (" ".join(l.split()) for t in parts for l in t.splitlines())
+    text = "\n".join(l for l in lines if l)
+    words = len(text.split())
+    if words < PDF_MIN_WORDS:
+        return "", f"needs OCR (scanned PDF, {n_pages} pages, no text)"
+    return text, f"ok ({words} words, PDF, {n_pages} pages)"
+
+
+def _pdf_links(page, page_url):
+    """Same-site PDFs linked from the page's content (not its menus, which
+    every page repeats), in order."""
+    out, home = [], _host_of(_settings["url"])
+    for href in page.get("content_links") or ():
+        if href.lower().startswith(_SKIP_SCHEMES) or href.startswith("#"):
+            continue
+        try:
+            u = _normalize(urllib.parse.urljoin(page_url, href))
+        except ValueError:
+            continue
+        if _is_pdf(u) and _same_site(_host_of(u), home) and u not in out:
+            out.append(u)
+    return out
+
+
+def _pdf_docs(pdfs, rules, title, statuses=None):
+    """Docs for the PDFs (one per PDF with text); `statuses` gets each one's
+    verification line."""
+    out = []
+    for u in pdfs:
+        if not robots_allows(rules, u):
+            text, status = "", "blocked by robots.txt"
+        else:
+            text, status = _fetch_pdf(u)
+        if statuses is not None:
+            statuses[u] = status
+        if text:
+            name = _pdf_title(u)
+            out.append({"url": u, "text": text,
+                        "title": f"{title} — {name}" if title else name})
     return out
 
 
@@ -1013,7 +1273,9 @@ def classify(url, texts=(), paths=()):
     ("DEPARTMENTS" — other departments' home pages), and URLs naming another
     department ("mech", "civil", …)."""
     path = urllib.parse.urlsplit(url).path
-    if _looks_binary(url) or _FILE_DIRS.search(path):
+    if _settings["pdfs"] and _is_pdf(url):
+        pass                              # read with pypdf (_fetch_pdf)
+    elif _looks_binary(url) or _FILE_DIRS.search(path):
         return None, "file (PDF, image or document)"
     words = _slug_words(url)
     amp = lambda t: " ".join(t.lower().replace("&", " and ").split())
@@ -1182,15 +1444,23 @@ def _display_title(url, info, page_title):
 
 # ── Fetching the catalog ──────────────────────────────────────────────────────
 
-def _fetch_page(url, info, rules, data_seen, data_lock):
-    """One catalog page: (docs, status). docs = its passages, table rows and
-    the sections of the JSON it loads; status = the verification line
-    ("ok", "HTTP 404", "not a web page", …). Never raises. An "affiliate"
-    page (another TKM institution's site, from the curated list) may live on
-    another host; the college's robots.txt says nothing about it."""
+def _fetch_page(url, info, rules, data_seen, data_lock, sources=None):
+    """One catalog page: (docs, status). docs = its passages, table rows, the
+    sections of the JSON it loads and the text of the PDFs it links to;
+    status = the verification line ("ok", "HTTP 404", "not a web page", …).
+    Never raises. An "affiliate" page (another TKM institution's site, from
+    the curated list) may live on another host; the college's robots.txt
+    says nothing about it. `sources` (a dict, optional) collects
+    {"loads": {page: [data / PDF urls]}, "status": {that url: line}}."""
     affiliate = info.get("scope") == "affiliate"
     if not affiliate and not robots_allows(rules, url):
         return [], "blocked by robots.txt"
+    if _settings["pdfs"] and _is_pdf(url):        # a PDF straight from a menu
+        statuses = {}
+        docs = _pdf_docs([url], rules, _display_title(url, info, ""), statuses)
+        for d in docs:
+            d["page"] = url
+        return docs, statuses.get(url, "ok but empty (PDF)")
     try:
         final, html = _fetch_html(url)
     except urllib.error.HTTPError as e:
@@ -1205,24 +1475,99 @@ def _fetch_page(url, info, rules, data_seen, data_lock):
     page = parse_page(html)
     title = _display_title(url, info, page["title"])
     endpoints = find_data_endpoints(page["scripts"], final)
-    with data_lock:                       # each JSON endpoint once per refresh
+    pdfs = _pdf_links(page, final) if _settings["pdfs"] else []
+    with data_lock:                       # each JSON endpoint / PDF once
         mine = [ep for ep in endpoints if ep not in data_seen]
         data_seen.update(mine)
+        my_pdfs = []
+        if sources is not None:           # a full crawl reads the PDFs after
+            # every page, most wanted first (_read_pdfs)
+            sources.setdefault("loads", {})[url] = endpoints + pdfs
+        else:                             # a live fetch: this page's own
+            budget = int(_settings["max_pdfs"]) - sum(map(_is_pdf, data_seen))
+            my_pdfs = [u for u in pdfs if u not in data_seen][:max(0, budget)]
+            data_seen.update(my_pdfs)
+    statuses = {}
     docs = _page_docs(page, final, title, endpoints)
     failures = []
-    docs += _data_pages(mine, rules, set(), failures=failures)
+    docs += _data_pages(mine, rules, set(), failures=failures,
+                        statuses=statuses)
+    docs += _pdf_docs(my_pdfs, rules, title, statuses)
+    if sources is not None:
+        with data_lock:
+            sources.setdefault("status", {}).update(statuses)
     for d in docs:
         d["page"] = url                   # route by the catalog page
+        if (d.get("data") or d.get("topic")) and _other_department(d["title"]):
+            d["scope"] = "other"          # the home page loads Mechanical's
     words = len(page["text"].split())
     status = f"ok ({words} words"
     if mine:
         status += f", {len(mine)} data source{'s' * (len(mine) > 1)}"
+    if my_pdfs:
+        status += f", {len(my_pdfs)} PDF{'s' * (len(my_pdfs) > 1)}"
     status += ")"
     if failures:
         status += f" — data failed: {len(failures)}"
+    ocr = sum(1 for u in my_pdfs if statuses.get(u, "").startswith("needs OCR"))
+    if ocr:
+        status += f" — {ocr} scanned PDF{'s' * (ocr > 1)} need OCR"
     elif not docs:
         status = f"ok but empty ({words} words)"
     return docs, status
+
+
+def _other_department(title):
+    """A data section about another department: its title starts with that
+    department's name ("Mechanical Engineering — Btech")."""
+    label, sep, _ = title.partition(" — ")
+    focus = _settings["focus_name"]
+    if not (sep and focus):
+        return False
+    label = re.sub(r"\s*\([^)]*\)$", "", label)   # "… (CSE)"
+    norm = lambda t: " ".join(t.lower().replace("&", " and ").split())
+    return norm(label) != norm(focus)
+
+
+def _read_pdfs(catalog, results, rules, sources, data_seen):
+    """The PDFs the pages link to, read after every page so the cap
+    (WEB_RAG_MAX_PDFS) goes to the most wanted first: the focus department's
+    pages, the hand-picked list, general pages, then other departments.
+    Each PDF's docs join its page's results; every PDF gets a status."""
+    rank = {"focus": 0, "general": 2, "other": 3, "affiliate": 4}
+    order = sorted(catalog, key=lambda u: (
+        1 if catalog[u].get("curated") and catalog[u]["scope"] != "focus"
+        else rank.get(catalog[u]["scope"], 3)))
+    loads, statuses = sources.get("loads") or {}, sources.setdefault("status", {})
+    queue = []
+    for u in order:
+        for pdf in loads.get(u, ()):
+            if _is_pdf(pdf) and pdf not in data_seen and pdf not in dict(queue):
+                queue.append((pdf, u))
+    cap = max(0, int(_settings["max_pdfs"]))
+    for pdf, _ in queue[cap:]:
+        statuses[pdf] = f"skipped: over WEB_RAG_MAX_PDFS ({cap})"
+    queue = queue[:cap]
+    if not queue:
+        return
+    console.detail(f"[web_rag] reading {len(queue)} PDFs")
+
+    def one(pdf, page):
+        docs = results[page][0]
+        title = next((d["title"] for d in docs if not d.get("data")),
+                     _display_title(page, catalog[page], ""))
+        got = {}
+        out = _pdf_docs([pdf], rules, title, got)
+        return pdf, page, out, got
+
+    workers = max(1, int(_settings["workers"]))
+    with concurrent.futures.ThreadPoolExecutor(
+            max_workers=workers, thread_name_prefix="web_rag_pdf") as pool:
+        for pdf, page, out, got in pool.map(lambda q: one(*q), queue):
+            statuses.update(got)
+            for d in out:
+                d["page"] = page
+            results[page][0].extend(out)
 
 
 def _strip_boilerplate(results):
@@ -1243,28 +1588,36 @@ def _strip_boilerplate(results):
             if "#" not in d["url"] and not d.get("data"):
                 d["text"] = "\n".join(l for l in d["text"].split("\n")
                                       if l not in common)
+                if d.get("outline"):      # "Quick Links" on every page
+                    d["outline"] = [h for h in d["outline"] if h not in common]
                 if len(d["text"].split()) < MIN_PAGE_WORDS:
                     continue
             kept.append(d)
         page_docs[:] = kept
 
 
-def _fetch_catalog(catalog, rules):
+def _fetch_catalog(catalog, rules, sources=None):
     """Fetch every catalog page in parallel. Returns (docs, report): the
     deduplicated docs and {url: status}. "/principal" and "/principal.php"
-    are one page under two links: the second is reported as a duplicate."""
-    data_seen, data_lock = set(), threading.Lock()
+    are one page under two links: the second is reported as a duplicate.
+    `sources` (a dict) collects the data / PDF urls each page loads."""
+    # a PDF that is a catalog page itself is never re-read for a page
+    # linking to it
+    data_seen, data_lock = {u for u in catalog if _is_pdf(u)}, threading.Lock()
     workers = max(1, int(_settings["workers"]))
     with concurrent.futures.ThreadPoolExecutor(
             max_workers=workers, thread_name_prefix="web_rag_fetch") as pool:
-        futs = {u: pool.submit(_fetch_page, u, info, rules, data_seen, data_lock)
+        futs = {u: pool.submit(_fetch_page, u, info, rules, data_seen, data_lock,
+                               sources)
                 for u, info in catalog.items()}
         results = {u: f.result() for u, f in futs.items()}
         # a slow college server drops a few under parallel load: one retry
         retry = [u for u, (_, s) in results.items() if s.startswith("unreachable")]
         futs = {u: pool.submit(_fetch_page, u, catalog[u], rules, data_seen,
-                               data_lock) for u in retry}
+                               data_lock, sources) for u in retry}
         results.update({u: f.result() for u, f in futs.items()})
+    if _settings["pdfs"] and sources is not None:
+        _read_pdfs(catalog, results, rules, sources, data_seen)
     # A <title> many pages share ("TKM College Of Engineering") says nothing
     # about the page: use its menu name ("Placement") instead.
     counts = {}
@@ -1276,21 +1629,30 @@ def _fetch_catalog(catalog, rules):
             if not d.get("data") and counts.get(d["title"], 0) >= GENERIC_TITLE_PAGES:
                 d["title"] = _display_title(url, catalog[url], "")
     _strip_boilerplate(results)
-    docs, report, seen_text = [], {}, {}
+    docs, report, seen_text, seen_doc = [], {}, {}, {}
+    alias = {}                            # dropped source -> the kept copy
     for url in catalog:                   # catalog order: deterministic dedup
         page_docs, status = results[url]
         fresh = []
         for d in page_docs:
             key = d["text"]
             if key in seen_text:
+                kept = seen_doc[key].partition("#")[0]
+                base = d["url"].partition("#")[0]
+                if base != kept:          # get-staff.php = ETLab's ?id=2
+                    alias.setdefault(base, kept)
                 continue
-            seen_text[key] = url
+            seen_text[key], seen_doc[key] = url, d["url"]
             fresh.append(d)
         if page_docs and not fresh:
             first = seen_text[page_docs[0]["text"]]
             status = f"duplicate of {first}"
         report[url] = status
         docs += fresh
+    if sources is not None and alias:     # a page loading the dropped copy
+        for page, srcs in (sources.get("loads") or {}).items():   # loads
+            srcs += [alias[u] for u in srcs           # the kept one too
+                     if u in alias and alias[u] not in srcs]
     return docs, report
 
 
@@ -1321,10 +1683,16 @@ def _chunk_pages(pages):
     row by its non-name cells."""
     chunks, texts = [], []
     for pg in pages:
-        for piece in chunk_text(pg["text"], _settings["chunk_words"],
-                                _settings["chunk_overlap"]):
+        for n, piece in enumerate(chunk_text(pg["text"], _settings["chunk_words"],
+                                             _settings["chunk_overlap"])):
             chunks.append({"url": pg["url"], "title": pg["title"],
                            "text": piece, "page": pg.get("page", pg["url"])})
+            if pg.get("topic"):           # a student row: its class list
+                chunks[-1]["topic"] = pg["topic"]
+            if pg.get("scope"):           # another department's data
+                chunks[-1]["scope"] = pg["scope"]
+            if n == 0 and pg.get("outline"):   # the page's headlines ride
+                chunks[-1]["outline"] = pg["outline"]   # on its 1st chunk
             if pg.get("embed"):           # a table row: matched by its role
                 piece = pg["embed"]
             elif pg.get("data"):
@@ -1378,8 +1746,8 @@ def _topics(catalog, docs):
         if d.get("data") and d["url"] not in seen:
             seen.add(d["url"])
             out.append({"url": d["url"], "label": d["title"],
-                        "scope": catalog.get(d.get("page"), {}).get("scope",
-                                                                   "general"),
+                        "scope": d.get("scope") or catalog.get(
+                            d.get("page"), {}).get("scope", "general"),
                         "group": _data_group(d["url"])})
     return out
 
@@ -1448,6 +1816,7 @@ def _save_cache(index):
     meta["links"] = index.get("links") or []
     meta["report"] = index.get("report") or {}
     meta["links_sig"] = index.get("links_sig", "")
+    meta["sources"] = index.get("sources") or {}
     meta["dim"] = int(index["matrix"].shape[1])
     arrays = {"matrix": index["matrix"]}
     if index.get("link_matrix") is not None and meta["links"]:
@@ -1461,6 +1830,83 @@ def _save_cache(index):
         with open(tmp, "wb") as f:           # file object: numpy adds no .npz
             np.savez(f, **arrays)
         os.replace(tmp, npath)
+        _write_pages(index)
+
+
+def _page_file(url):
+    name = re.sub(r"^https?://(www\.)?", "", url).rstrip("/")
+    return re.sub(r"[^A-Za-z0-9.-]+", "_", name)[:120] + ".txt"
+
+
+def _write_pages(index):
+    """One plain .txt per link in <cache dir>/pages — every page of the
+    crawl report, skipped / broken / duplicate ones included, and every data
+    source and PDF: its title, URL, verification status, fetch time, text,
+    table rows, and what the data sources and PDFs it loads contributed. A
+    readable mirror of what Luna knows about each link (and what to check
+    when an answer looks wrong); rewritten on every save, stale files
+    removed. Never raises."""
+    d = _pages_dir()
+    if not d:
+        return
+    try:
+        os.makedirs(d, exist_ok=True)
+        report = index.get("report") or {}
+        loads = index.get("sources") or {}
+        by_page, by_base, titles = {}, {}, {}
+        for i, c in enumerate(index["chunks"]):
+            base, _, frag = c["url"].partition("#")
+            page = c.get("page") or base
+            titles.setdefault(base if not frag else page, c.get("title") or "")
+            if frag:
+                by_page.setdefault(page, []).append(i)
+                by_base.setdefault(base, []).append(i)
+        when = datetime.fromtimestamp(index.get("fetched_at") or time.time())
+        texts = _page_chunks(index)
+        urls = list(dict.fromkeys([*report, *texts, *by_page, *by_base,
+                                   *(u for us in loads.values() for u in us)]))
+        written = set()
+        for url in urls:
+            status = report.get(url, "")
+            lines = [titles.get(url) or url, url]
+            if status:
+                lines.append(f"Status: {status}")
+            lines += [f"cached {when:%Y-%m-%d %H:%M}", ""]
+            heads = _page_outline(index, url)
+            if heads:
+                lines += ["Headlines:", *(f"- {h}" for h in heads), ""]
+            body = page_text(index, url)
+            if body:
+                lines.append(body)
+            mine = loads.get(url) or []
+            rows = list(dict.fromkeys(
+                by_page.get(url, []) + by_base.get(url, [])
+                + [i for u in mine for i in by_base.get(u, ())]))
+            if rows:
+                lines += ["", "Tables and data on this page:",
+                          *(f"- {index['chunks'][i].get('title') or ''}: "
+                            f"{index['chunks'][i]['text']}" for i in rows)]
+            if mine:
+                lines += ["", "Data sources and PDFs this page loads:",
+                          *(f"- {u} — {report.get(u, 'loaded by another page')}"
+                            for u in mine)]
+                for u in mine:
+                    pdf = page_text(index, u) if _is_pdf(u) else ""
+                    if pdf:
+                        lines += ["", f"=== PDF: {_pdf_title(u)} ===", pdf]
+            if not body and not rows and not mine and not status.startswith(
+                    ("skipped", "duplicate", "broken", "unreachable",
+                     "blocked", "not ", "needs OCR", "redirects")):
+                lines.append("(no text indexed for this link)")
+            name = _page_file(url)
+            with open(os.path.join(d, name), "w", encoding="utf-8") as f:
+                f.write("\n".join(lines).strip() + "\n")
+            written.add(name)
+        for name in os.listdir(d):
+            if name.endswith(".txt") and name not in written:
+                os.remove(os.path.join(d, name))
+    except Exception as e:                   # noqa: BLE001
+        print(f"[web_rag] page .txt mirror failed: {e}")
 
 
 def _load_cache():
@@ -1533,6 +1979,9 @@ def start(embed_fn, background=True):
             console.detail(f"[web_rag] cache loaded: {len(cached['pages'])} pages, "
                   f"{len(cached['chunks'])} chunks, {len(cached['links'])} "
                   f"topics from {cached['host']}")
+            d = _pages_dir()
+            if d and not os.path.isdir(d):
+                _write_pages(cached)         # first run with the mirror on
         else:
             print(f"[web_rag] no cache for {_host_of(_settings['url'])} yet")
         if not background:
@@ -1631,11 +2080,15 @@ def refresh(force=False):
                   f"({sum(i['scope'] == 'focus' for i in catalog.values())} "
                   f"{_settings['focus_name'] or 'focus'}), {len(skipped)} "
                   f"links skipped — fetching {_settings['workers']} at a time")
-            docs, report = _fetch_catalog(catalog, _robots)
+            sources = {}
+            docs, report = _fetch_catalog(catalog, _robots, sources)
             if not docs:
                 raise RuntimeError("no page could be fetched")
             report.update({u: f"skipped: {w}" for u, w in skipped.items()})
+            for u, st in (sources.get("status") or {}).items():
+                report.setdefault(u, st)  # each data source / PDF, verified
             new = _build_index(docs, catalog, report)
+            new["sources"] = sources.get("loads") or {}
         except Exception as e:
             _last_error = str(e)
             print(f"[web_rag] refresh failed: {e} — keeping old index")
@@ -1920,6 +2373,150 @@ def lookup(text, force=False, top_k=None):
     return hits
 
 
+# ── Page sections: the best page whole, not one scrap of it ─────────────────
+# One 120-word chunk per page left the model with whatever paragraph scored
+# best: for "what are the achievements of the college" a ceremony's closing
+# remarks, never the awards themselves. The best page now goes in as a
+# section — the whole page when it is short, else its most relevant
+# passages in reading order — so the model reads the page, not a sentence.
+
+def _page_chunks(idx):
+    """{page url: [chunk index, …]} in reading order — plain page text only
+    (table rows / data sections, url#frag, are separate facts)."""
+    pc = idx.get("_page_chunks")
+    if pc is None or idx.get("_page_chunks_n") != len(idx["chunks"]):
+        pc = {}
+        for i, c in enumerate(idx["chunks"]):
+            if "#" not in c["url"]:
+                pc.setdefault(c["url"], []).append(i)
+        idx["_page_chunks"], idx["_page_chunks_n"] = pc, len(idx["chunks"])
+    return pc
+
+
+def _join_chunks(idx, ids, pos):
+    """Chunk texts in reading order: neighbours lose their shared overlap
+    words, a gap between them is marked with "…"."""
+    overlap = int(_settings["chunk_overlap"])
+    parts, prev = [], None
+    for i in ids:
+        w = idx["chunks"][i]["text"].split()
+        if prev is not None and pos[i] == pos[prev] + 1:
+            parts[-1] += " " + " ".join(w[overlap:])
+        else:
+            parts.append(" ".join(w))
+        prev = i
+    return " … ".join(parts)
+
+
+def page_text(idx, url):
+    """The whole cached text of one page (overlaps removed), "" if unknown."""
+    ids = _page_chunks(idx).get(url) or []
+    return _join_chunks(idx, ids, {i: n for n, i in enumerate(ids)})
+
+
+def _page_outline(idx, url):
+    """The page's headlines (stored on its first chunk), [] if none."""
+    ids = _page_chunks(idx).get(url) or []
+    return list(idx["chunks"][ids[0]].get("outline") or ()) if ids else []
+
+
+def _with_outline(idx, url, scores, budget, fallback):
+    """The best page for the prompt: its headlines — on a long page of news
+    items ("Achievements") that list IS the overview a question asks for,
+    and no single passage carries it — then its best section."""
+    heads = _page_outline(idx, url)[:OUTLINE_MAX_HEADINGS]
+    head = ""
+    if len(heads) >= 3:
+        head = "Headlines on this page: " + "; ".join(heads) + ". "
+        budget -= len(head.split())
+    body = _page_section(idx, url, scores, max(budget, 0)) or fallback
+    return head + ("Details: " if head else "") + body
+
+
+def _page_section(idx, url, scores, budget):
+    """Up to `budget` words of the page `url` for a question whose per-chunk
+    match is `scores`: the whole page when it fits, else its best-matching
+    chunks put back in reading order. None when there is nothing to add
+    (one-chunk page, or no budget)."""
+    ids = _page_chunks(idx).get(url) or []
+    if len(ids) < 2 or budget <= 0:
+        return None
+    pos = {i: n for n, i in enumerate(ids)}
+    step = int(_settings["chunk_words"]) - int(_settings["chunk_overlap"])
+    chosen, words = [], 0
+    for i in sorted(ids, key=lambda i: -float(scores[i])):
+        n = len(idx["chunks"][i]["text"].split()) if not chosen else step
+        if chosen and words + n > budget:
+            break
+        chosen.append(i)
+        words += n
+    if len(chosen) < 2:
+        return None
+    return _join_chunks(idx, sorted(chosen, key=pos.get), pos)
+
+
+def _section_words(url):
+    """{"btech"} for ".../department/?id=2#btech/CSE-2K23A/0"; empty for a
+    plain page or PDF url."""
+    key = url.partition("#")[2].split("/")[0].lower()
+    return {w for w in re.split(r"[_\-\s]+", key) if w}
+
+
+def _shells(idx):
+    """Catalog pages with no text of their own in the index — only a frame
+    for the data they load (faculty-cse.php, btech-cse.php)."""
+    sh = idx.get("_shells")
+    if sh is None:
+        own = {c.get("page", c["url"]) for c in idx["chunks"]
+               if "#" not in c["url"] and not _is_pdf(c["url"])}
+        sh = idx["_shells"] = set(idx.get("sources") or {}) - own
+    return sh
+
+
+def _loaders(idx):
+    """{data endpoint / PDF url: [catalog pages that load it]}."""
+    lo = idx.get("_loaders")
+    if lo is None:
+        lo = {}
+        for page, srcs in (idx.get("sources") or {}).items():
+            for u in srcs:
+                lo.setdefault(u, []).append(page)
+        idx["_loaders"] = lo
+    return lo
+
+
+NAME_MATCH_SCORE = 1.0             # a row naming the person asked about
+_NAME_FIELD = re.compile(r"(?:^|; )Name: ([^;]+)")
+_HONORIFIC = frozenset(("dr", "prof", "mr", "mrs", "ms", "smt", "sri", "shri",
+                        "adv", "er", "rev", "fr", "janab"))
+
+
+def _name_words(name):
+    return [w for w in re.findall(r"[a-z]+", name.lower())
+            if w not in _HONORIFIC and len(w) >= 3]
+
+
+def _name_matches(idx, text):
+    """Chunk ids of the table / student rows ("Name: Sri. Saheer H; …") whose
+    person the question names: every name word (honorifics and initials
+    aside) is in the question — one word only if it is 6+ letters long, so
+    "who is saheer" finds him but "is anu here" doesn't list every Anu."""
+    rows = idx.get("_name_rows")
+    if rows is None or idx.get("_name_rows_n") != len(idx["chunks"]):
+        rows = []
+        for i, c in enumerate(idx["chunks"]):
+            m = _NAME_FIELD.search(c["text"]) if "#" in c["url"] else None
+            words = _name_words(m.group(1)) if m else []
+            if words:
+                rows.append((i, frozenset(words)))
+        idx["_name_rows"], idx["_name_rows_n"] = rows, len(idx["chunks"])
+    asked = set(re.findall(r"[a-z]+", text.lower()))
+    hits = [(i, len(words)) for i, words in rows
+            if words <= asked and (len(words) > 1 or len(next(iter(words))) >= 6)]
+    most = max((n for _, n in hits), default=0)   # "Pranav Prasanth", not
+    return [i for i, n in hits if n == most]      # every "Pranav P"
+
+
 def retrieve(text, top_k=None):
     """[(source_url, passage, score)] best first. The question is ROUTED
     first: only passages of its best-matching topics (pages / data sections)
@@ -1974,26 +2571,52 @@ def retrieve(text, top_k=None):
         # Other departments' and other TKM institutions' pages answer only
         # questions routed to them — never a blind search, or the college's
         # own facts could come from a sister institution's page.
-        apart = np.array([scope.get(c.get("page", c["url"].partition("#")[0]))
-                          in ("other", "affiliate")
-                          and c.get("page", c["url"]) not in routed
-                          and c["url"] not in routed
-                          for c in idx["chunks"]], dtype=bool)
+        def kept_apart(c):
+            if c.get("scope"):            # another department's data, loaded
+                # by a general page: only its own topic opens it
+                return (c["scope"] in ("other", "affiliate")
+                        and c["url"] not in routed
+                        and c.get("topic") not in routed)
+            return (scope.get(c.get("page", c["url"].partition("#")[0]))
+                    in ("other", "affiliate")
+                    and c.get("page", c["url"]) not in routed
+                    and c["url"] not in routed)
+        apart = np.array([kept_apart(c) for c in idx["chunks"]], dtype=bool)
         if apart.any():
             scores = np.where(apart, -1.0, scores)
     except Exception as e:
         print(f"[web_rag] retrieve failed: {e}")
         return []
     min_sim = float(_settings["min_sim"])
-    final = scores
+    final, blind = scores, True
     if routed:
         # a data section / table row with a topic of its own is routed by
         # it alone — not by the page that happened to load it (all the CSE
         # staff data is loaded by every CSE page)
         own = {t["url"] for t in idx.get("links") or []}
-        topic = np.array([routed.get(c["url"], 0.0) if c["url"] in own
-                          else routed.get(c.get("page", c["url"]), 0.0)
-                          for c in idx["chunks"]], dtype=np.float32)
+        loaders = _loaders(idx)
+        focus = set(_settings["focus_slugs"]) | {"php", "html", "htm"}
+        shells = _shells(idx)
+
+        def topic_of(c):
+            base = c["url"].partition("#")[0]
+            s = (routed.get(c["url"], 0.0) if c["url"] in own
+                 else routed.get(c["topic"], 0.0) if c.get("topic") in own
+                 else routed.get(c.get("page", c["url"]), 0.0))
+            # data / a PDF is fetched once, for the first page that loads
+            # it. A PDF belongs to every page linking it; a data section to
+            # a loader named after it ("btech-cse.php" -> the B.Tech list)
+            # or one that is only a shell for its data ("faculty-cse.php"),
+            # not to every CSE page that loads the department's JSON
+            key = _section_words(c.get("topic") or c["url"])
+            for p in loaders.get(base, ()):
+                if p in shells:           # the page IS its data
+                    s = max(s, routed.get(p, 0.0))
+                elif not key or key & (_slug_words(p) - focus):
+                    s = max(s, GROUP_FACTOR * routed.get(p, 0.0))
+            return s
+        topic = np.array([topic_of(c) for c in idx["chunks"]],
+                         dtype=np.float32)
         candidate = topic > 0
         if ROUTE_ALSO_TOP:                # plus the best passages anywhere
             candidate[np.argsort(scores)[::-1][:ROUTE_ALSO_TOP]] = True
@@ -2004,25 +2627,45 @@ def retrieve(text, top_k=None):
         # only clear route_min, not the stricter min_sim of a blind search
         if np.any(combined >= float(_settings["route_min"])):
             final, min_sim = combined, float(_settings["route_min"])
+            blind = False
+    named_rows = _name_matches(idx, text)
+    if named_rows:                        # "is Pranav Prasanth a student
+        final = np.array(final, copy=True)   # here": that row, first
+        final[named_rows] = NAME_MATCH_SCORE
     out, per_page = [], {}
-    best = None
+    best, sectioned = None, False
+    # whole pages only for a question routed to them: a blind hit ("tracker
+    # day children") stays one passage, not a 1,300-word page
+    left = (0 if blind and idx.get("links")
+            else int(_settings["page_words"] or 0))
     for i in np.argsort(final)[::-1]:
         s = float(final[i])
         best = s if best is None else best
         if s < min_sim or len(out) >= k or s < best - RELATIVE_CUT:
             break
+        if sectioned and s < best - SECTION_CUT:
+            break
         c = idx["chunks"][int(i)]
         # a page's text chunks repeat one topic: 1 slot; its table rows /
         # JSON sections are separate facts: up to MAX_HITS_PER_PAGE
         base, _, frag = c["url"].partition("#")
+        if blind and frag and s < BLIND_ROW_MIN:
+            continue                      # a lone row, matched by chance
         key, cap = (base, bool(frag)), (MAX_HITS_PER_PAGE if frag else 1)
         n = per_page.get(key, 0)
         if n >= cap:
             continue
         per_page[key] = n + 1
         title = c.get("title") or ""
-        text_out = c["text"] if not title or title.startswith("/") \
-            else f"{title}: {c['text']}"
+        body = c["text"]
+        if not frag and left > 0:         # a page: whole if it fits, else its
+            # best parts — every page the answer draws on, while words last
+            body = (_with_outline(idx, base, scores, left, body) if not out
+                    else _page_section(idx, base, scores, left) or body)
+            sectioned = sectioned or body != c["text"]
+            left -= len(body.split())
+        text_out = body if not title or title.startswith("/") \
+            else f"{title}: {body}"
         out.append((c["url"], text_out, s))
     return out
 
@@ -2049,6 +2692,14 @@ _NAME_STOP = frozenset((
     "associate", "assistant", "head", "hod", "hods", "dean", "principal",
     "department", "dept", "college", "engineering", "faculty", "staff",
     "student", "students", "phd", "btech", "mtech", "tkm", "tkmce", "cse",
+    # section words the site capitalises in menus and headings — a question
+    # about "placement" is not about a person called Placement
+    "placement", "placements", "achievement", "achievements", "admission",
+    "admissions", "hostel", "hostels", "library", "news", "events", "event",
+    "research", "alumni", "sports", "campus", "programmes", "programme",
+    "programs", "program", "courses", "course", "syllabus", "results",
+    "facilities", "laboratory", "laboratories", "labs", "fees", "workshop",
+    "workshops", "seminar", "conference", "internship", "recruitment",
 ))
 _ABBREV_END = re.compile(r"(?:^|\s)(?:Dr|Prof|Mr|Mrs|Ms|Smt|Sri|Shri|St|No|[A-Z])\.$")
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z(])")

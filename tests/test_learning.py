@@ -385,7 +385,10 @@ class TestPersonaLearningFields(unittest.TestCase):
             "\n\nExtracts from the college website that may be relevant:\n"
             "- chunk"
             "\n\nWhat your camera sees RIGHT NOW (answer from this, in your "
-            "own warm words):\na person smiling")
+            "own warm words):\na person smiling"
+            "\n\nAnswer only from the facts above. If they do not answer "
+            "the question, say you do not have that information. Never make "
+            "up numbers, names or dates.")
         self.assertEqual(persona.format_context(**self.CTX), expected)
         self.assertEqual(persona.format_context(
             **self.CTX, style=None, exemplars=(), profile=None, diary=None),
@@ -408,6 +411,17 @@ class TestPersonaLearningFields(unittest.TestCase):
                                       style="Be brief.")
         self.assertEqual(msg, "Style for this reply: Be brief.\n\n"
                               "Question: where is the lab")
+
+    def test_turn_with_data_is_query_data_instructions(self):
+        msg = persona.build_user_turn(
+            "who is the hod", web_snippets=[("u", "HOD page: Dr. A", 0.6)],
+            style="Be brief.")
+        self.assertTrue(msg.startswith("Query: who is the hod\n\nData:\n"))
+        self.assertIn("- HOD page: Dr. A", msg)
+        data, instr = msg.split("\n\nInstructions: ")
+        self.assertNotIn("Answer only from the facts above", data)
+        self.assertTrue(instr.startswith('Answer the query "who is the hod"'))
+        self.assertTrue(msg.endswith("Style for this reply: Be brief."))
 
 
 if __name__ == "__main__":

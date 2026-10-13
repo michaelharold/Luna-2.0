@@ -13,6 +13,13 @@ speech_to_text.py, then into Vosk. Three pipelines on the SAME audio:
   now     audio_preprocess.Resampler + AudioPreprocessor as configured
   +NR     "now" with noise suppression forced on (AUDIO_NOISE_SUPPRESS)
 
+Then one column per downloaded stt_engines.py engine (1 Parakeet,
+2 Whisper small, 3 Whisper base): each whole clip re-transcribed the way
+Luna does with STT_ENGINE > 0 — resampled to 16 kHz only, no gate / AGC
+(Parakeet scored better on that than on the preprocessed audio). Each
+engine's compute time per second of audio is printed at the end.
+ENGINES=1,3 picks some; SHOW_ERRORS=1 prints every wrong transcription.
+
 Noise: "babble" (four other voices talking at once — a corridor, a crowd)
 and "fan" (pink noise plus hiss — fans, AC). Needs macOS for `say`; run it
 on the Mac, with the Pi's 48000 in RATES to model the Pi's dongle.
@@ -45,6 +52,8 @@ os.chdir(ROOT)
 
 import config  # noqa: E402
 from audio_preprocess import AudioPreprocessor, Resampler  # noqa: E402
+
+import stt_engines  # noqa: E402
 
 CACHE = os.path.join(tempfile.gettempdir(), "luna-bench-stt-noise")
 SENTENCES = [
@@ -156,6 +165,26 @@ def transcribe(model, pipeline, signal, rate):
     return " ".join(w for w in words if w)
 
 
+def resampled(rate):
+    rs = Resampler(rate)
+    return lambda b: rs(b)
+
+
+_secs = {}     # engine -> [compute time, audio time]
+
+
+def transcribe_engine(engine, rec, pipeline, signal, rate):
+    pcm = (np.clip(signal, -1, 1) * 32767).astype("<i2").tobytes()
+    step = int(rate * 0.25) * 2
+    audio = b"".join(pipeline(pcm[i:i + step]) for i in range(0, len(pcm), step))
+    t = time.time()
+    text = stt_engines.transcribe(rec, audio)
+    acc = _secs.setdefault(engine, [0.0, 0.0])
+    acc[0] += time.time() - t
+    acc[1] += len(audio) / 2 / 16000
+    return text
+
+
 def main():
     os.makedirs(CACHE, exist_ok=True)
     rates = [int(r) for r in os.environ.get("RATES", "44100,48000").split(",")]
@@ -164,7 +193,12 @@ def main():
     from vosk import Model, SetLogLevel
     SetLogLevel(-1)
     model = Model(config.VOSK_MODEL_PATH)
-    print(f"{'rate':>6} {'noise':<12} {'before':>8} {'now':>8} {'+NR':>8}")
+    wanted = [int(e) for e in os.environ.get("ENGINES", "1,2,3").split(",")]
+    engines = [(e, stt_engines.load(e, int(os.environ.get("THREADS", "4"))))
+               for e in wanted if stt_engines.available(e)]
+    show = os.environ.get("SHOW_ERRORS") == "1"
+    print(f"{'rate':>6} {'noise':<12} {'before':>8} {'now':>8} {'+NR':>8}"
+          + "".join(f" {'[' + str(e) + ']':>8}" for e, _ in engines))
     for rate in rates:
         clips = [(s, say(s, v, rate, f"{v}_{i}"))
                  for v in SPEAKERS for i, s in enumerate(SENTENCES)]
@@ -177,6 +211,15 @@ def main():
                     e, n = wer(ref, transcribe(model, make(rate), y, rate))
                     errs, total = errs + e, total + n
                 row.append(100.0 * errs / total)
+            for engine, rec in engines:
+                errs = total = 0
+                for ref, y in sig:
+                    hyp = transcribe_engine(engine, rec, resampled(rate), y, rate)
+                    e, n = wer(ref, hyp)
+                    errs, total = errs + e, total + n
+                    if show and e:
+                        print(f"    [{engine}] {kind} {snr}: {hyp!r}  (said: {ref!r})")
+                row.append(100.0 * errs / total)
             label = kind if kind == "clean" else f"{kind} {snr} dB"
             print(f"{rate:>6} {label:<12} "
                   + " ".join(f"{v:>7.1f}%" for v in row), flush=True)
@@ -185,4 +228,7 @@ def main():
 if __name__ == "__main__":
     t0 = time.time()
     main()
+    for engine, (busy, audio) in sorted(_secs.items()):
+        print(f"[{engine}] {stt_engines.name(engine)}: {busy / audio:.3f} s of "
+              f"compute per second of audio")
     print(f"({time.time() - t0:.0f}s)")

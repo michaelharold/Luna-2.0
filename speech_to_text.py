@@ -23,10 +23,12 @@ import threading
 import numpy as np
 import sounddevice as sd
 from vosk import Model, KaldiRecognizer
+import difflib
 
 from shared_state import state
 from config import (
     WAKE_WORDS,
+    ROBOT_NAME,
     AUDIO_INPUT_DEVICE,
     VOSK_MODEL_PATH,
     MIC_SAMPLE_RATE,
@@ -40,14 +42,70 @@ from config import (
     STT_RESCUE_WITH_KNOWLEDGE,
     STT_RESCUE_MATCH_MIN,
     STT_REQUIRE_WAKE_EACH_TURN,
+    STT_MIN_LOUDNESS,
+    STT_ENGINE,
+    STT_ENGINE_THREADS,
     ADDRESSED_SCORING,
     AUDIO_PREPROCESS,
 )
 import console
 import addressing
+import stt_engines
 from audio_preprocess import Resampler
 
 _model = Model(VOSK_MODEL_PATH)
+
+# ── Second-pass engine (config.STT_ENGINE 1-3) ───────────────────────────────
+# Vosk hears the utterance live; the engine re-reads its audio once Vosk
+# says it ended. Loaded in the background so start-up isn't held up; until
+# it is ready (or if it can't load) Luna uses Vosk's words.
+_engine = None
+_UTT_MAX_BYTES = 30 * 16000 * 2          # 30 s of 16 kHz int16 at most
+_utt = bytearray()                       # resampled audio since Vosk's last
+                                         # result (before preprocessing: the
+                                         # engines read raw audio better)
+
+
+def _load_engine():
+    global _engine
+    if not STT_ENGINE:
+        return
+    label = f"{STT_ENGINE} ({stt_engines.name(STT_ENGINE)})"
+    if not stt_engines.available(STT_ENGINE):
+        print(f"[stt] STT_ENGINE {label}: model or sherpa-onnx missing — "
+              f"using Vosk (scripts/download_models.sh)")
+        return
+    try:
+        t0 = time.time()
+        _engine = stt_engines.load(STT_ENGINE, STT_ENGINE_THREADS)
+        console.detail(f"[stt] {stt_engines.name(STT_ENGINE)} ready "
+                       f"({time.time() - t0:.1f}s)")
+    except Exception as e:                   # noqa: BLE001
+        print(f"[stt] STT_ENGINE {label} failed to load ({e}) — using Vosk")
+
+
+threading.Thread(target=_load_engine, daemon=True, name="stt_engine").start()
+
+
+def _reread(engine, vosk_text):
+    """(text, confidence) from the second-pass engine for the utterance in
+    _utt. confidence is None when the engine reports none (Whisper) — the
+    caller then keeps Vosk's. Any failure keeps Vosk's words."""
+    try:
+        t0 = time.time()
+        text, conf = stt_engines.transcribe_conf(engine, bytes(_utt))
+        console.detail(f"[stt] {stt_engines.name(STT_ENGINE)}: {text!r} "
+                       f"(Vosk: {vosk_text!r}, {time.time() - t0:.2f}s)")
+        return text, conf
+    except Exception as e:                   # noqa: BLE001
+        print(f"[stt] second pass failed ({e}) — using Vosk's words")
+        return vosk_text, None
+
+
+def _name_like(word):
+    """The engine's spelling of Luna's name ("lunar", "luna's")."""
+    return difflib.SequenceMatcher(None, word.strip("'s"),
+                                   ROBOT_NAME.lower()).ratio() >= 0.75
 _q     = queue.Queue(maxsize=50)   # bounded — audio can't pile up unbounded
 
 _mic_rate     = None    # actual sample rate the stream runs at
@@ -400,6 +458,10 @@ def _accept_utterance(text, conf, awaiting, loudness=0.0):
     weighted multi-signal score (name, question shape, "you", KB relevance, a
     visible face, loudness, continuity) plus the rule that clear speech alone
     is never enough. Off, it's the original confidence-plus-meaning gate."""
+    if loudness < STT_MIN_LOUDNESS and not addressing.mentions_name(text):
+        # Faint room noise that Vosk made a word of. It used to pass as the
+        # answer to Luna's own question on the continuity bonus alone.
+        return False, f"too quiet (loudness {loudness:.2f}) — background noise"
     if not ADDRESSED_SCORING:
         ok = _is_meaningful(text, conf)
         return ok, f"legacy gate, conf={conf:.2f}"
@@ -491,6 +553,10 @@ def listen():
             _flush_queue()
 
     rec = _get_recognizer()
+    _utt.clear()                         # in step with the recognizer reset
+    engine = _engine                     # fixed for this listen: one that
+                                         # finishes loading mid-utterance
+                                         # would only have its tail
 
     # check conversation timeout
     with state.lock:
@@ -536,12 +602,25 @@ def listen():
         if not data:
             continue
         raw_block = data
+        if engine is not None:
+            _utt.extend(raw_block)
+            if len(_utt) > _UTT_MAX_BYTES:
+                del _utt[:len(_utt) - _UTT_MAX_BYTES]
         data = _preprocess(data)
         _track_level(_block_db(raw_block))
 
         if rec.AcceptWaveform(data):
             result = json.loads(rec.Result())
             text   = result.get("text", "").strip()
+            vosk_text, engine_conf = text, None
+            if text and engine is not None:
+                # Vosk heard something: the engine's reading of the same
+                # audio replaces it. No words at all = a cough / laugh /
+                # noise that Vosk made a word of — treated as silence.
+                text, engine_conf = _reread(engine, text)
+                if not text:
+                    console.detail(f"[stt] no words in {vosk_text!r} — noise")
+            _utt.clear()
 
             with state.lock:
                 state.listening  = False
@@ -564,7 +643,9 @@ def listen():
                     state.listening = active
                 continue   # keep listening — don't restart the whole cycle
 
-            conf = _avg_conf(result)
+            conf = engine_conf if engine_conf is not None else _avg_conf(result)
+            with state.lock:
+                state.utterance_conf = conf
             console.detail(f"[Luna heard] {text}  (conf={conf:.2f}, "
                            f"level={utt_db:.0f} dBFS, loud={loudness:.2f})")
 
@@ -576,6 +657,13 @@ def listen():
                 return cmd
 
             cleaned = _match_wake_word(text)
+            if cleaned is None and text != vosk_text \
+                    and _match_wake_word(vosk_text) is not None:
+                # Vosk caught "luna" where the engine wrote it differently
+                # ("lunar"): keep the engine's words, minus that name.
+                words = text.split()
+                cleaned = " ".join(w for i, w in enumerate(words)
+                                   if not (i < 3 and _name_like(w)))
             if cleaned is not None:
                 console.heard(text)
                 console.detail("[STT] Wake word — conversation active")

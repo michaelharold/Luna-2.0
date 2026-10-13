@@ -10,6 +10,8 @@
 #                   + YOLOv8n object detector (for "what do you see?")
 #   models/llm/     Qwen2.5-1.5B gguf — only when LLM_BACKEND="llamacpp"
 #   vosk model      speech-to-text (skipped if any vosk-model-* dir exists)
+#   models/stt/     the config.STT_ENGINE re-transcription model (Parakeet /
+#                   Whisper, sherpa-onnx); ALL_STT=1 fetches all three
 #   sentence-transformer  cached via one python import at the end
 set -euo pipefail
 
@@ -62,6 +64,27 @@ else
     "https://alphacephei.com/vosk/models/vosk-model-en-in-0.5.zip"
   unzip -q vosk.zip && rm vosk.zip
 fi
+
+# ── STT_ENGINE models (sherpa-onnx) ───────────────────────────────────────────
+SHERPA="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models"
+stt_model() {  # stt_model <engine number> <folder>
+  local n="$1" dir="$2"
+  if [[ -z "${ALL_STT:-}" && "$ENGINE" != "$n" ]]; then return; fi
+  if [[ -d "models/stt/$dir" && -z "${FORCE:-}" ]]; then
+    echo "[models] models/stt/$dir already present — skipping"
+    return
+  fi
+  echo "[models] downloading models/stt/$dir"
+  mkdir -p models/stt
+  curl -SL --fail --progress-bar -o "models/stt/$dir.tar.bz2" "$SHERPA/$dir.tar.bz2"
+  tar xjf "models/stt/$dir.tar.bz2" -C models/stt && rm "models/stt/$dir.tar.bz2"
+  # Luna loads the int8 files only; the full-precision copies are ~1 GB
+  find "models/stt/$dir" -name '*.onnx' ! -name '*.int8.onnx' -delete
+}
+ENGINE="$("$PY" -c 'import config; print(config.STT_ENGINE)' 2>/dev/null || echo 0)"
+stt_model 1 sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8
+stt_model 2 sherpa-onnx-whisper-small.en
+stt_model 3 sherpa-onnx-whisper-base.en
 
 # ── Sentence transformer cache ────────────────────────────────────────────────
 PY="venv/bin/python"; [[ -x "$PY" ]] || PY="python3"

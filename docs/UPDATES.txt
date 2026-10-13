@@ -4,6 +4,120 @@
   Format: date · area · what changed · why
 ══════════════════════════════════════════════════════════════════
 
+─── 2026-10-13 — Website: all of it, weekly, whole pages to the LLM ────────────
+
+[boot] The sentence transformer loads from its cached folder
+  (snapshot_download local_files_only): setting HF_HUB_OFFLINE in brain.py
+  came after huggingface_hub had read it, so every boot sent HEAD requests
+  to huggingface.co — retried with back-off on a network that intercepts
+  TLS ("self-signed certificate in certificate chain").
+[web] Data from the college's ETLab (WEB_RAG_DATA_HOSTS = tkmce.etlab.in):
+  the CSE pages load their staff, student lists, publications, scholars and
+  news from it with JavaScript, and only same-site data was fetched — so
+  btech-cse.php, faculty-cse.php, news.php?id=… looked empty.
+[web] Student lists (WEB_RAG_STUDENT_ROSTERS): per class list one section
+  "Number of B.Tech students: 604, in 8 batches (…)" plus one row per
+  student (name, batch, admission no.), routed by that section — 4,000+
+  rows are not 4,000 topics. Another department's data (the home page
+  loads Mechanical's) is kept apart like its pages: only when a question
+  names that department.
+[web] A question naming a person in a table or student row ("is Pranav
+  Prasanth a student here", "who is Saheer") gets that row first; the most
+  specific name wins (not every "Pranav P").
+[web] PDFs (WEB_RAG_PDFS, pypdf): the PDFs pages link to are read after all
+  pages, CSE pages' first, up to WEB_RAG_MAX_PDFS (300; the site links ~700).
+  Scanned PDFs have no text and are reported "needs OCR" — the placement
+  statistics are such scans, so placement numbers are still unknown.
+[web] Lists are no longer cut at 40 (all 166 CSE publications), tables at 60.
+[web] data/rag_cache/pages/: one .txt per link — every page, skipped,
+  duplicate and broken ones too, each data source and PDF — with its status,
+  its text, its tables / data and what its data sources and PDFs gave.
+[web] Data and PDFs fetched once are still reached through every page that
+  loads them: a page that is only a frame for its data (faculty-cse.php)
+  fully, a page named after a section (btech-cse.php -> B.Tech) at 0.85;
+  a duplicate data URL (get-staff.php = ETLab ?id=2) counts as the kept one.
+  ETLab sections carry the words people use ("Regular teaching staff
+  (faculty, teachers)", "… (CSE)").
+[web] Weekly index, no live fetching: WEB_RAG_REFRESH_HOURS 24 -> 168,
+  WEB_RAG_LIVE_PAGES 2 -> 0. The "unsure -> check the website" follow-up
+  only runs with live fetching on — from the cache alone it re-read the
+  same pages and said "I couldn't find it" as a second, third reply.
+[web] Whole pages: every page an answer draws on goes in whole while they
+  fit WEB_RAG_PAGE_WORDS (280 -> 1200, shared), else its best passages;
+  WEB_RAG_TOP_K 3 -> 5. A blind hit (no topic routed) stays one passage, and
+  a table / data row found blind needs 0.45 (a PTA parent's address at 0.37
+  answered the misheard "tracker day children").
+[llm] A turn with facts is sent as Query / Data / Instructions, the query
+  repeated in the instructions (a 3B model loses a question 1,000 words
+  back); "do not send the visitor to a person in the data unless the data
+  says that person handles exactly this".
+[setup] requirements: pypdf.
+
+─── 2026-10-13 — Switchable speech-to-text: Parakeet / Whisper ─────────────────
+
+[stt] config.STT_ENGINE picks the engine by number: 0 Vosk only,
+  1 Parakeet-TDT 0.6B v2 (default), 2 Whisper small.en, 3 Whisper base.en —
+  stt_engines.py, sherpa-onnx, int8, offline. Vosk still listens live
+  (utterance end, wake word); the engine re-reads that utterance's audio
+  (resampled, not gated/AGC'd) and its words are used. No words from the
+  engine = a cough / laugh / noise → dropped. Parakeet's own token
+  confidence replaces Vosk's for the misheard / addressing gates (Whisper
+  reports none, so Vosk's stays). If Vosk caught "luna" but the engine
+  wrote "lunar", the engine's words are kept minus that name. A model or
+  sherpa-onnx that is missing → a start-up line and plain Vosk.
+[stt] Word error rate (scripts/bench_stt_noise.py, Mac M3, 72 clips):
+  quiet 2.6 -> 0.5 %, fan 0 dB 13.8 -> 4.2 %, chatter 10 dB 26.5 -> 1.6 %,
+  chatter 5 dB 56.6 -> 4.8 % (Vosk -> Parakeet), 0.036 s compute per second
+  of audio. Whisper small is best in the loudest chatter (2.1 %) but ~4x
+  slower. The benchmark now has one column per downloaded engine.
+[stt] Engine words are put in Vosk's style: lower case, no punctuation,
+  "(laughs)" / "[BLANK_AUDIO]" dropped, "B.Tech program" -> "b tech
+  programme" (spellings and college terms only).
+[setup] requirements: sherpa-onnx. download_models.sh fetches the
+  STT_ENGINE model into models/stt/ (ALL_STT=1 for all three, full-precision
+  copies deleted); deploy.sh no longer rsyncs models/stt/.
+
+─── 2026-10-13 — Answer lag, one-word noise, website pages as sections ──────────
+
+[brain] History keeps plain questions: each answered turn's user message goes
+  back to the question alone. The retrieved facts / website extracts it
+  carried used to ride along in every later prompt (1,500+ tokens a few
+  turns in, seconds of extra prefill, old extracts resurfacing).
+[brain] "Hmm, let me think." (LLM_FILLERS) when the first word takes longer
+  than LLM_FILLER_AFTER (1.2 s): the model keeps writing in a thread while
+  she says it. A silent multi-second pause made people repeat themselves,
+  and the answer then arrived out of the blue.
+[stt] STT_MIN_LOUDNESS (0.10): an utterance quieter than this is room noise
+  Vosk made a word of ("laughs" 0.00, "gina" 0.01 — people at the mic
+  measure 0.35-0.85) and is ignored unless it says Luna's name. It used to
+  pass as the answer to Luna's own question on the continuity bonus.
+[brain] Probably misheard → ask again, don't improvise: a lone word below
+  STT_ONE_WORD_CONF (0.85) or a sentence below STT_UNCLEAR_CONF (0.60) that
+  matches neither the knowledge base nor a website page ("who is an
+  issue", 0.56). A clearly heard short answer ("good", 0.998) goes to the
+  LLM. Vosk's confidence now reaches brain via state.utterance_conf.
+[brain] LLM_TEMPERATURE 0.7 -> 0.3, and every prompt with facts ends "answer
+  only from the facts above … never make up numbers": it had invented
+  "85% placement last year" next to a knowledge-base 90%.
+[web] Once the best page is a section, other extracts must be within
+  SECTION_CUT (0.06) of it — "placement last year" no longer drags in
+  department news and a PTA row. Section words the site capitalises
+  ("Placement", "Achievements", …) are no longer taken for names by the
+  related-facts hop (it pulled the MoU list into a placement answer).
+[persona] No second hello: once a conversation is under way (an earlier
+  turn, or Luna's own greeting in the last 10 min) the name line says not
+  to greet again.
+[web] The best page goes into the prompt as a SECTION (WEB_RAG_PAGE_WORDS,
+  280): the whole page when short, else its best passages in reading
+  order — plus the page's own headlines (<h1>-<h4>, kept in the cache on
+  the page's first chunk). "What are the achievements" used to get one
+  120-word scrap of a ceremony speech; it now gets the list of awards.
+  Headlines fill in on the next refresh; no cache-version bump, so an
+  offline Pi keeps its index.
+[web] One readable .txt per cached page in data/rag_cache/pages/
+  (WEB_RAG_PAGES_TXT), rewritten on every refresh: what Luna knows about
+  each page, for checking an odd answer.
+
 ─── 2026-10-12 — Screen cards, touch = angry, certain people, face looks ────────
 
 [face] face_cards.py: full-screen cards the face cross-fades into (robot_face

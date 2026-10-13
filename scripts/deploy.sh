@@ -33,6 +33,8 @@ RSYNC_OPTS=(
   --exclude '*.premerge_bak'     # local pre-merge backups — never push to the Pi
   --exclude '*.pre_refactor_bak'
   --exclude 'models/llm/'        # ~1 GB gguf — the Pi downloads its own copy
+  --exclude 'models/stt/'        # Parakeet / Whisper (0.2-0.6 GB each) — the
+                                 # Pi downloads the STT_ENGINE it uses
                                  # (scripts/download_models.sh), don't rsync it
   --exclude 'data/faces/'        # the Pi's OWN memory of people — --delete
   --exclude 'data/face_log.jsonl'  # must never wipe these runtime files

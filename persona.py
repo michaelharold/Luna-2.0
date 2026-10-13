@@ -85,7 +85,8 @@ def system_prompt(knowledge_text=None):
 
 def format_context(kb_snippets=(), web_snippets=(), scene=None, person=None,
                    style=None, exemplars=(), profile=None, diary=None,
-                   background=None, web_related=()):
+                   background=None, web_related=(), greeted=False,
+                   answer_rule=True):
     """The per-turn context block, or "" when there is nothing to add.
 
     kb_snippets  — [(question, answer, score)] from brain's RAG-lite retrieval
@@ -101,11 +102,17 @@ def format_context(kb_snippets=(), web_snippets=(), scene=None, person=None,
                    ("I saw you looking surprised...") in reply to questions
                    that had nothing to do with it
     person       — recognised person's name, if any
+    greeted      — a conversation with them is already under way: the name
+                   line then says not to greet again (with it on every turn
+                   the model opened each answer with "Hi Michael, so cool to
+                   see you again!")
     profile      — one sentence about that person (learning.profile_context)
     exemplars    — [(question, reply)] liked replies to similar questions
     diary        — one relevant sentence from Luna's diary
     style        — the bandit's one-line style instruction; always the LAST
                    line, so it is the freshest thing the model reads
+    answer_rule  — False: no "answer only from the facts" line and no style
+                   line (build_user_turn puts its own instructions last)
 
     The learning fields are all optional: with them empty the output is
     byte-identical to the pre-learning prompt.
@@ -113,7 +120,8 @@ def format_context(kb_snippets=(), web_snippets=(), scene=None, person=None,
     parts = []
     if person:
         parts.append(f"The person talking to you is {person} (you recognised "
-                     f"their face).")
+                     f"their face)." + (" You are mid-conversation: do not "
+                                        "greet them again." if greeted else ""))
     if profile:
         parts.append(profile)
     if kb_snippets:
@@ -144,13 +152,43 @@ def format_context(kb_snippets=(), web_snippets=(), scene=None, person=None,
                      "manner, not the facts):\n" + ex)
     if diary:
         parts.append(f"From your diary: {diary}")
-    if style:
+    if (kb_snippets or web_snippets or web_related) and answer_rule:
+        # last before the style line, where the small model reads it: the
+        # system prompt's "never invent" alone did not stop "85% last year"
+        parts.append("Answer only from the facts above. If they do not "
+                     "answer the question, say you do not have that "
+                     "information. Never make up numbers, names or dates.")
+    if style and answer_rule:
         parts.append(f"Style for this reply: {style}")
     return "\n\n".join(parts)
 
 
+# A turn with facts to answer from (knowledge base / website pages) goes to the
+# model as Query / Data / Instructions. The query is repeated in the
+# instructions: after a whole website page a 3B model loses a question it
+# read 1,000 words earlier.
+DATA_INSTRUCTIONS = (
+    "Answer the query \"{q}\" using the data above. If the data does not "
+    "answer it, say you do not have that information yet and suggest asking "
+    "at the department office; do not talk about other things in the data "
+    "instead, and do not send the visitor to a person named in the data "
+    "unless the data says that person handles exactly this. If the query is "
+    "a general question, not about the college, answer it from your own "
+    "knowledge. Never make up numbers, names or dates.")
+
+
 def build_user_turn(question, **context):
-    """Context (if any) + the question, as ONE user message."""
+    """Context (if any) + the question, as ONE user message: Query / Data /
+    Instructions when there are facts to answer from, else the notes and
+    then the question."""
+    if any(context.get(k) for k in ("kb_snippets", "web_snippets",
+                                     "web_related")):
+        data = format_context(**dict(context, answer_rule=False))
+        msg = (f"Query: {question}\n\nData:\n{data}\n\n"
+               f"Instructions: {DATA_INSTRUCTIONS.format(q=question)}")
+        if context.get("style"):
+            msg += f"\n\nStyle for this reply: {context['style']}"
+        return msg
     ctx = format_context(**context)
     if not ctx:
         return question

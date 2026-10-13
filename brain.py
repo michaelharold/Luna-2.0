@@ -29,6 +29,8 @@ knowledge.txt still hot-reloads while Luna is running.
 
 import os
 import datetime
+import queue
+import random
 import re
 import threading
 import time
@@ -63,9 +65,14 @@ from config import (
     WEB_RAG_URL,
     WEB_RAG_LIVE_MIN_KB,
     WEB_RAG_LIVE_TIMEOUT,
+    WEB_RAG_LIVE_PAGES,
     WEB_RAG_DEPARTMENT,
     WEB_RAG_RELATED,
     PERSON_CARDS,
+    LLM_FILLER_AFTER,
+    LLM_FILLERS,
+    STT_UNCLEAR_CONF,
+    STT_ONE_WORD_CONF,
 )
 import console
 
@@ -90,20 +97,20 @@ question_embeddings = None
 _knowledge_mtime    = None
 
 # ── Sentence transformer — retrieval + offline matching ──────────────────────
-# Loaded from the local cache first (HF_HUB_OFFLINE forces huggingface_hub to
-# skip its network reachability check entirely) so a disconnected Pi never
-# depends on internet just to boot. Only reaches for the network if the model
-# isn't cached yet, and if that also fails (never downloaded + no internet)
-# Luna degrades to plain keyword matching instead of crashing.
+# Loaded straight from the cached snapshot folder first, so booting never
+# touches the network (setting HF_HUB_OFFLINE here would be too late —
+# huggingface_hub reads it once at import). A disconnected Pi, or a network
+# that intercepts TLS, would otherwise stall boot on retried HEAD requests.
+# Only reaches for the network if the model isn't cached yet, and if that
+# also fails (never downloaded + no internet) Luna degrades to plain keyword
+# matching instead of crashing.
 console.detail("[brain] Loading sentence transformer...")
 _st_model = None
 try:
-    os.environ["HF_HUB_OFFLINE"]      = "1"
-    os.environ["TRANSFORMERS_OFFLINE"] = "1"
-    _st_model = SentenceTransformer("all-MiniLM-L6-v2")
+    from huggingface_hub import snapshot_download
+    _st_model = SentenceTransformer(snapshot_download(
+        "sentence-transformers/all-MiniLM-L6-v2", local_files_only=True))
 except Exception:
-    os.environ.pop("HF_HUB_OFFLINE", None)
-    os.environ.pop("TRANSFORMERS_OFFLINE", None)
     try:
         _st_model = SentenceTransformer("all-MiniLM-L6-v2")
     except Exception as e:
@@ -263,8 +270,25 @@ def _turn_context(text, scene=None, with_kb=True, live_web=False,
         scene=scene,
         background=background,
         person=person,
+        greeted=_greeted(person),
         **_learning_context(text, person),
     )
+
+
+GREETED_FOR_SECS = 600.0   # Luna's own "Oh, hi Michael!" counts this long
+
+
+def _greeted(person):
+    """Has this conversation already had its hello — an earlier turn, or
+    Luna's own proactive greeting a few minutes ago?"""
+    if _history:
+        return True
+    try:
+        import proactive
+        at = proactive._last_greet.get(person) if person else None
+        return bool(at) and time.time() - at < GREETED_FOR_SECS
+    except Exception:                        # noqa: BLE001
+        return False
 
 
 # ── Learning hooks ────────────────────────────────────────────────────────────
@@ -367,6 +391,18 @@ def _push_user(text):
         _history.pop(0)
 
 
+def _slim_user(question):
+    """Once a turn is answered, its user message goes back to the plain
+    question. The retrieved facts, website extracts and notes it carried
+    were for THAT answer; left in the history every later turn re-sent
+    them (2-3 turns in, the prompt was 1,500+ tokens and the first word
+    took seconds longer) and the model kept talking about old extracts."""
+    for m in reversed(_history):
+        if m["role"] == "user":
+            m["content"] = question
+            return
+
+
 def _drop_user():
     """Undo _push_user after a failed generation, so a dropped question doesn't
     poison the next request's history."""
@@ -435,6 +471,7 @@ def _stream_llm(text, context):
 
     reply = "".join(parts).strip()
     if reply:
+        _slim_user(text)
         _history.append({"role": "assistant", "content": reply})
         console.detail(f"[brain] LLM: {reply}")
     else:
@@ -458,14 +495,62 @@ def _wait_for_llm(max_wait=15.0):
         time.sleep(0.25)
 
 
-def _llm_stream_or_none(text, context):
+_END = object()     # end of a prefetched stream
+
+
+def _prefetched(gen):
+    """Run the generator `gen` in a thread, its deltas going into a queue,
+    so the model keeps writing while Luna says something else."""
+    q = queue.Queue()
+
+    def pump():
+        try:
+            for d in gen:
+                _mark_first_token()
+                q.put(d)
+        except Exception as e:               # noqa: BLE001 — re-raised below
+            q.put(e)
+        finally:
+            q.put(_END)
+
+    threading.Thread(target=pump, daemon=True, name="llm_prefetch").start()
+    return q
+
+
+def _drain(q, first):
+    yield first
+    while True:
+        d = q.get()
+        if d is _END:
+            return
+        if isinstance(d, Exception):
+            raise d
+        yield d
+
+
+def _llm_stream_or_none(text, context, filler=False):
     """Start a streaming reply and pull the first delta so failures surface
     before anything is spoken. Returns an iterator of deltas, or None to use
-    the KB fallback."""
+    the KB fallback. filler=True: if the first word takes longer than
+    LLM_FILLER_AFTER, Luna says a short "Hmm, let me think." meanwhile — a
+    silent pause of several seconds made people repeat themselves or walk
+    on, and the answer then landed out of the blue."""
     _wait_for_llm()
     if not llm_local.available() or not LLM_STREAMING:
         return None
     gen = _stream_llm(text, context)
+    if filler and LLM_FILLER_AFTER > 0 and LLM_FILLERS:
+        q = _prefetched(gen)
+        try:
+            first = q.get(timeout=LLM_FILLER_AFTER)
+        except queue.Empty:
+            speak(random.choice(LLM_FILLERS))    # the model keeps writing
+            first = q.get()
+        if first is _END:
+            return None
+        if isinstance(first, Exception):
+            raise first
+        return _drain(q, first)
     try:
         first = next(gen)
     except StopIteration:
@@ -984,6 +1069,58 @@ def _answer_from_website(topic, auto=False):
     _say(f"Here's what the college website says. {best}")
 
 
+# ── Misheard: ask again instead of improvising ───────────────────────────────
+# Vosk turns a cough, a laugh or half a sentence into real words ("laughs",
+# "gina", "who is an issue"). Right after Luna asks something the addressing
+# gate lets those through as the answer, and the LLM then made up a reply
+# ("I think I just gave away your secret!"). When what was heard matches
+# nothing Luna knows AND Vosk itself was unsure, she asks to hear it again.
+# A clearly heard short answer ("good", 0.998) still goes to the LLM.
+_SHORT_OK = frozenset((
+    "yes yeah yep yup ya no nope nah ok okay sure fine thanks thank hi "
+    "hello hey bye goodbye why what how who when where which really cool "
+    "nice great wow sorry please more continue maybe right correct wrong "
+    "true false done stop again").split())
+_FILLER_WORDS = frozenset("the a an um uh umm hmm ah oh er so and".split())
+THIN_TOPIC_MIN = 0.45   # a lone word routed to a website topic this well is
+                        # a real question ("placements", "hostel")
+_ONE_WORD_REPLIES = ('Sorry, I only caught "{}". Could you say that again?',
+                     'I only heard "{}". What would you like to know?')
+_UNCLEAR_REPLIES = ("Sorry, I didn't quite catch that. Could you say it again?",
+                    "I missed some of that. Could you say it once more?")
+
+
+def _knows_topic(text, kb_score):
+    """Does the utterance match something Luna knows — the knowledge base,
+    or a website page it routes to?"""
+    if kb_score >= LOCAL_MATCH_THRESH:
+        return True
+    if _web_enabled():
+        try:
+            routed = web_rag.route(text)
+            return bool(routed) and routed[0][1] >= THIN_TOPIC_MIN
+        except Exception as e:               # noqa: BLE001
+            console.detail(f"[brain] route check failed: {e}")
+    return False
+
+
+def _misheard_reply(text, kb_score):
+    """The ask-again line for an utterance Luna probably misheard, else
+    None. conf is None for text that did not come from the mic."""
+    with state.lock:
+        conf = state.utterance_conf
+    words = [w for w in re.findall(r"[a-z']+", text.lower())
+             if w not in _FILLER_WORDS]
+    if len(words) == 1:
+        if (words[0] in _SHORT_OK or conf is None
+                or conf >= STT_ONE_WORD_CONF or _knows_topic(text, kb_score)):
+            return None
+        return random.choice(_ONE_WORD_REPLIES).format(text.strip())
+    if conf is None or conf >= STT_UNCLEAR_CONF or _knows_topic(text, kb_score):
+        return None
+    return random.choice(_UNCLEAR_REPLIES)
+
+
 # ── Main process ──────────────────────────────────────────────────────────────
 
 def process(text):
@@ -1078,6 +1215,15 @@ def process(text):
             _log_turn("kb", reply)
             return
 
+    # 4b — probably misheard and about nothing Luna knows: ask again
+    again = _misheard_reply(text, kb_score)
+    if again:
+        console.detail(f"[brain] Probably misheard: {text!r}")
+        _say(again)
+        with state.lock:          # no "answering Luna's question" bonus for
+            state.awaiting_answer = False    # the next stray sound either
+        return
+
     # 5 — the local LLM, with only the RELEVANT KB entries (and website
     # extracts) in the prompt. A question about the college that the cached
     # website can't answer fetches matching pages live first. Streaming:
@@ -1087,7 +1233,7 @@ def process(text):
     college = (kb_score >= WEB_RAG_LIVE_MIN_KB
                and not intents.needs_scene_context(text))
     context = _turn_context(text, live_web=college)
-    stream  = _llm_stream_or_none(text, context)
+    stream  = _llm_stream_or_none(text, context, filler=True)
     if stream is not None:
         console.detail("[brain] Using local LLM (streaming)")
         _show_source(context)
@@ -1095,8 +1241,12 @@ def process(text):
         reply = (_history[-1]["content"]
                  if _history and _history[-1]["role"] == "assistant" else "")
         # Low confidence on a college question: check the website (live,
-        # forced) before leaving the visitor with "I don't know".
-        if college and _unsure(reply) and _web_enabled():
+        # forced) before leaving the visitor with "I don't know". Only with
+        # live fetching on: from the weekly index alone the re-check reads the
+        # same pages the answer already had, and only adds a second "couldn't
+        # find it" reply to the first.
+        if (college and _unsure(reply) and _web_enabled()
+                and WEB_RAG_LIVE_PAGES > 0):
             print("[brain] Unsure answer — checking the college website")
             _seen_web[:] = [u for u, _, _ in context.get("web_snippets", ())]
             _log_turn("llm", reply)
@@ -1111,6 +1261,7 @@ def process(text):
         _push_user(persona.build_user_turn(text, **context))
         reply = _STAGE_RE.sub("", llm_local.ask(_messages()) or "").strip()
         if reply:
+            _slim_user(text)
             _history.append({"role": "assistant", "content": reply})
             console.detail(f"[brain] LLM: {reply}")
             _show_source(context)
