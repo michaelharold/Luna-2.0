@@ -4,6 +4,116 @@
   Format: date · area · what changed · why
 ══════════════════════════════════════════════════════════════════
 
+─── 2026-10-14 — Registration: the right name, faster ──────────────────────────
+
+[enroll] A heard name is matched against the college's students and staff
+  (the website index) and the registered faces (people.closest_name):
+  heard exactly and clearly -> registered at once, no "Did you say";
+  close -> offered in its known spelling ("Did you say Navya?"), a "no"
+  takes what was heard; unknown -> "Did you say Navia?", a "no" asks to
+  spell it ("n a v i a" / "en ay vee eye ay"). A short reply keeps the
+  whole name ("navia thomas"), not just its first word.
+[enroll] Faster: vision keeps the "look straight" samples while Luna asks
+  for / checks the name (state.enroll_precapture_until) — that pose is then
+  not asked for; the greeting is said with the first pose prompt; pose
+  settle 0.4 -> 0.2 s, pose wait 2.5 -> 1.5 s, result polled every 50 ms.
+[enroll] Touch registration works with ENABLE_PROACTIVE off, and the long
+  press opens the conversation at once (no wake word for the name).
+
+─── 2026-10-14 — One call: the digest in the cached system prompt ──────────────
+
+[fetch] FETCH_MODE "digest" (new default). The robot answered "tell me
+  about rishma sheikh" with an Indian actress: the misheard name matched
+  no page, so the model answered from memory. Now: the weekly index also
+  writes data/site/digest.txt (every page file's key facts, ~3,500 words);
+  the system prompt is persona + knowledge.txt + digest (read once, cached);
+  each question is ONE call with its matching page lines, found by closest
+  spelling (fetch.library.lookup_lines). Tested: "Dr. Reshma Sheik is an
+  Assistant Professor ... holds a PhD". "route" mode (two calls) remains.
+[fetch] Person-name hints match by closest spelling too (route mode).
+[llm] OLLAMA_NUM_CTX 4096 -> 8192 (the digest + knowledge base are ~3,700
+  tokens; KV cache ~0.9 GB on the Pi).
+[note] While site_index.py runs, Luna's prompt is pushed out of Ollama's
+  single cache slot by every indexing call: each question re-reads ~3,800
+  tokens. Don't judge Luna's speed while indexing.
+
+─── 2026-10-14 — Fetch Algo: faster on the Pi ──────────────────────────────────
+
+[fetch] FETCH_DATA_WORDS 700 -> 250 (the Pi reads every word of page data
+  before the first spoken word); "### " sub-headings are sections too, and
+  the budget goes by rank (first page the biggest share).
+[index] FAQ: Llama writes SITE_FAQ_PER_PAGE (8) questions + answers per
+  page file (answers with a number the page lacks are dropped); brain
+  answers a close match at once, like knowledge.txt.
+[brain] Answer cache (FETCH_CACHE): answers from page data are kept 7 days
+  (a new index clears them); the same question again: 0.3 s instead of a
+  full answer. Not kept: scene questions, answers naming the person.
+[brain] FETCH_DIRECT: no route call for "who is <indexed name>" or a query
+  naming one page file ("placements").
+[brain] A REPLY to a question with college words (FETCH_COLLEGE_WORDS) or a
+  knowledge-base match is overruled and answered from the pages sharing its
+  words: the 3B model had REPLY'd "who are the teachers in cse" with
+  invented names.
+[vision] VISION_FPS_THINKING (1): the camera slows while the LLM reads a
+  prompt (state.thinking) — they share the Pi's 4 cores.
+[tts] TTS_FIRST_CLAUSE_CHARS (25): the first chunk may end at a comma.
+[llm] FETCH_ROUTE_MODEL (off): llama3.2:1b routed 6/12 right (3B: 11/12) and
+  IGNOREd two real questions. fetch.py --model compares models on the Pi
+  (e.g. llama3.2:3b-instruct-q4_0). Verified: Ollama reuses the cached
+  system prompt (its log: 14 new tokens read, not 1,700).
+
+─── 2026-10-13 — Fetch Algo: indexing + LLM routing replace web RAG ────────────
+
+[web] The website is now known through two steps (docs/Fetch Algo.md):
+  Indexing (site_index.py, by hand about once a week, on the Mac) and
+  Data Fetch (fetch.py, every question). web_rag.py (chunks, embeddings,
+  topic routing, live fetching, "check the website", related-facts hop)
+  is gone; its crawler lives on as site_crawler.py.
+[index] Crawl -> group -> organize -> describe. Every page, ETLab data
+  section and PDF goes to one topic file by SITE_PAGES (38 files instead of
+  ~160 page dumps: cse_people, cse_research, admissions, examinations ...;
+  one per other department; the TKM institutions share one). Dropped:
+  tenders, RTI, office orders, meeting minutes, quotation notices, PDFs
+  named only by a number (100+ scholarship government orders). Llama
+  (llama3.2:3b) turns each file's prose into short "## / -" notes; notes
+  that lose >20% of the numbers and names or invent a number are replaced
+  by the cleaned text. Lists (staff, students, publications, tables) are
+  formatted without the LLM; duplicate lists ("Regular staff" = "Regular
+  teaching staff") kept once; ALL-CAPS names title-cased for the voice.
+  Llama answers are cached by input hash: next week only changed pages.
+[index] catalog.json: one Llama-written line per file (the LIBRARY), the
+  knowledge base as page "kb", a name index (person name -> files) and the
+  staff lists for the person cards.
+[fetch] ROUTE: the system prompt is persona + LIBRARY + FETCH_SYSTEM_RULES,
+  byte-identical on every call (Ollama keeps it cached; read once at boot,
+  FETCH_PRIME_AT_BOOT). The model answers PAGES: a, b (generation is cut
+  as soon as the line ends) / REPLY: ... (spoken as it streams — small talk
+  and general questions take ONE call) / AGAIN (misheard: "could you say
+  it again?") / IGNORE (noise: silence). It is told when speech
+  recognition was unsure and which files name a person in the query.
+[fetch] ANSWER: the query + those files' data (whole while they fit
+  FETCH_DATA_WORDS = 700, else their sections / lines that share words with
+  the query) + who is asking + scene context + learned style.
+[brain] Pipeline: commands -> clock -> camera -> knowledge base (instant,
+  >= 0.70) -> route -> reply / again / ignore / answer -> KB fallback. The
+  misheard check, the unsure -> website retry and the KB -> LLM detour for
+  related website facts are replaced by the route step. KB answers now join
+  the conversation history (follow-ups like "what is his PhD from?").
+[config] Rewritten in 22 numbered sections with a contents table; every
+  value unchanged. WEB_RAG_* -> SITE_* (indexing) and FETCH_* (data fetch,
+  with every LLM instruction: SITE_ORGANIZE_PROMPT, SITE_DESCRIBE_PROMPT,
+  FETCH_SYSTEM_RULES, FETCH_ROUTE_TASK, FETCH_ANSWER_TASK). Removed unused:
+  LLM_KB_TOP_K, LLM_KB_MIN_SIM, USE_ESP32_CAM, SERVO_NOD_ON_REPLY,
+  BOOP_SECONDS, AUDIO_OUTPUT_DEVICE.
+[persona] Small talk 1-2 sentences; answers from college data up to five.
+  Per-turn prompt building moved to fetch.py (one prompt format: the
+  benchmark and the training simulator use it too).
+[deploy] data/site/ (pages + catalog) is synced to the Pi; its raw crawl
+  and Llama cache stay on the Mac. data/rag_cache/ removed.
+[cleanup] Train Instructions.pdf removed (outdated copy of the .md).
+  Tests: 440 (test_site_crawler, test_site_index, test_fetch replace
+  test_web_rag).
+
 ─── 2026-10-13 — Website: all of it, weekly, whole pages to the LLM ────────────
 
 [boot] The sentence transformer loads from its cached folder
@@ -29,9 +139,13 @@
   Scanned PDFs have no text and are reported "needs OCR" — the placement
   statistics are such scans, so placement numbers are still unknown.
 [web] Lists are no longer cut at 40 (all 166 CSE publications), tables at 60.
-[web] data/rag_cache/pages/: one .txt per link — every page, skipped,
-  duplicate and broken ones too, each data source and PDF — with its status,
-  its text, its tables / data and what its data sources and PDFs gave.
+[web] data/rag_cache/pages/: one structured .txt per real page (header:
+  title, URL, status, cache time; headlines; text; its tables; the data
+  sections and PDFs it brought in, each once; a status line for every file
+  / data source it links to), students.txt (all student rows, by class
+  list) and _index.txt (every other link: duplicates, skipped, broken,
+  empty frames, data sources, PDFs — each with its status). ~160 files
+  instead of ~940.
 [web] Data and PDFs fetched once are still reached through every page that
   loads them: a page that is only a frame for its data (faculty-cse.php)
   fully, a page named after a section (btech-cse.php -> B.Tech) at 0.85;

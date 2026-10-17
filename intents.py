@@ -12,6 +12,9 @@ intents.py — plain-text intents Luna decides BEFORE any model is asked.
                                the person is certain)
     needs_scene_context(text)  questions about who is / was around — the only
                                ordinary questions that get scene memory
+    expand_abbreviations(text) "hod of cse" -> "... head of department HOD ...
+                               computer science and engineering" (the
+                               college words, ABBREVIATIONS)
 
 Pure functions on text; nothing here imports another Luna module.
 """
@@ -100,3 +103,39 @@ def needs_scene_context(text):
     """Does answering this need to know who is / was around? Only then does
     scene memory go into an ordinary question's prompt."""
     return bool(_SCENE.search((text or "").lower()))
+
+
+# The college's short forms, spelled out. A spoken question says "hod of
+# cse"; the knowledge base and the website say "head of department" and
+# "Computer Science and Engineering". Shared by brain.py (knowledge-base
+# matching), fetch.py (word matching inside a page) and site_crawler.py
+# (readable names for the ETLab data sections).
+ABBREVIATIONS = {
+    "cse": "computer science and engineering",
+    "cs": "computer science",
+    "ece": "electronics and communication engineering",
+    "eee": "electrical and electronics engineering",
+    "me": "mechanical engineering", "mech": "mechanical engineering",
+    "ce": "civil engineering", "civil": "civil engineering",
+    "chem": "chemical engineering", "arch": "architecture",
+    "mca": "computer applications MCA",
+    "nts": "non teaching staff", "hod": "head of department HOD",
+    "hods": "heads of department HODs", "ug": "undergraduate",
+    "pg": "postgraduate", "phd": "PhD research", "rs": "research scholars",
+    "btech": "BTech", "mtech": "MTech", "faq": "frequently asked questions",
+    "nss": "national service scheme NSS", "iqac": "quality assurance IQAC",
+}
+
+
+def expand_abbreviations(text):
+    """Each college short form followed by its spelled-out words ("hod of
+    mech" -> "hod head of department HOD of mech mechanical engineering").
+    Two-letter forms ("me", "cs") are left alone: they are ordinary words
+    in a sentence."""
+    out = []
+    for w in (text or "").split():
+        out.append(w)
+        key = w.lower().strip(".,;:!?()'\"")
+        if key in ABBREVIATIONS and len(key) > 2:
+            out.append(ABBREVIATIONS[key])
+    return " ".join(out)

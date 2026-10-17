@@ -1,6 +1,6 @@
 # tests/test_learning.py
-"""Unit tests for the on-device learning loop (learning.py) and the persona
-prompt it feeds. Temp dirs via configure(), a seeded RNG, a tiny bag-of-words
+"""Unit tests for the on-device learning loop (learning.py) and the prompt
+notes it feeds (fetch.py). Temp dirs via configure(), a seeded RNG, a tiny bag-of-words
 embedder and injected timestamps — no models, no sleeping:
 
     python -m unittest tests.test_learning -v
@@ -28,7 +28,7 @@ config.FACE_DB_DIR = _tmpdir
 
 import conversation_log as cl  # noqa: E402
 import learning as L           # noqa: E402
-import persona                 # noqa: E402
+import fetch                   # noqa: E402
 
 T0 = dt.datetime(2026, 9, 24, 10, 0, 0).timestamp()   # a Thursday morning
 ARM = "one_sentence|playful|ask"
@@ -373,55 +373,30 @@ class TestReplay(LearningTestBase):
         self.assertEqual(len(L.all_exemplars()), 1)
 
 
-class TestPersonaLearningFields(unittest.TestCase):
-    CTX = dict(kb_snippets=[("q1", "a1", 0.9)],
-               web_snippets=[("site", "chunk", 0.5)],
-               scene="a person smiling", person="Alice")
+class TestPromptLearningFields(unittest.TestCase):
+    """The learning fields in Luna's prompts (fetch.py): each only when
+    there is one, the style line last of the notes."""
 
-    def test_byte_identical_when_empty(self):
-        expected = (
-            "The person talking to you is Alice (you recognised their face)."
-            "\n\nFacts from your knowledge base that may be relevant:\n- q1: a1"
-            "\n\nExtracts from the college website that may be relevant:\n"
-            "- chunk"
-            "\n\nWhat your camera sees RIGHT NOW (answer from this, in your "
-            "own warm words):\na person smiling"
-            "\n\nAnswer only from the facts above. If they do not answer "
-            "the question, say you do not have that information. Never make "
-            "up numbers, names or dates.")
-        self.assertEqual(persona.format_context(**self.CTX), expected)
-        self.assertEqual(persona.format_context(
-            **self.CTX, style=None, exemplars=(), profile=None, diary=None),
-            expected)
-        self.assertEqual(persona.format_context(), "")
-        self.assertEqual(persona.build_user_turn("hi", style=None,
-                                                 exemplars=()), "hi")
+    def test_nothing_extra_when_empty(self):
+        msg = fetch.route_message("hi", style=None, profile=None, diary=None)
+        self.assertEqual(msg, fetch.route_message("hi"))
+        self.assertNotIn("\n\n", msg)
+        ans = fetch.answer_message("where is the lab", "- Lab: block B")
+        self.assertNotIn("Style for a reply", ans)
+        self.assertNotIn("Replies people liked", ans)
 
-    def test_style_is_last_line(self):
-        out = persona.format_context(
-            **self.CTX, style="Answer in one short sentence.",
+    def test_style_profile_diary_and_exemplars(self):
+        msg = fetch.answer_message(
+            "where is the lab", "- Lab: block B", style="Be brief.",
             exemplars=[("q", "a")], profile="You have met Alice twice.",
-            diary="On 2026-09-23: I learned a lot.")
-        self.assertEqual(out.splitlines()[-1],
-                         "Style for this reply: Answer in one short sentence.")
-        self.assertIn("You have met Alice twice.", out)
-        self.assertIn("- Q: q\n  A: a", out)
-        self.assertIn("From your diary: On 2026-09-23", out)
-        msg = persona.build_user_turn("where is the lab",
-                                      style="Be brief.")
-        self.assertEqual(msg, "Style for this reply: Be brief.\n\n"
-                              "Question: where is the lab")
-
-    def test_turn_with_data_is_query_data_instructions(self):
-        msg = persona.build_user_turn(
-            "who is the hod", web_snippets=[("u", "HOD page: Dr. A", 0.6)],
-            style="Be brief.")
-        self.assertTrue(msg.startswith("Query: who is the hod\n\nData:\n"))
-        self.assertIn("- HOD page: Dr. A", msg)
-        data, instr = msg.split("\n\nInstructions: ")
-        self.assertNotIn("Answer only from the facts above", data)
-        self.assertTrue(instr.startswith('Answer the query "who is the hod"'))
-        self.assertTrue(msg.endswith("Style for this reply: Be brief."))
+            diary="On 2026-09-23: I learned a lot.", person="Alice")
+        notes = msg.split("Data:", 1)[1]
+        self.assertIn("The person asking is Alice", notes)
+        self.assertIn("You have met Alice twice.", notes)
+        self.assertIn("From your diary: On 2026-09-23", notes)
+        self.assertIn("- Q: q\n  A: a", msg)
+        before = msg.split("Instructions:")[0].strip()
+        self.assertTrue(before.endswith("Style for a reply: Be brief."), before)
 
 
 if __name__ == "__main__":

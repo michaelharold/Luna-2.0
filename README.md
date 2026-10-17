@@ -4,12 +4,12 @@ Luna is an offline desk robot for a college Computer Science department. She run
 
 What she does:
 
-- **Listens** with offline speech recognition (Vosk, Indian-English model). She only answers when someone is actually talking to her, not to room chatter.
-- **Answers** questions about the college from `data/knowledge.txt`. For everything else she uses a local LLM served by Ollama (default `llama3.2:3b`). She answers general questions briefly and says plainly when something is outside what she knows.
+- **Listens** with offline speech recognition (Vosk listens live, Parakeet writes down what was said). She only answers when someone is actually talking to her, not to room chatter.
+- **Answers** with a local LLM served by Ollama (default `llama3.2:3b`): close matches in `data/knowledge.txt` instantly, college questions from the website index, general questions briefly. She says plainly when something is outside what she knows.
 - **Recognises people** she has been introduced to, greets them with a dedicated animation, and starts conversations with people she knows.
 - **Understands the scene** ("what do you see?") and remembers who came and went, so conversation carries context.
 - **Learns from daily life**: which reply style people like, who asks about what, answers that worked, and facts people teach her (after approval).
-- **Reads a website** (on by default: tkmce.ac.in). When online, she indexes the site and answers from a cached copy, which also works offline. Questions are routed to the matching pages (general college + CSE), and "look into the website" re-checks the last question.
+- **Knows the college website** (tkmce.ac.in). Once a week you run the indexing on the Mac: it reads the whole site (pages, ETLab staff / student lists, PDFs), groups it into ~40 topic files and has Llama clean each one up. For each question, the LLM first picks the files that may hold the answer from a one-line description of each, then answers from them. Nothing is downloaded while a visitor waits. See [docs/Fetch Algo.md](docs/Fetch%20Algo.md).
 
 No cloud APIs, keys or accounts are needed at runtime.
 
@@ -133,7 +133,7 @@ With no monitor attached (over SSH), add `SDL_VIDEODRIVER=dummy` in front.
 
 ## 5. Configuration and paths
 
-Every setting lives in **`config.py`**, grouped by section and commented. `RUN_MODE = "auto"` picks Mac or Pi behaviour automatically, so the same file works on both. These are the settings most people change:
+Every setting lives in **`config.py`**, in 22 numbered sections (the contents are at the top of the file) and commented. `RUN_MODE = "auto"` picks Mac or Pi behaviour automatically, so the same file works on both. These are the settings most people change:
 
 | Setting | Default | Change it when |
 |---|---|---|
@@ -147,7 +147,9 @@ Every setting lives in **`config.py`**, grouped by section and commented. `RUN_M
 | `PIPER_PATH`, `PIPER_MODEL` | `/home/luna/piper/...` | Piper is installed somewhere else (Pi only) |
 | `AUDIO_INPUT_DEVICE` | Mac: default, Pi: `"pipewire"` | your microphone has a different name |
 | `CAMERA_SOURCE` | Mac: `"usb"`, Pi: `"picam"` | you use a USB camera on the Pi |
-| `WEB_RAG_URL` | `"https://tkmce.ac.in/"` | you want her to read another website (`""` = off) |
+| `SITE_URL`, `SITE_PAGES` | tkmce.ac.in, ~25 topic files | you index another website, or group its pages differently (`SITE_URL = ""` = off) |
+| `FETCH_DATA_WORDS` | `700` | answers should be fuller (higher) or faster on the Pi (lower) |
+| `FETCH_SYSTEM_RULES`, `FETCH_ROUTE_TASK`, `FETCH_ANSWER_TASK` | see comments | you change what the LLM is told when choosing pages and answering |
 | `ROBOT_NAME`, `WAKE_WORDS` | `Luna`, hello / luna / hey luna | you rename her |
 | `ENABLE_SERVOS` | `True` | no servos attached (it falls back to simulation anyway) |
 | `ADDR_*`, `LOUDNESS_*` | see comments | she answers too much or too little |
@@ -189,12 +191,13 @@ venv/bin/python scripts/approve_facts.py --approve 1 "when does the library clos
 
 **Other commands.** "Volume up / down / fifty percent", "go to sleep", "wake up", "change your face", "what do you see?". To shut down, say "exit", then "exit" again as the password.
 
-**Website knowledge.** `WEB_RAG_URL` in `config.py` points at `https://tkmce.ac.in/`. Luna builds a catalog from the menus of the home page and the CSE page: the general college pages plus the CSE pages, while other departments and files are skipped. She downloads them in parallel (about 160 pages in under a minute) and caches them in `data/rag_cache/`, refreshed daily when online. Every question is first routed to the pages it is about (menu path, link text and title), and only those pages are searched. Related pages are searched together, such as Faculty → Regular and Adhoc. Staff lists that pages load with JavaScript are read from their JSON. Table rows are indexed one by one. Student lists, e-mails and phone numbers are left out. "Look into the website" re-checks the last question. See [Syntaxes.md](Syntaxes.md) for the commands:
+**Website knowledge (weekly).** Run the indexing on the Mac about once a week, then deploy. It reads tkmce.ac.in (the menus, `data/website_links.txt`, the ETLab data behind the CSE pages, the PDFs). It groups everything into topic files by the rules in `SITE_PAGES`, lets Llama turn each into compact notes (fact-checked), and writes a one-line description of each to `data/site/catalog.json`. A first run takes a couple of hours; later runs only send changed pages to Llama. How a question is then answered (route, then answer) is in [docs/Fetch Algo.md](docs/Fetch%20Algo.md).
 
 ```bash
-venv/bin/python web_rag.py --verify                     # check every link in scope
-venv/bin/python web_rag.py --refresh                    # rebuild the cache
-venv/bin/python web_rag.py --route "when is the exam"   # which pages a question goes to
+venv/bin/python site_index.py              # crawl + group + organize + describe
+venv/bin/python site_index.py --status     # what is indexed
+venv/bin/python fetch.py "who is the hod"  # try a question: route, data, answer
+scripts/deploy.sh --go                     # the Pi gets data/site/ with the code
 ```
 
 ## 7. Choosing the LLM
@@ -254,7 +257,7 @@ scripts/deploy.sh --go --seed-learning
 ## 9. Tests and benchmarks
 
 ```bash
-venv/bin/python -m unittest discover tests          # 275 tests, no hardware needed
+venv/bin/python -m unittest discover tests          # 440 tests, no hardware needed
 venv/bin/python scripts/bench_llm.py                 # LLM quality + speed
 venv/bin/python scripts/bench_face.py --shots out/   # face render time + PNG per expression
 venv/bin/python scripts/bench_vision.py              # face detection / recognition time
@@ -268,8 +271,9 @@ venv/bin/python scripts/show_face.py happy           # show one expression in a 
 Luna-2.0/
 ├── main.py                  start here: launches every thread and the face
 ├── config.py                every setting
-├── brain.py                 answer pipeline (commands → vision → KB → LLM)
-├── persona.py               Luna's system prompt and scope rules
+├── brain.py                 answer pipeline (commands → clock → vision → KB → route → answer)
+├── fetch.py                 Data Fetch: the LIBRARY, route / answer prompts, page data
+├── persona.py               Luna's persona and scope rules
 ├── llm_local.py, llm_ollama.py        LLM backends
 ├── speech_to_text.py, audio_preprocess.py, addressing.py    hearing
 ├── text_to_speech.py, piper_tts.py                          speaking
@@ -277,15 +281,18 @@ Luna-2.0/
 ├── proactive.py, commands.py, gesture_module.py, behavior_engine.py, servo_module.py
 ├── robot_face.py, face_renderer.py, face.py, expressions.py, face_parts.py, face_particles.py, face_style.py
 ├── conversation_log.py, learning.py                          logs + learning
-├── web_rag.py               optional website index
-├── data/knowledge.txt       the college facts Luna answers from
+├── site_index.py            Indexing (weekly): group, organize, describe the website
+├── site_crawler.py          Indexing step 1: read the website (pages, data, PDFs)
+├── data/knowledge.txt       curated college facts (instant answers + a library page)
+├── data/website_links.txt   hand-picked website pages, always indexed
+├── data/site/               the website index: pages/*.txt + catalog.json
 ├── models/                  emotion model, vision ONNX models (LLM lives in Ollama)
 ├── scripts/                 install, deploy, models, benchmarks, training, tools
 ├── tests/                   unit tests + LLM evaluation set
 └── docs/                    architecture, benchmark results, servo wiring, changelog
 ```
 
-Every command in one place: [Syntaxes.md](Syntaxes.md). Website knowledge and training: [Train Instructions.md](Train%20Instructions.md) (also as a [PDF](Train%20Instructions.pdf)). Architecture in depth: [docs/PROJECT_PIPELINE.md](docs/PROJECT_PIPELINE.md). Change history: [docs/UPDATES.txt](docs/UPDATES.txt). Servo wiring: [docs/SERVO_SETUP.md](docs/SERVO_SETUP.md).
+Every command in one place: [Syntaxes.md](Syntaxes.md). How Luna knows the website: [docs/Fetch Algo.md](docs/Fetch%20Algo.md). Website knowledge and training: [Train Instructions.md](Train%20Instructions.md). Architecture in depth: [docs/PROJECT_PIPELINE.md](docs/PROJECT_PIPELINE.md). Change history: [docs/UPDATES.txt](docs/UPDATES.txt). Servo wiring: [docs/SERVO_SETUP.md](docs/SERVO_SETUP.md).
 
 ## 11. Troubleshooting
 

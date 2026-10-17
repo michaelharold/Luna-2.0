@@ -30,6 +30,8 @@ class SharedState:
         "last_activity_time",
         "mic_unblock_time",      # time.time() after which mic is allowed
         "luna_mode",             # "idle" | "listening" | "processing" | "speaking"
+        "thinking",              # True while the LLM reads a prompt (brain):
+                                 # vision slows to VISION_FPS_THINKING
         "face_override",         # temporary face state ("excited" | "love" | None)
         "face_override_until",   # time.time() when the override expires
         "mic_ok",                # False when no working microphone was found
@@ -58,6 +60,9 @@ class SharedState:
         "utterance_conf",        # 0..1 Vosk confidence of the last utterance
         "person_since",          # time.time() the current person was first seen
         "enroll_preview_until",  # time.time() until which the camera preview shows
+        "enroll_precapture_until",  # time.time() until which vision keeps
+                                 # "look straight" samples while Luna asks
+                                 # for the name (commands -> vision)
         # ── full-screen cards in place of the face (face.py / face_cards.py) ─
         "card",                  # {"kind": "date"|"time"|"person"|"greeting", ...}
         "card_set_at",           # time.time() the card was requested
@@ -88,6 +93,7 @@ class SharedState:
         self.last_activity_time  = 0.0
         self.mic_unblock_time    = 0.0
         self.luna_mode           = "idle"
+        self.thinking            = False
         self.face_override       = None
         self.face_override_until = 0.0
         self.mic_ok              = True
@@ -111,6 +117,7 @@ class SharedState:
         self.utterance_conf      = None   # None = not from the mic (typed/tests)
         self.person_since        = 0.0
         self.enroll_preview_until = 0.0
+        self.enroll_precapture_until = 0.0
         self.card                = None
         self.card_set_at         = 0.0
         self.card_since          = 0.0

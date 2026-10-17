@@ -2,7 +2,7 @@
 
 This guide covers the two ways Luna gets smarter after setup:
 
-1. **Website knowledge (web RAG).** Luna reads a website and answers from it.
+1. **Website knowledge.** Once a week, Luna's index of the college website is rebuilt; she answers college questions from it.
 2. **Learning from daily use.** Luna logs conversations, learns which answers and reply styles work, and accepts new facts after you approve them.
 
 Neither step changes the LLM's weights. Luna's model stays the same; what grows is the knowledge, examples and preferences that go into each prompt. That is why training is fast, runs on a Mac or the Pi, and can be undone by deleting a folder.
@@ -11,97 +11,31 @@ It assumes Luna is already installed and runs (see `README.md`). Run every comma
 
 ---
 
-## Part 1 — Website knowledge (web RAG)
+## Part 1 — Website knowledge (weekly indexing)
 
-### What it does
-
-When the machine is online, Luna does five things:
-
-- reads the menus of the home page and the CSE page; those menus are her catalog of topics (general college pages plus CSE pages; other departments and files are skipped)
-- downloads every catalog page in parallel and checks each link (`web_rag.py --verify` prints the report)
-- splits pages into passages, table rows and the staff lists the pages load as JSON
-- turns each one into a vector with the same model the knowledge base uses, and saves everything to `data/rag_cache/`
-- for each question, picks the pages it is about first (its route), then the three best passages from those pages, and adds them to the prompt next to the matching knowledge-base entries
-
-After the first download, the cache answers questions offline. Luna refreshes it only when online and the cache is more than 24 hours old.
-
-Some rules it follows:
-
-- It stays on the configured site and never follows links to other domains.
-- It respects the site's `robots.txt`.
-- It skips PDFs, images and other files that aren't web pages.
-- `data/knowledge.txt` always wins. A question that matches the knowledge base closely is answered from it, and the website is only used as extra context for the LLM.
-
-### Step 1: Choose the site
-
-The pages whose menus form the catalog are `WEB_RAG_SEEDS` (the home page and the CSE page). To focus on another department, change `WEB_RAG_FOCUS_NAME`, `WEB_RAG_FOCUS_SLUGS` and the seeds.
-
-### Step 2: Build the index by hand and check it
-
-This works on the Mac or the Pi, and needs internet.
+The whole algorithm, with the reasons behind it, is in [docs/Fetch Algo.md](docs/Fetch%20Algo.md). In short, run this on the Mac about once a week:
 
 ```bash
-venv/bin/python web_rag.py --url https://tkmce.ac.in/ --refresh
-venv/bin/python web_rag.py --url https://tkmce.ac.in/ --status
+venv/bin/python site_index.py            # crawl + group + organize + describe
+venv/bin/python site_index.py --status   # check: files, sizes, descriptions
+venv/bin/python fetch.py "who is the hod of cse"   # try a question
+scripts/deploy.sh --go                   # the Pi gets data/site/ with the code
 ```
 
-Then ask it the questions visitors ask, and read what comes back:
+What it does:
 
-```bash
-venv/bin/python web_rag.py --url https://tkmce.ac.in/ \
-    --query "who is the principal" \
-    --query "what departments are there" \
-    --query "how do I apply for admission"
-```
+1. **Crawl.** It reads every page in the site's menus and in `data/website_links.txt`, the data the CSE pages load from ETLab (staff, student lists, publications, news), and the text PDFs they link to. Scanned PDFs have no text and are reported as "needs OCR".
+2. **Group.** Every piece goes to one topic file by the rules in `SITE_PAGES` (`config.py`, section 10), for example `cse_people`, `admissions` or `examinations`. Tenders, RTI pages, meeting minutes, quotation notices and PDFs named only by a number are dropped. Other departments get one small file each.
+3. **Organize.** Llama (`llama3.2:3b`) rewrites each file's text as short notes. If the notes lose more than a fifth of the numbers and names, or invent a number, the cleaned text is kept instead. Staff and student lists are formatted without the LLM. Answers are cached, so next week only changed pages go to Llama again.
+4. **Describe.** Llama writes one line per file. Those lines are what the LLM reads to choose files for a question.
 
-Each result shows the page it came from, the passage and a similarity score. What to look for:
+The first run takes about two hours on an M3 Mac; later runs are much faster. It can also run on the Pi (stop Luna first), but takes many hours there.
 
-| What you see | What it means | What to do |
-|---|---|---|
-| Right passage, score above ~0.45 | good | nothing |
-| Right page, weak score (0.35–0.45) | the page is relevant but wordy | fine; or add the fact to `knowledge.txt` |
-| Nothing returned | the answer isn't in the crawled pages | start the crawl nearer that content, or raise `--max-pages` |
-| Menus, footers, cookie text | the page is mostly layout | point `--url` at a content page |
+**Changing the grouping.** Edit `SITE_PAGES`, then run `site_index.py --offline --plan` to see the files without calling Llama, and `site_index.py --offline` to rebuild them.
 
-Useful crawl options:
+**What the LLM is told** is in `config.py`, section 11: `FETCH_SYSTEM_RULES` (how to choose files), `FETCH_ROUTE_TASK` and `FETCH_ANSWER_TASK`. `venv/bin/python fetch.py --library` prints the full system prompt.
 
-- `--max-pages 80` crawls more pages. Each page adds a few seconds to the crawl and a little memory to the index.
-- `--max-depth 3` follows links one click further from the start page.
-- `--top-k` and `--min-sim` let you try retrieval settings before putting them in `config.py`.
-
-### Step 3: Turn it on in Luna
-
-In `config.py`:
-
-```python
-WEB_RAG_URL        = "https://tkmce.ac.in/"   # empty string = off
-WEB_RAG_SEEDS      = ("https://tkmce.ac.in/", "https://tkmce.ac.in/computer-science-and-engineering", ...)
-WEB_RAG_FOCUS_NAME = "Computer Science and Engineering"   # the department kept
-WEB_RAG_TOP_K      = 3       # passages added to each question
-WEB_RAG_ROUTE_TOPICS = 5     # pages a question is routed to
-WEB_RAG_REFRESH_HOURS = 24   # re-fetch when online and older than this
-```
-
-Restart Luna. At startup she loads the cache immediately. If she's online and the cache is stale, she re-fetches the catalog in the background (waiting at most `WEB_RAG_STARTUP_WAIT` seconds before she starts listening).
-
-### Step 4: Get the index onto the Pi
-
-`scripts/deploy.sh` does not copy `data/rag_cache/`, so the Pi keeps its own index. Pick one of these:
-
-- **The Pi has internet.** Set `WEB_RAG_URL` and start Luna. She crawls on her own.
-- **The Pi is offline.** Build the cache on the Mac (Step 2), then copy it across once:
-
-  ```bash
-  rsync -av data/rag_cache/ luna:/home/luna/Luna/data/rag_cache/
-  ```
-
-### When to update what
-
-- Stable, important facts (HOD, lab locations, timings) belong in `data/knowledge.txt`. Those are answered word for word and instantly.
-- The website covers everything else: news, events, long descriptions.
-- If the website and `knowledge.txt` disagree, fix `knowledge.txt`. It is trusted first.
-
----
+**knowledge.txt still wins.** A question that matches `data/knowledge.txt` very closely is answered from it instantly, and the file is also one of the library pages (`kb`). If the website and `knowledge.txt` disagree, fix `knowledge.txt`.
 
 ## Part 2 — Learning from daily use
 
@@ -238,7 +172,7 @@ venv/bin/python scripts/approve_facts.py --reject 3
 | Once, before first use | `train_learning.py --simulate 30 --judge-model gemma3:4b`, then `deploy.sh --go --seed-learning` |
 | Daily (5 min) | `review_log.py yesterday --ignored` on the Pi; fix `knowledge.txt`; `approve_facts.py` |
 | Weekly | copy the Pi logs to the Mac, check `review_log.py --rewards`, adjust `ADDR_*` if needed |
-| When the website changes a lot | `web_rag.py --refresh` (or wait for the daily re-crawl) |
+| Weekly, or when the website changes | `site_index.py` on the Mac, then `deploy.sh --go` |
 
 ### Settings
 
@@ -258,7 +192,7 @@ All in `config.py`, section "Learning from daily life":
 
 ### Privacy
 
-The logs, profiles and diary record what people said and who said it. They stay on the machine: `.gitignore` keeps `data/logs/`, `data/learning/`, `data/diary/`, `data/faces/` and `data/rag_cache/` out of the repository, and deploys never copy them over. If you run Luna in a public space, put up a short notice that she records conversations, and shorten `CONVO_LOG_RETENTION_DAYS` if needed. "Forget me" removes a person's face. To delete everything Luna remembers about people:
+The logs, profiles and diary record what people said and who said it. They stay on the machine: `.gitignore` keeps `data/logs/`, `data/learning/`, `data/diary/`, `data/faces/` and `data/site/` (it holds the student lists) out of the repository, and deploys never copy the logs, learning, diary or faces over. If you run Luna in a public space, put up a short notice that she records conversations, and shorten `CONVO_LOG_RETENTION_DAYS` if needed. "Forget me" removes a person's face. To delete everything Luna remembers about people:
 
 ```bash
 rm -rf data/faces data/face_log.jsonl data/logs data/learning data/diary

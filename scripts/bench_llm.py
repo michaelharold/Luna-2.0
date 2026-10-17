@@ -10,8 +10,9 @@ inventing names, numbers or fees, (b) says plainly when something is outside
 its scope, (c) still handles small talk and everyday knowledge, (d) speaks in
 short, plain sentences with no markdown, and (e) does all that with a first
 token in about a second on four ARM cores. This script measures exactly that,
-for every Ollama model on the machine, through the SAME prompt Luna ships
-(persona.build_messages) and the SAME RAG-lite retrieval brain.py performs.
+for every Ollama model on the machine, through the SAME prompt Luna ships:
+her system prompt (fetch.system_prompt) and her ANSWER call
+(fetch.answer_message), with the closest knowledge-base entries as its data.
 
 Usage (from the project root; Pi and Mac alike):
 
@@ -20,8 +21,7 @@ Usage (from the project root; Pi and Mac alike):
         --variants rag,baked --limit 8 --cpu-only --tag mac-smoke
 
 Variants:
-  rag    — persona only in the system prompt; the top-K retrieved KB entries
-           travel in the user turn (what the llama.cpp path can afford).
+  rag    — the top-K retrieved KB entries are the ANSWER call's data.
   baked  — the WHOLE knowledge base is in the system prompt as well (what
            make_luna_model.py bakes into the "luna" Ollama model). Ollama's
            prefix cache prefills it once per load, so per-turn prefill stays
@@ -59,10 +59,13 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 import config   # noqa: E402
+import fetch    # noqa: E402
 import persona  # noqa: E402
 
 # ── Bench-local knobs (not robot behaviour, so they live here, not config) ───
 BENCH_SEED         = 42      # fixed sampling seed so runs are comparable
+BENCH_KB_TOP_K     = 4       # knowledge-base entries given as data
+BENCH_KB_MIN_SIM   = 0.45    # entries below this similarity are left out
 BENCH_KEEP_ALIVE   = "10m"   # keep the model resident between questions; an
                              # aborted run still frees RAM by itself later
 BENCH_LOAD_TIMEOUT = 600.0   # seconds allowed for the warm-up request (it
@@ -342,8 +345,8 @@ class KnowledgeBase:
 
     def __init__(self, path, top_k=None, min_sim=None):
         self.path = path
-        self.k = config.LLM_KB_TOP_K if top_k is None else top_k
-        self.min_sim = config.LLM_KB_MIN_SIM if min_sim is None else min_sim
+        self.k = BENCH_KB_TOP_K if top_k is None else top_k
+        self.min_sim = BENCH_KB_MIN_SIM if min_sim is None else min_sim
         self.questions, self.answers, self.text = load_knowledge(path)
         self._model = None
         self._emb = None
@@ -384,7 +387,7 @@ class KnowledgeBase:
         return [float(s) for s in (self._emb @ q)]
 
     def top_k(self, query):
-        """[(question, answer, score)] best first — brain._top_k_kb."""
+        """[(question, answer, score)] best first."""
         scores = self.scores(query)
         if not scores:
             return []
@@ -394,13 +397,23 @@ class KnowledgeBase:
                 for i in order if scores[i] >= self.min_sim]
 
 
+def luna_messages(question, snippets, history=(), knowledge_text=None,
+                  **notes):
+    """Luna's ANSWER call (fetch.py) with `snippets` [(q, a, score)] as its
+    data: system prompt, earlier turns, the answer message. `notes` are
+    fetch.answer_message's (person, style, exemplars, profile ...)."""
+    data = "\n".join(f"- {q}: {a}" for q, a, _ in snippets)
+    system = fetch.system_prompt(persona.system_prompt(knowledge_text))
+    return [{"role": "system", "content": system}, *history,
+            {"role": "user", "content": fetch.answer_message(question, data,
+                                                             **notes)}]
+
+
 def build_messages(question, variant, kb):
     """The exact message list Luna would send for this question."""
     snippets = kb.top_k(question)
-    if variant == "baked":
-        return persona.build_messages(question, knowledge_text=kb.text,
-                                      kb_snippets=snippets), snippets
-    return persona.build_messages(question, kb_snippets=snippets), snippets
+    return luna_messages(question, snippets, knowledge_text=(
+        kb.text if variant == "baked" else None)), snippets
 
 
 # ═════════════════════════════════════════════════════════════════════════════

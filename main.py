@@ -113,33 +113,7 @@ def _is_self_echo(text):
     return run_ratio >= ECHO_RUN_THRESH and overlap >= ECHO_OVERLAP_THRESH
 
 
-def _wait_for_website_cache():
-    """Give the website fetch (catalog refresh) up to WEB_RAG_STARTUP_WAIT
-    seconds before Luna starts listening, so the first visitor's college
-    question is answered from the cache instead of a live download. The
-    face is already up (with a banner); offline this ends at once."""
-    try:
-        from config import WEB_RAG_STARTUP_WAIT
-        import brain
-        web = brain.web_rag
-        if not WEB_RAG_STARTUP_WAIT or web is None or not brain._web_enabled():
-            return
-        if web.wait(0.5):                    # nothing running (offline/idle)
-            return
-        import face
-        print(f"[Luna] Caching the college website "
-              f"(up to {WEB_RAG_STARTUP_WAIT:.0f}s)…")
-        face.banner("Reading the college website…", WEB_RAG_STARTUP_WAIT)
-        done = web.wait(WEB_RAG_STARTUP_WAIT)
-        face.banner("Ready!", 2.0)
-        print("[Luna] Website cache ready" if done else
-              "[Luna] Still caching in the background — starting anyway")
-    except Exception as e:                   # never block start-up on this
-        print(f"[Luna] website cache wait skipped: {e}")
-
-
 def voice_loop():
-    _wait_for_website_cache()
     while True:
         text = listen()
         try:

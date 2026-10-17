@@ -49,6 +49,7 @@ def _reset_state():
         state.awaiting_answer = False
         state.conversation_active = False
     commands._awaiting_name = False
+    commands._awaiting_spelling = False
     commands._pending_name = None
 
 
@@ -80,7 +81,10 @@ class _CommandsTestBase(unittest.TestCase):
             mock.patch.object(commands, "ENROLL_POSE_WAIT", 0.3),
             mock.patch.object(commands, "ENABLE_FACE_RECOGNITION", True),
             mock.patch.object(commands, "ENABLE_VOICE_COMMANDS", True),
+            # the college's names: none, unless a test sets self.names
+            mock.patch.object(commands, "_known_names", lambda: self.names),
         ]
+        self.names = []
         for p in patches:
             p.start()
             self.addCleanup(p.stop)
@@ -119,12 +123,14 @@ class TestGuidedEnrollment(_CommandsTestBase):
         t.join(1)
 
         poses = list(config.ENROLL_POSES)
+        # the greeting comes WITH the first pose prompt, not before it
+        self.assertEqual(self.spoken[0][:2], (f"Okay Alice! {poses[0]}", 0))
         pose_lines = [(txt, pose) for txt, pose, _ in self.spoken
                       if txt in poses]
-        self.assertEqual([txt for txt, _ in pose_lines], poses)
+        self.assertEqual([txt for txt, _ in pose_lines], poses[1:])
         # vision saw pose i while prompt i was spoken
         self.assertEqual([pose for _, pose in pose_lines],
-                         list(range(len(poses))))
+                         list(range(1, len(poses))))
         # the request was live during the intro and every prompt (the
         # closing "Nice to meet you" comes after cleanup)
         self.assertTrue(all(req == "Alice" for _, _, req in self.spoken[:-1]))
@@ -138,6 +144,18 @@ class TestGuidedEnrollment(_CommandsTestBase):
             self.assertIsNone(state.enroll_result)
             self.assertFalse(state.enroll_finish)
             self.assertEqual(state.enroll_pose, 0)
+
+    def test_straight_look_from_the_name_dialog_skips_that_pose(self):
+        sys.modules["vision_module"].take_precapture = \
+            lambda: config.ENROLL_FRAMES_PER_POSE
+        seen_finish = []
+        t = self._responder(True, seen_finish)
+        commands._do_enroll("Alice")
+        t.join(1)
+        poses = list(config.ENROLL_POSES)
+        self.assertEqual(self.spoken[0][:2], (f"Okay Alice! {poses[1]}", 1))
+        self.assertNotIn(poses[0], " ".join(self.texts()))
+        self.assertEqual(seen_finish, ["Alice"])
 
     def test_failure_apologises(self):
         seen_finish = []
@@ -228,26 +246,69 @@ class TestNameConfirmation(_CommandsTestBase):
             self.assertTrue(commands.handle(reply), reply)
             self.assertEqual(self.enrolled, ["Alice"], reply)
 
-    def test_no_asks_again_then_new_name(self):
+    def test_no_asks_to_spell_it(self):
         commands.handle("my name is alex")
         self.assertTrue(commands.handle("no"))
-        self.assertEqual(self.texts()[-1], "Okay, tell me your name again.")
-        self.assertTrue(commands._awaiting_name)
+        self.assertEqual(self.texts()[-1], commands._SPELL_PROMPT)
+        self.assertTrue(commands._awaiting_spelling)
         self.assertEqual(self.enrolled, [])
-        # the name answer goes through confirmation again
-        self.assertTrue(commands.handle("alice"))
-        self.assertEqual(self.texts()[-1], "Did you say Alice?")
+        # the spelled name goes through confirmation again
+        self.assertTrue(commands.handle("n a v i a"))
+        self.assertEqual(self.texts()[-1], "Did you say Navia?")
         self.assertTrue(commands.handle("yes"))
-        self.assertEqual(self.enrolled, ["Alice"])
+        self.assertEqual(self.enrolled, ["Navia"])
+
+    def test_spelling_in_letter_words_or_the_name_itself(self):
+        self.assertEqual(commands._spelled("en ay vee eye ay"), "Navia")
+        self.assertEqual(commands._spelled("N-A-V-I-A".lower()), "Navia")
+        self.assertIsNone(commands._spelled("navia"))
+        commands.handle("my name is alex")
+        commands.handle("no")
+        commands.handle("alice")                 # said, not spelled
+        self.assertEqual(self.texts()[-1], "Did you say Alice?")
 
     def test_nope_and_wrong(self):
         for reply in ("nope", "wrong", "that's not right"):
             commands.handle("my name is alex")
             commands.handle(reply)
-            self.assertEqual(self.texts()[-1],
-                             "Okay, tell me your name again.", reply)
-            commands._awaiting_name = False
+            self.assertEqual(self.texts()[-1], commands._SPELL_PROMPT, reply)
+            commands._awaiting_spelling = False
         self.assertEqual(self.enrolled, [])
+
+    def test_a_close_college_name_is_offered_and_kept_on_yes(self):
+        self.names = ["Navya Thomas", "Dr. Reshma Sheik"]
+        commands.start_enrollment_dialog()
+        commands.handle("navia")
+        self.assertEqual(self.texts()[-1], "Did you say Navya?")
+        with mock.patch.object(commands, "_do_enroll", self.enrolled.append):
+            commands.handle("yes")
+        self.assertEqual(self.enrolled, ["Navya"])
+
+    def test_no_to_the_college_spelling_takes_what_was_heard(self):
+        self.names = ["Navya Thomas"]
+        commands.start_enrollment_dialog()
+        commands.handle("navia")
+        with mock.patch.object(commands, "_do_enroll", self.enrolled.append):
+            commands.handle("no")
+        self.assertEqual(self.enrolled, ["Navia"])
+
+    def test_an_exact_college_name_is_not_asked_about(self):
+        self.names = ["Reshma Sheik"]
+        commands.start_enrollment_dialog()
+        with mock.patch.object(commands, "_do_enroll", self.enrolled.append):
+            commands.handle("reshma sheik")
+        self.assertEqual(self.enrolled, ["Reshma Sheik"])
+        self.assertNotIn("Did you say", self.texts()[-1])
+
+    def test_whole_short_name_is_kept(self):
+        commands.start_enrollment_dialog()
+        commands.handle("navia thomas")
+        self.assertEqual(self.texts()[-1], "Did you say Navia Thomas?")
+        commands._pending_name = None
+        self.assertEqual(commands._extract_name("my name is navia and i study cse"),
+                         "Navia")
+        self.assertEqual(commands._extract_name("my name is navia thomas"),
+                         "Navia Thomas")
 
     def test_new_name_pattern_reasks(self):
         commands.handle("my name is alex")

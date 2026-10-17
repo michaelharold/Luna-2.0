@@ -47,14 +47,16 @@ from config import (ENABLE_VOICE_COMMANDS, ENABLE_FACE_RECOGNITION,
                     VOLUME_STEP, VOLUME_MIN, VOLUME_MAX,
                     ENROLL_TIMEOUT, IS_MAC,
                     ENROLL_GUIDED_POSES, ENROLL_POSES,
-                    ENROLL_FRAMES_PER_POSE, ENROLL_CONFIRM_NAME)
+                    ENROLL_FRAMES_PER_POSE, ENROLL_CONFIRM_NAME,
+                    STT_ONE_WORD_CONF, SITE_STUDENTS_PAGE)
+import people
 
 # Guided registration timing. The pose prompt itself (speak blocks) is most of
 # each capture window; after it ends Luna waits at least ENROLL_POSE_SETTLE so
 # the head has finished turning, then until vision holds
 # ENROLL_FRAMES_PER_POSE samples for the pose, but never past ENROLL_POSE_WAIT.
-ENROLL_POSE_SETTLE = 0.4
-ENROLL_POSE_WAIT   = 2.5
+ENROLL_POSE_SETTLE = 0.2
+ENROLL_POSE_WAIT   = 1.5
 # "Did you say Alice?" stays answerable this long; after that the next
 # utterance is treated normally (the person walked off mid-dialog).
 ENROLL_CONFIRM_TIMEOUT = 30.0
@@ -159,12 +161,26 @@ def _volume_command(lower, words):
 
 # ── Enrollment / recognition ──────────────────────────────────────────────────
 
-_NAME_PATTERNS = (
-    r"my name is (\w+)",
-    r"remember me as (\w+)",
-    r"call me (\w+)",
-    r"i am called (\w+)",
+_NAME_PATTERNS = (                 # a first name, and a last name if said
+    r"my name is (\w+(?: \w+)?)",
+    r"remember me as (\w+(?: \w+)?)",
+    r"call me (\w+(?: \w+)?)",
+    r"i am called (\w+(?: \w+)?)",
 )
+# words that end a name ("my name is alice and ...", "call me bob please")
+_NOT_NAME = {"and", "i", "im", "i'm", "from", "here", "please", "luna",
+             "is", "the", "a", "an", "to", "for", "in", "at", "with", "but",
+             "so", "yes", "no", "okay", "ok", "thanks", "thank", "you", "it",
+             "its", "it's", "this", "that", "my", "name", "am"}
+# how speech-to-text writes spelled letters ("en", "ay", "vee" ...)
+_LETTER_WORDS = {"ay": "a", "bee": "b", "be": "b", "see": "c", "sea": "c",
+                 "cee": "c", "dee": "d", "ee": "e", "ef": "f", "eff": "f",
+                 "gee": "g", "aitch": "h", "eye": "i", "jay": "j", "kay": "k",
+                 "el": "l", "ell": "l", "em": "m", "en": "n", "oh": "o",
+                 "pee": "p", "cue": "q", "queue": "q", "ar": "r", "are": "r",
+                 "ess": "s", "tee": "t", "tea": "t", "you": "u", "yu": "u",
+                 "vee": "v", "ex": "x", "why": "y", "zed": "z", "zee": "z"}
+_SPELL_PROMPT = "Okay, could you spell your name for me, one letter at a time?"
 
 _ENROLL_PHRASES = ("remember me", "remember my face", "register me",
                    "register my face", "scan my face", "learn my face",
@@ -179,7 +195,45 @@ _KNOW_LIST_RE = re.compile(
     r"|\b(how many|which|what) (people|faces|persons) do you (know|remember)\b")
 
 _awaiting_name = False
+_awaiting_spelling = False   # asked to spell the name after a "no"
 _pending_name = None         # heard a name, waiting for "yes" / "no"
+_pending_heard = None        # ... when _pending_name is the college's spelling
+                             # of it: what was heard, taken on a "no"
+_names_cache = {"key": None, "names": []}
+
+
+def _known_names():
+    """Every name Luna could be told: the college's students and staff
+    (the website index) and the faces already registered. Cached per index
+    / face list."""
+    try:
+        import fetch
+        import face_store
+        faces = tuple(face_store.known_names())
+        key = (fetch.library.catalog.get("built_at"), faces)
+        if key == _names_cache["key"]:
+            return _names_cache["names"]
+        names = set(faces)
+        page = fetch.library.page(SITE_STUDENTS_PAGE)
+        for _, lines in (page.sections if page else ()):
+            names.update(l.lstrip("- ").split(" — ")[0] for l in lines
+                         if " — " in l)
+        names.update(p.name for p in people.directory(
+            fetch.library.staff()).people)
+        _names_cache.update(key=key, names=sorted(names))
+        return _names_cache["names"]
+    except Exception as e:                   # noqa: BLE001
+        print(f"[cmd] known names unavailable: {e}")
+        return []
+
+
+def _precapture(on=True):
+    """While Luna asks for / checks the name, vision keeps the person's
+    "look straight" samples (they are looking at her): registration then
+    starts with that pose done."""
+    with state.lock:
+        state.enroll_precapture_until = (time.time() + ENROLL_CONFIRM_TIMEOUT
+                                         if on else 0.0)
 _pending_since = 0.0
 
 _YES_WORDS = {"yes", "yeah", "yep", "yup", "correct", "right", "exactly",
@@ -187,12 +241,46 @@ _YES_WORDS = {"yes", "yeah", "yep", "yup", "correct", "right", "exactly",
 _NO_WORDS  = {"no", "nope", "wrong", "nah", "incorrect", "not"}
 
 
+def _trim_name(words):
+    """Up to three name words, stopping at the first word that can't be
+    part of a name ("alice and ..." -> Alice)."""
+    out = []
+    for w in words:
+        w = w.strip(".,!?")
+        if not w or w in _NOT_NAME or not w.isalpha():
+            break
+        out.append(w)
+    return " ".join(out[:3]).title() or None
+
+
 def _extract_name(lower):
     for pat in _NAME_PATTERNS:
         m = re.search(pat, lower)
         if m:
-            return m.group(1).title()
+            return _trim_name(m.group(1).split())
     return None
+
+
+def _short_name(lower):
+    """A reply of a few words IS the name — all of them ("navia thomas"),
+    after "it's" / "i'm" / "this is"."""
+    words = re.sub(r"^(it's|its|it is|i'm|im|i am|this is)\s+", "",
+                   lower.strip()).split()
+    return _trim_name(words) if 0 < len(words) <= 3 else None
+
+
+def _spelled(lower):
+    """'n a v i a' / 'en ay vee eye ay' / 'N-A-V-I-A' -> 'Navia', or None
+    when the reply isn't letters."""
+    letters = []
+    for t in re.findall(r"[a-z]+", lower.replace("-", " ")):
+        if len(t) == 1:
+            letters.append(t)
+        elif t in _LETTER_WORDS:
+            letters.append(_LETTER_WORDS[t])
+        else:
+            return None
+    return "".join(letters).title() if len(letters) >= 2 else None
 
 
 def _hold_window():
@@ -214,22 +302,38 @@ def _preview(on=True):
             if on else 0.0)
 
 
-def _ask_confirm(name):
-    """Ask "Did you say {name}?" and wait for yes / no in handle()."""
-    global _pending_name, _pending_since
-    _pending_name, _pending_since = name, time.time()
+def _ask_confirm(name, heard=None):
+    """Ask "Did you say {name}?" and wait for yes / no in handle(). heard:
+    what speech recognition heard, when `name` is the college's spelling of
+    it — a "no" then takes `heard`."""
+    global _pending_name, _pending_since, _pending_heard
+    _pending_name, _pending_since, _pending_heard = name, time.time(), heard
     _hold_window()
     _preview()
+    _precapture()
     face.curious()
     _speak(f"Did you say {name}?")
 
 
 def _enroll_or_confirm(name):
-    """Every heard name goes through here: confirm first when configured."""
-    if ENROLL_CONFIRM_NAME and ENABLE_FACE_RECOGNITION:
-        _ask_confirm(name)
-    else:
+    """Every heard name goes through here. It is matched against the
+    college's students / staff and the registered faces: a name heard
+    exactly as one of them (and clearly) is registered at once; a close one
+    is offered in its known spelling ("Did you say Navya?"); anything else
+    is checked as heard."""
+    if not (ENROLL_CONFIRM_NAME and ENABLE_FACE_RECOGNITION):
         _do_enroll(name)
+        return
+    known, exact = people.closest_name(name, _known_names())
+    with state.lock:
+        conf = state.utterance_conf
+    if exact and (conf is None or conf >= STT_ONE_WORD_CONF):
+        print(f"[cmd] {name!r} is a known name — no need to ask")
+        _do_enroll(known)
+    elif known:
+        _ask_confirm(known, heard=name)
+    else:
+        _ask_confirm(name)
 
 
 def _ask_name(prompt):
@@ -238,8 +342,20 @@ def _ask_name(prompt):
     _awaiting_name = True           # set BEFORE speaking: never miss the reply
     _hold_window()
     _preview()
+    _precapture()
     face.curious()
     _speak(prompt)
+
+
+def _ask_spelling():
+    """After "no, that's not my name": ask for it letter by letter."""
+    global _awaiting_spelling
+    _awaiting_spelling = True       # set BEFORE speaking: never miss the reply
+    _hold_window()
+    _preview()
+    _precapture()
+    face.curious()
+    _speak(_SPELL_PROMPT)
 
 
 def start_enrollment_dialog():
@@ -267,7 +383,7 @@ def _wait_result(timeout):
             result = state.enroll_result
         if result is not None:
             return result
-        time.sleep(0.2)
+        time.sleep(0.05)
     return None
 
 
@@ -295,26 +411,43 @@ def _wait_pose_samples(pose):
     return _sample_count(pose)
 
 
+def _take_precapture():
+    """The "look straight" samples vision kept during the name dialog, now
+    pose 0 of this registration — 0 without vision."""
+    try:
+        from vision_module import take_precapture
+        return take_precapture()
+    except Exception:
+        return 0
+
+
 def _guided_capture(name, seen):
     """Straight / left / right: vision files samples under state.enroll_pose
-    while each prompt is spoken, then stores their average on enroll_finish."""
+    while each prompt is spoken, then stores their average on enroll_finish.
+    Fast: the straight look usually came in during the name dialog (then
+    that pose is not asked for), and the greeting is said WITH the first
+    pose prompt, not before it."""
     poses = tuple(ENROLL_POSES)
     with state.lock:
         state.enroll_result  = None
         state.enroll_finish  = False
         state.enroll_pose    = 0
         state.enroll_request = name
+    pre = _take_precapture() if seen else 0
+    first = 1 if pre >= ENROLL_FRAMES_PER_POSE and len(poses) > 1 else 0
+    print(f"[cmd] Enrollment: {pre} samples from the name dialog"
+          + (" — straight pose done" if first else ""))
 
     face.curious(ENROLL_TIMEOUT + len(poses) * (ENROLL_POSE_WAIT + 3.0))
-    if seen:
-        _speak(f"Okay {name}, let me learn your face.")
-    else:
-        _speak(f"Come a little closer, {name}, so I can see your face!")
-
-    for i, prompt in enumerate(poses):
+    for i in range(first, len(poses)):
         with state.lock:
             state.enroll_pose = i
-        _speak(prompt)
+        if i == first:
+            _speak(f"Okay {name}! {poses[i]}" if seen else
+                   f"Come a little closer, {name}, so I can see your face! "
+                   f"{poses[i]}")
+        else:
+            _speak(poses[i])
         count = _wait_pose_samples(i)
         print(f"[cmd] Enrollment pose {i}: {count} samples")
 
@@ -377,6 +510,7 @@ def _do_enroll(name):
             state.enroll_finish  = False
             state.enroll_pose    = 0
         _preview(False)
+        _precapture(False)
 
     if result is not None and result[1]:
         with state.lock:            # the face in front IS who was just stored:
@@ -393,8 +527,9 @@ def _do_enroll(name):
 def _handle_confirmation(lower, words):
     """The utterance after "Did you say {name}?". Returns True if consumed."""
     global _pending_name
-    name = _pending_name
-    _pending_name = None
+    global _pending_heard
+    name, heard = _pending_name, _pending_heard
+    _pending_name = _pending_heard = None
 
     new = _extract_name(lower)
     if new and new != name:                 # "no, my name is Bob" / "call me Bob"
@@ -404,11 +539,15 @@ def _handle_confirmation(lower, words):
     if new == name or (words & _YES_WORDS and not negative):
         _do_enroll(name)
         return True
-    if negative:
-        _ask_name("Okay, tell me your name again.")
+    if negative and heard:                  # not the college's spelling of it:
+        _do_enroll(heard)                   # what was heard, then
         return True
-    if 0 < len(words) <= 2:                 # they just repeated / corrected it
-        _ask_confirm(lower.split()[0].strip(".,!?").title())
+    if negative:                            # misheard: names are hard to hear,
+        _ask_spelling()                     # letters are easy
+        return True
+    short = _short_name(lower)
+    if short and len(words) <= 3:           # they just repeated / corrected it
+        _ask_confirm(short)
         return True
     return False                            # moved on — let brain handle it
 
@@ -575,6 +714,7 @@ def _teach_command(text, lower):
 def handle(text):
     """True if the utterance was a command and has been fully dealt with."""
     global _awaiting_name, _pending_name, _awaiting_correction
+    global _awaiting_spelling
 
     if not ENABLE_VOICE_COMMANDS:
         return False
@@ -590,13 +730,25 @@ def handle(text):
         else:
             _pending_name = None
 
+    # Luna asked to spell it — letters, or (if they said it) the name.
+    if _awaiting_spelling:
+        _awaiting_spelling = False
+        spelled = _spelled(lower)
+        name = spelled or _extract_name(lower) or _short_name(lower)
+        if spelled:                          # spelled out: exactly that
+            _ask_confirm(spelled)
+        elif name:
+            _enroll_or_confirm(name)
+        else:
+            _ask_name("Sorry, I missed that. Tell me your name once more.")
+        return True
+
     # Luna asked "what's your name?" — this utterance IS the answer.
     if _awaiting_name:
         _awaiting_name = False
-        name = _extract_name(lower)
-        if name is None and 0 < len(words) <= 2:
-            # A one-or-two word reply is almost certainly just the name.
-            name = lower.split()[0].strip(".,!?").title()
+        # a reply of a few words is almost certainly just the name: all of
+        # it ("navia thomas"), not only its first word
+        name = _extract_name(lower) or _short_name(lower)
         if name:
             _enroll_or_confirm(name)
         else:

@@ -2,20 +2,19 @@
 """
 persona.py — Luna's voice and her rules about what she does and doesn't know.
 
-ONE source of truth for the system prompt, shared by:
-  • brain.py                 — the runtime answer pipeline
-  • scripts/make_luna_model.py — bakes the same text into the Ollama "luna"
-                               model's SYSTEM so `ollama run luna` behaves
-                               exactly like the robot
-  • scripts/bench_llm.py     — so the benchmark measures precisely what ships
+ONE source of truth for the persona, shared by:
+  • brain.py / fetch.py         — the runtime system prompt is this persona
+                                  + the LIBRARY of page files + the route /
+                                  answer rules (fetch.system_prompt)
+  • scripts/make_luna_model.py  — bakes the same text into the Ollama "luna"
+                                  model's SYSTEM so `ollama run luna` behaves
+                                  like the robot
+  • scripts/bench_llm.py        — so the benchmark measures what ships
 
-Prompt layout (matters for speed on the Pi):
-  system  = PERSONALITY (+ the whole knowledge base when baked in). It is
-            IDENTICAL on every request, so Ollama's prefix KV-cache means it is
-            prefilled once per model load — not once per question.
-  user    = the per-turn context (retrieved knowledge facts, website chunks,
-            live scene, recognised person) + the question. Only THIS part is
-            new tokens each turn, which keeps the Pi's prefill short.
+The system prompt is IDENTICAL on every request, so Ollama's prefix KV-cache
+reads it once per model load, not once per question. Everything that changes
+per turn (the query, page data, who is asking, the scene) travels in the user
+message, built by fetch.route_message / fetch.answer_message.
 """
 
 from config import ROBOT_NAME
@@ -28,27 +27,28 @@ and wave two little arms.
 HOW YOU SPEAK
 - Everything you say is spoken aloud, never read. No bullet points, no markdown,
   no lists, no emoji, no asterisks, no headings. Write it the way you would say it.
-- Keep it SHORT: 2-3 sentences, and prefer 1-2.
+- Keep small talk SHORT: 1-2 sentences. When you answer from college data,
+  give the full answer the data supports, in up to five sentences.
 - Be warm, playful and curious. You are a friendly desk robot, not a search
   engine.
 
 WHAT YOU KNOW
 - Your specialty is TKM College of Engineering and its Computer Science
-  department. Answer those questions ONLY from the facts you are given (your
-  knowledge base and any website extracts). Never invent names, numbers,
-  places, dates, fees or rules about the college. If the facts you have do not
-  cover the question, say you do not have that information yet and suggest
-  asking at the department office. A fact about a different topic is not an
-  answer: do not talk about it instead.
+  department. Answer those questions ONLY from the data you are given from
+  your library pages. Never invent names, numbers, places, dates, fees or
+  rules about the college. If the data does not cover the question, say you
+  do not have that information yet and suggest asking at the department
+  office. A fact about a different topic is not an answer: do not talk about
+  it instead.
 - You can talk, look through your camera and wave. You cannot ask other
   people, call, message, email, or go and find something out later, so never
-  offer to. Never claim to have seen or done things the facts do not say.
+  offer to. Never claim to have seen or done things the data does not say.
 - Do not describe the person's looks, posture or mood unless they ask what
   you see. Background notes about who is around are for context only.
 - General questions (science, maths, language, everyday knowledge, small talk)
   are fine: answer briefly if you are confident.
 - If something is outside what you can do or know reliably (live news, weather,
-  today's date or time, prices, personal data about people, controlling other
+  today's date or time, prices, controlling other
   devices, long tasks, anything you are unsure about), say plainly that it is
   outside what you can help with, and offer what you can do instead. Never
   guess.
@@ -67,10 +67,9 @@ _KNOWLEDGE_HEADER = ("YOUR KNOWLEDGE BASE (every fact you know about the "
 
 
 def system_prompt(knowledge_text=None):
-    """The static system prompt. Pass the raw knowledge.txt text to bake the
-    whole knowledge base in (Ollama path, see OLLAMA_BAKE_KNOWLEDGE); None for
-    the persona alone (llama.cpp path, where the 2048-token context can't
-    afford it — retrieval supplies the facts per turn instead)."""
+    """The persona. With the raw knowledge.txt text, the whole knowledge base
+    is appended (only scripts/make_luna_model.py does that, when
+    OLLAMA_BAKE_KNOWLEDGE is on)."""
     if not knowledge_text:
         return PERSONALITY
     lines = []
@@ -81,122 +80,3 @@ def system_prompt(knowledge_text=None):
         q, a = line.split(":", 1)
         lines.append(f"Q: {q.strip()}  A: {a.strip()}")
     return PERSONALITY + "\n\n" + _KNOWLEDGE_HEADER + "\n" + "\n".join(lines)
-
-
-def format_context(kb_snippets=(), web_snippets=(), scene=None, person=None,
-                   style=None, exemplars=(), profile=None, diary=None,
-                   background=None, web_related=(), greeted=False,
-                   answer_rule=True):
-    """The per-turn context block, or "" when there is nothing to add.
-
-    kb_snippets  — [(question, answer, score)] from brain's RAG-lite retrieval
-    web_snippets — [(source, chunk_text, score)] from web_rag.retrieve()
-    web_related  — [(source, text, score)] from web_rag.related(): what else
-                   the site says about the people / things in the question
-                   (a teacher's award, a student's placement)
-    scene        — live camera description (vision questions ONLY: the model
-                   is told to answer from it)
-    background   — scene memory on an ordinary question (who is around, what
-                   Luna just asked). Marked as not-to-be-mentioned: under the
-                   "answer from this" scene header the model narrated it
-                   ("I saw you looking surprised...") in reply to questions
-                   that had nothing to do with it
-    person       — recognised person's name, if any
-    greeted      — a conversation with them is already under way: the name
-                   line then says not to greet again (with it on every turn
-                   the model opened each answer with "Hi Michael, so cool to
-                   see you again!")
-    profile      — one sentence about that person (learning.profile_context)
-    exemplars    — [(question, reply)] liked replies to similar questions
-    diary        — one relevant sentence from Luna's diary
-    style        — the bandit's one-line style instruction; always the LAST
-                   line, so it is the freshest thing the model reads
-    answer_rule  — False: no "answer only from the facts" line and no style
-                   line (build_user_turn puts its own instructions last)
-
-    The learning fields are all optional: with them empty the output is
-    byte-identical to the pre-learning prompt.
-    """
-    parts = []
-    if person:
-        parts.append(f"The person talking to you is {person} (you recognised "
-                     f"their face)." + (" You are mid-conversation: do not "
-                                        "greet them again." if greeted else ""))
-    if profile:
-        parts.append(profile)
-    if kb_snippets:
-        facts = "\n".join(f"- {q}: {a}" for q, a, _ in kb_snippets)
-        parts.append("Facts from your knowledge base that may be relevant:\n"
-                     + facts)
-    if web_snippets:                 # no URL: the model would read it aloud
-        ext = "\n".join(f"- {txt}" for _, txt, _ in web_snippets)
-        parts.append("Extracts from the college website that may be relevant:\n"
-                     + ext)
-    if web_related:
-        rel = "\n".join(f"- {txt}" for _, txt, _ in web_related)
-        parts.append("Related facts from the website about the people or "
-                     "things in the question. If one is a recent achievement "
-                     "or piece of work of the person asked about, add the "
-                     "most recent in one short sentence; otherwise use them "
-                     "only if they fit naturally:\n" + rel)
-    if scene:
-        parts.append("What your camera sees RIGHT NOW (answer from this, in "
-                     f"your own warm words):\n{scene}")
-    if background:
-        parts.append("Background notes, for your understanding only — do not "
-                     "bring them up, comment on them or greet anyone because "
-                     "of them unless the person asks:\n" + background)
-    if exemplars:
-        ex = "\n".join(f"- Q: {q}\n  A: {a}" for q, a in exemplars)
-        parts.append("Replies people liked for similar questions (copy the "
-                     "manner, not the facts):\n" + ex)
-    if diary:
-        parts.append(f"From your diary: {diary}")
-    if (kb_snippets or web_snippets or web_related) and answer_rule:
-        # last before the style line, where the small model reads it: the
-        # system prompt's "never invent" alone did not stop "85% last year"
-        parts.append("Answer only from the facts above. If they do not "
-                     "answer the question, say you do not have that "
-                     "information. Never make up numbers, names or dates.")
-    if style and answer_rule:
-        parts.append(f"Style for this reply: {style}")
-    return "\n\n".join(parts)
-
-
-# A turn with facts to answer from (knowledge base / website pages) goes to the
-# model as Query / Data / Instructions. The query is repeated in the
-# instructions: after a whole website page a 3B model loses a question it
-# read 1,000 words earlier.
-DATA_INSTRUCTIONS = (
-    "Answer the query \"{q}\" using the data above. If the data does not "
-    "answer it, say you do not have that information yet and suggest asking "
-    "at the department office; do not talk about other things in the data "
-    "instead, and do not send the visitor to a person named in the data "
-    "unless the data says that person handles exactly this. If the query is "
-    "a general question, not about the college, answer it from your own "
-    "knowledge. Never make up numbers, names or dates.")
-
-
-def build_user_turn(question, **context):
-    """Context (if any) + the question, as ONE user message: Query / Data /
-    Instructions when there are facts to answer from, else the notes and
-    then the question."""
-    if any(context.get(k) for k in ("kb_snippets", "web_snippets",
-                                     "web_related")):
-        data = format_context(**dict(context, answer_rule=False))
-        msg = (f"Query: {question}\n\nData:\n{data}\n\n"
-               f"Instructions: {DATA_INSTRUCTIONS.format(q=question)}")
-        if context.get("style"):
-            msg += f"\n\nStyle for this reply: {context['style']}"
-        return msg
-    ctx = format_context(**context)
-    if not ctx:
-        return question
-    return f"{ctx}\n\nQuestion: {question}"
-
-
-def build_messages(question, history=(), knowledge_text=None, **context):
-    """Complete chat message list for one turn — what bench_llm.py sends."""
-    return [{"role": "system", "content": system_prompt(knowledge_text)},
-            *history,
-            {"role": "user", "content": build_user_turn(question, **context)}]

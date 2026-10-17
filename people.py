@@ -13,8 +13,8 @@ facts — never from the language model. This module is that certainty:
       -> Dr. Dimple A Shajahan / Professor · Computer Science / PhD from IIT Madras
   * role entries whose answer names one person
       "who is the principal: Dr. Sadiq A. is the principal of ..."
-  * the college website's staff lists (web_rag's index), for anyone the
-    knowledge base leaves out
+  * the college website's staff lists (data/site/catalog.json, written by
+    site_index.py), for anyone the knowledge base leaves out
       "Dr. MANU J PILLAI, Associate Professor, COMPUTER SCIENCE AND ENGINEERING"
 
 Directory.match_question() names a person only when the question asks about
@@ -39,6 +39,30 @@ _WORD = re.compile(r"[A-Za-z]+")
 _SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z(])")
 _ABBREV_END = re.compile(r"(?:^|\s)(?:Dr|Prof|Mr|Mrs|Ms|Smt|St|No|[A-Z])\.$")
 _SMALL = {"and", "of", "the", "in", "for", "with"}
+
+
+def closest_name(heard, names, cutoff=0.8):
+    """(the known spelling, exact?) for a name speech recognition heard —
+    "navia" against the college's students / staff / registered faces ->
+    ("Navya", False) — or (None, False). A one-word name is compared with
+    first names, a two-word one with first + second words, and so on."""
+    import difflib
+    h = (heard or "").lower().split()
+    if not h:
+        return None, False
+    cands = {}
+    for n in names:
+        w = [x for x in (n or "").split()
+             if x.lower().strip(".") not in TITLES and len(x.strip(".")) > 0]
+        if len(w) < len(h):
+            continue
+        spelled = " ".join(w[:len(h)])
+        cands.setdefault(spelled.lower(), spelled)
+    key = " ".join(h)
+    if key in cands:
+        return cands[key], True
+    m = difflib.get_close_matches(key, list(cands), n=1, cutoff=cutoff)
+    return (cands[m[0]], False) if m else (None, False)
 
 
 def name_tokens(name):

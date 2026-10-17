@@ -16,9 +16,9 @@ head start before the first real visitor (then deploy ONCE with
   --simulate N    N simulated visitor sessions through local Ollama models:
                   a visitor model plays a persona with a goal (a knowledge-
                   base topic, a general question, or something out of scope)
-                  for 3-5 turns; Luna answers exactly the way brain.py
-                  builds her prompt (persona.build_messages + RAG-lite
-                  retrieval like scripts/bench_llm.py + the bandit's chosen
+                  for 3-5 turns; Luna answers with her ANSWER call
+                  (fetch.answer_message, the closest knowledge-base entries
+                  as data, like scripts/bench_llm.py, + the bandit's chosen
                   style + exemplars + profile); a judge model scores each
                   reply 1-5 (<=2 -> -1, 3 -> 0, 4 -> +0.5, 5 -> +1) and the
                   visitor's next line feeds the same implicit signals as real
@@ -50,7 +50,6 @@ for p in (ROOT, os.path.join(ROOT, "scripts")):
 os.chdir(ROOT)
 
 import config            # noqa: E402
-import persona           # noqa: E402
 import conversation_log  # noqa: E402
 import learning          # noqa: E402
 import bench_llm         # noqa: E402  (Ollama client + RAG-lite KB)
@@ -275,9 +274,9 @@ def run_session(i, n, chat, models, kb, rng, bake):
         prof = learning.profile_context(person, now) if person else None
         if prof:
             extra["profile"] = prof
-        msgs = persona.build_messages(
-            heard, history=history, knowledge_text=kb.text if bake else None,
-            kb_snippets=snippets, person=person, **extra)
+        msgs = bench_llm.luna_messages(
+            heard, snippets, history=history,
+            knowledge_text=kb.text if bake else None, person=person, **extra)
         res = chat(models["luna"], msgs, temperature=config.LLM_TEMPERATURE)
         reply = (res.get("reply") or "").strip()
         if not reply:

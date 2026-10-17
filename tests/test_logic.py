@@ -194,11 +194,21 @@ class TestSceneDescribe(unittest.TestCase):
         self.assertFalse(self.sc.is_vision_query("what is the fee structure"))
 
 
-class TestPersonaGreeting(unittest.TestCase):
+class TestFirstWordsSooner(unittest.TestCase):
+    def test_first_chunk_ends_at_a_comma_once_long_enough(self):
+        import piper_tts
+        words = "The CSE department, which started in 1984, has 13 faculty. Next one."
+        got = list(piper_tts.chunk_stream(iter(words.split(" ")[i] + " "
+                                               for i in range(len(words.split(" "))))))
+        self.assertEqual(got[0], "The CSE department, which started in 1984,")
+        self.assertEqual(" ".join(got), words)            # nothing lost
+
+
+class TestPromptGreeting(unittest.TestCase):
     def test_no_second_hello_mid_conversation(self):
-        import persona
-        first = persona.format_context(person="Ann")
-        later = persona.format_context(person="Ann", greeted=True)
+        import fetch
+        first = fetch.route_message("hi", person="Ann")
+        later = fetch.route_message("hi", person="Ann", greeted=True)
         self.assertNotIn("greet", first)
         self.assertIn("do not greet them again", later)
 

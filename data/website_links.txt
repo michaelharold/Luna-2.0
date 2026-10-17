@@ -1,18 +1,17 @@
 # data/website_links.txt — the college website pages Luna must always know,
 # grouped the way the college organises them (from "LINKS OF TKMCE").
 #
-# web_rag.py indexes every page here, on top of what it finds in the site's
-# menus, and routes questions to each page under its group: "who is the
-# principal" -> Administration > Administration -> /principal.
+# site_index.py (the weekly indexing, docs/Fetch Algo.md) reads every page
+# here on top of what it finds in the site's menus. Which topic file a page
+# ends up in is decided by SITE_PAGES in config.py, not by these groups.
 #
 #   [Group] or [Group > Subgroup]   starts a group
 #   one URL per line                belongs to the group above it
 #   # ...                           a comment
 #
-# Other departments' pages are searched only when a question names that
-# department; the other TKM institutions' sites only when a question is about
-# them. Editing this file makes Luna re-read the website on her next refresh
-# (when online). Check every link with:  python web_rag.py --verify
+# Other departments get a file each (dept_<name>); the other TKM
+# institutions share one. Changes take effect on the next indexing run.
+# Check every link with:  python site_crawler.py --verify
 
 [Main]
 https://tkmce.ac.in/

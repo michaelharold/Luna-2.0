@@ -12,6 +12,8 @@
 # What is intentionally NOT synced (see excludes): the Mac venv (wrong CPU arch
 # for the Pi — the Pi keeps its own), __pycache__, the Vosk model folders (too
 # big / download them on the Pi instead), recorded benchmark clips, .DS_Store.
+# The website index (data/site/pages + catalog.json, from the weekly
+# `python site_index.py` on the Mac) IS synced — that is how the Pi gets it.
 set -euo pipefail
 
 PI="${PI:-luna}"                          # ssh alias (see ~/.ssh/config) -> luna@172.21.31.169
@@ -39,12 +41,16 @@ RSYNC_OPTS=(
   --exclude 'data/faces/'        # the Pi's OWN memory of people — --delete
   --exclude 'data/face_log.jsonl'  # must never wipe these runtime files
   --exclude 'face_shots/'        # local screenshot output
-  --exclude 'data/rag_cache/'    # the Pi's own cached website index (web_rag.py)
+  --exclude 'data/site/crawl.json'     # the website index IS synced (the Mac
+  --exclude 'data/site/llm_cache.json' # runs site_index.py weekly): only its
+                                 # page files + catalog.json; the raw crawl
+                                 # and the Llama cache stay on the Mac
   --exclude 'results/'           # benchmark output (scripts/bench_llm.py)
   --exclude 'data/logs/'         # the Pi's own conversation log (and the Mac's
                                  # dev log must never land on the Pi)
   --exclude 'data/logs_sim/'     # simulated sessions (train_learning.py)
   --exclude 'data/diary/'        # the Pi's own diary
+  --exclude 'data/answer_cache.json'  # the Pi's own cached answers
   --exclude 'data/learning/'     # what the Pi has learned — seeded ONCE with
                                  # --seed-learning, never overwritten after
 )

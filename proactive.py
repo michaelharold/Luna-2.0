@@ -337,9 +337,23 @@ def proactive_loop():
             continue
 
 
+def _touch_loop():
+    """ENABLE_PROACTIVE off: only the touch-to-register handoff. Holding
+    the face is the PERSON asking, not Luna acting on her own, so it works
+    either way."""
+    while True:
+        time.sleep(PROACTIVE_POLL_SECS)
+        with state.lock:
+            touch_req = state.touch_enroll_request
+        if touch_req and _may_respond():
+            _handle_touch_enroll()
+
+
 def start_proactive():
     if not ENABLE_PROACTIVE:
-        print("[proactive] Disabled in config")
+        print("[proactive] Disabled in config (touch registration still works)")
+        threading.Thread(target=_touch_loop, daemon=True,
+                         name="touch_enroll").start()
         return
     t = threading.Thread(target=proactive_loop, daemon=True, name="proactive")
     t.start()

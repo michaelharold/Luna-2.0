@@ -76,7 +76,7 @@ def available():
     return _llm is not None
 
 
-def stream(messages):
+def stream(messages, max_tokens=None, model=None):
     """Yield reply-text deltas for a chat `messages` list.
 
     Mirrors the old Groq streaming contract: the first next() performs real
@@ -91,7 +91,7 @@ def stream(messages):
         try:
             out = _llm.create_chat_completion(
                 messages=messages,
-                max_tokens=LLM_MAX_TOKENS,
+                max_tokens=max_tokens or LLM_MAX_TOKENS,
                 temperature=LLM_TEMPERATURE,
                 stream=True,
             )
@@ -103,10 +103,10 @@ def stream(messages):
             print(f"[llm] Generation error: {e}")
 
 
-def ask(messages):
+def ask(messages, max_tokens=None, model=None):
     """Whole reply as one string, or None on failure. For callers that don't
     want to deal with a stream (commands, tests)."""
-    parts = list(stream(messages))
+    parts = list(stream(messages, max_tokens))   # one model: `model` unused
     reply = "".join(parts).strip()
     return reply or None
 

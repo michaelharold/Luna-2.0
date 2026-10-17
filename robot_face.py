@@ -1015,6 +1015,10 @@ class RobotFace:
                 busy = state.speaking or state.tts_active
                 if not busy:
                     state.touch_enroll_request = True
+                    # the conversation opens NOW: "my name is ..." said at
+                    # once needs no wake word, even before Luna asks
+                    state.conversation_active = True
+                    state.last_activity_time = time.time()
             if busy:
                 return
             print("[face] Face held — touch registration requested")

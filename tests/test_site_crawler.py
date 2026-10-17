@@ -1,16 +1,15 @@
-# tests/test_web_rag.py
-"""Unit tests for web_rag.py — the optional website index.
+# tests/test_site_crawler.py
+"""Unit tests for site_crawler.py — Indexing() step 1, reading the website.
 
 A tiny site is served from a thread (http.server on an ephemeral 127.0.0.1
-port) and embedded with a deterministic hashed bag-of-words function, so no
-network and no real model are ever touched:
+port), so no network is ever touched:
 
-    python -m unittest discover tests -v
+    python -m unittest tests.test_site_crawler -v
 """
 
 import gzip
-import hashlib
 import http.server
+import json
 import os
 import shutil
 import sys
@@ -20,29 +19,9 @@ import time
 import unittest
 from unittest import mock
 
-import numpy as np
-
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
-import web_rag  # noqa: E402
-
-DIM = 4096
-
-
-def fake_embed(texts):
-    """Hashed bag-of-words, L2-normalised — deterministic across processes.
-    Each word lights two of 4096 dims (two slices of its md5), so a single
-    hash collision between unrelated words can't fake a full match."""
-    out = np.zeros((len(texts), DIM), dtype=np.float32)
-    for i, t in enumerate(texts):
-        for w in t.lower().split():
-            w = w.strip(".,;:!?()\"'")
-            if w:
-                d = hashlib.md5(w.encode()).digest()
-                out[i, int.from_bytes(d[:4], "big") % DIM] += 1.0
-                out[i, int.from_bytes(d[4:8], "big") % DIM] += 1.0
-    return out / np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-9)
-
+import site_crawler as crawler  # noqa: E402
 
 PAGES = {
     "/": ("text/html", """<html><head><title>Test College</title></head><body>
@@ -368,10 +347,10 @@ def _stop_server(srv):
     srv.shutdown()
     srv.server_close()
 
-
 class TestPureHelpers(unittest.TestCase):
+
     def test_html_to_text_drops_script_style_and_keeps_title(self):
-        title, text, links = web_rag.html_to_text(PAGES["/messy.html"][1])
+        title, text, links = crawler.html_to_text(PAGES["/messy.html"][1])
         self.assertEqual(title, "News")
         for bad in ("STYLEWORD", "SCRIPTWORD", "SCRIPTWORD2", "NAVWORD",
                     "HEADERWORD", "FOOTERWORD"):
@@ -386,11 +365,11 @@ class TestPureHelpers(unittest.TestCase):
         for html in ("<body><nav>MENU<p>item</p><main><p>Real fact</p></main>",
                      "<body><nav>MENU<section><p>Real fact</p></section>",
                      "<body><header>MENU<article><p>Real fact</p></article>"):
-            _, text, _ = web_rag.html_to_text(html)
+            _, text, _ = crawler.html_to_text(html)
             self.assertEqual(text, "Real fact", html)
         # HTML5 <article><header> holds the heading: keep it. The page-level
         # <header>/<footer> and a <nav>/<form> inside content stay dropped.
-        _, text, _ = web_rag.html_to_text(
+        _, text, _ = crawler.html_to_text(
             "<html><body><header><h1>SITEWORD</h1></header>"
             "<article><header><h1>Principal message</h1></header>"
             "<nav>ARTNAVWORD</nav><form>FORMWORD</form>"
@@ -398,79 +377,43 @@ class TestPureHelpers(unittest.TestCase):
             "<footer>FOOTERWORD</footer></body></html>")
         self.assertEqual(text, "Principal message\nDr X is principal")
 
-    def test_embedding_runs_in_batches(self):
-        calls = []
-
-        def counting_embed(texts):
-            calls.append(len(texts))
-            return fake_embed(texts)
-
-        old = (web_rag._embed_fn, web_rag.EMBED_BATCH, web_rag.EMBED_BATCH_PAUSE_S)
-        old_cfg = {k: web_rag._settings[k] for k in ("chunk_words", "chunk_overlap")}
-        web_rag._embed_fn, web_rag.EMBED_BATCH = counting_embed, 4
-        web_rag.EMBED_BATCH_PAUSE_S = 0.0
-        web_rag.configure(chunk_words=10, chunk_overlap=0)
-        try:
-            words = " ".join(f"w{i}" for i in range(100))      # 10 chunks
-            idx = web_rag._build_index([{"url": "u", "title": "t",
-                                         "text": words}])
-        finally:
-            (web_rag._embed_fn, web_rag.EMBED_BATCH,
-             web_rag.EMBED_BATCH_PAUSE_S) = old
-            web_rag.configure(**old_cfg)
-        self.assertEqual(calls, [4, 4, 2])
-        self.assertEqual(idx["matrix"].shape, (10, DIM))
-        self.assertEqual(len(idx["chunks"]), 10)
-
-    def test_chunking_overlaps(self):
-        words = [f"w{i}" for i in range(130)]
-        chunks = web_rag.chunk_text(" ".join(words), 50, 20)
-        self.assertEqual(len(chunks), 4)             # starts 0, 30, 60, 90
-        first, second = chunks[0].split(), chunks[1].split()
-        self.assertEqual(len(first), 50)
-        self.assertEqual(first[30:], second[:20])    # shared 20 words
-        self.assertEqual(chunks[-1].split()[-1], "w129")
-        self.assertEqual(web_rag.chunk_text("", 50, 20), [])
-        self.assertEqual(len(web_rag.chunk_text("just a few words", 50, 20)), 1)
-
     def test_robots_parsing(self):
-        rules = web_rag.parse_robots(PAGES["/robots.txt"][1])
+        rules = crawler.parse_robots(PAGES["/robots.txt"][1])
         self.assertEqual(rules[0], ["/private/", "/cgi-bin", "/s/private/"])
-        self.assertTrue(web_rag.robots_allows(rules, "http://h/a.html"))
-        self.assertFalse(web_rag.robots_allows(rules, "http://h/private/x"))
-        self.assertFalse(web_rag.robots_allows(rules, "http://h/cgi-bin/x"))
-        allow_rules = web_rag.parse_robots(
+        self.assertTrue(crawler.robots_allows(rules, "http://h/a.html"))
+        self.assertFalse(crawler.robots_allows(rules, "http://h/private/x"))
+        self.assertFalse(crawler.robots_allows(rules, "http://h/cgi-bin/x"))
+        allow_rules = crawler.parse_robots(
             "User-agent: *\nDisallow: /p/\nAllow: /p/open\n")
-        self.assertTrue(web_rag.robots_allows(allow_rules, "http://h/p/open/1"))
-        self.assertFalse(web_rag.robots_allows(allow_rules, "http://h/p/x"))
-        self.assertTrue(web_rag.robots_allows(([], []), "http://h/anything"))
+        self.assertTrue(crawler.robots_allows(allow_rules, "http://h/p/open/1"))
+        self.assertFalse(crawler.robots_allows(allow_rules, "http://h/p/x"))
+        self.assertTrue(crawler.robots_allows(([], []), "http://h/anything"))
 
 
 class TestDataAndLinks(unittest.TestCase):
-    """Pure helpers behind live lookups: data endpoints, JSON flattening,
-    link labels and "check the website" detection."""
+    """Pure helpers: data endpoints, JSON flattening, tables, headings."""
 
     def test_data_endpoints_from_inline_scripts(self):
-        page = web_rag.parse_page(PAGES["/live/people.html"][1])
-        eps = web_rag.find_data_endpoints(page["scripts"],
+        page = crawler.parse_page(PAGES["/live/people.html"][1])
+        eps = crawler.find_data_endpoints(page["scripts"],
                                           "http://h.org/live/people.html")
         # literal params fold into the query; a JS variable can't be resolved
         self.assertEqual(eps, ["http://h.org/live/get-people.php?id=7"])
         js = ["fetch('/api/list.json'); $.getJSON(\"https://h.org/x.php\");"
               "fetch('https://elsewhere.com/a.php'); url: 'pic.png'"]
-        self.assertEqual(web_rag.find_data_endpoints(js, "https://www.h.org/"),
+        self.assertEqual(crawler.find_data_endpoints(js, "https://www.h.org/"),
                          ["https://www.h.org/api/list.json",
                           "https://h.org/x.php"])
 
     def test_parse_page_keeps_menu_anchor_text(self):
-        page = web_rag.parse_page(PAGES["/live/"][1])
+        page = crawler.parse_page(PAGES["/live/"][1])
         self.assertIn(("people.html", "Staff"), page["anchors"])
         self.assertNotIn("Staff", page["text"])            # nav isn't content
 
     def test_json_sections_are_readable_and_private(self):
         import json
         data = json.loads(PAGES["/live/get-people.php"][1])
-        secs = web_rag.json_to_sections(data, "http://h/get-people.php?id=7")
+        secs = crawler.json_to_sections(data, "http://h/get-people.php?id=7")
         # " (QS)" when an earlier test left Quantum Studies as the focus
         by_title = {s["title"].replace(" (QS)", ""): s["text"] for s in secs}
         nts = "Non teaching staff (lab staff, technical and office staff)"
@@ -494,153 +437,31 @@ class TestDataAndLinks(unittest.TestCase):
                 "<td>[email&#160;protected]</td><td>9446915388</td></tr>"
                 "<tr><td>2</td><td>Dr. Sudheer A </td><td>Mechanical</td>"
                 "<td>a@b.c</td><td>9447472142</td></tr></table>")
-        page = web_rag.parse_page(html)
+        page = crawler.parse_page(html)
         self.assertIn("2 | Dr. Sudheer A | Mechanical", page["text"])
-        rows = web_rag.table_rows(page["tables"], "http://h/hods", "HODs")
+        rows = crawler.table_rows(page["tables"], "http://h/hods", "HODs")
         self.assertEqual([r["text"] for r in rows],
                          ["Name: Dr. Adarsh S; Department: Civil.",
                           "Name: Dr. Sudheer A; Department: Mechanical."])
         self.assertEqual(rows[1]["url"], "http://h/hods#t0r1")
-        self.assertEqual(rows[1]["embed"], "Department: Mechanical")
         self.assertEqual(page["table_heads"], [True])
         # no <th> row: rows stay rows, the first one is NOT column names
-        plain = web_rag.parse_page(
+        plain = crawler.parse_page(
             "<table><tr><td>Chairman</td><td>Janab A</td><td>Trust head</td></tr>"
             "<tr><td>Member</td><td>Janab B</td><td>Treasurer</td></tr>"
             "<tr><td>Member</td><td>Dr. C</td><td>Faculty member</td></tr></table>")
         self.assertEqual(plain["table_heads"], [False])
-        got = web_rag.table_rows(plain["tables"], "u", "GB", plain["table_heads"])
+        got = crawler.table_rows(plain["tables"], "u", "GB", plain["table_heads"])
         self.assertEqual(got[0]["text"], "Chairman | Janab A | Trust head.")
-        self.assertNotIn("embed", got[0])
         # a two-row layout table and a stats box are not directories
-        self.assertEqual(web_rag.table_rows([[["a", "b"], ["c", "d"]]],
+        self.assertEqual(crawler.table_rows([[["a", "b"], ["c", "d"]]],
                                             "u", "t"), [])
-        self.assertEqual(web_rag.table_rows(
+        self.assertEqual(crawler.table_rows(
             [[["UG students", "877"], ["PG students", "48"],
               ["Staff", "37"]]], "u", "t"), [])
 
-    def test_a_named_person_finds_their_row(self):
-        saved = (web_rag._embed_fn, web_rag._index, dict(web_rag._settings))
-        web_rag._embed_fn = fake_embed
-        web_rag._settings.update(chunk_words=40, chunk_overlap=0, top_k=3,
-                                 min_sim=0.01)
-        try:
-            web_rag._index = web_rag._build_index([
-                {"url": "p", "title": "", "text": "zorp " * 20},
-                {"url": "p#t0r1", "title": "PTA",
-                 "text": "Name: Sri. Saheer H; Designation: Member from parents."},
-                {"url": "r#btech/A/0", "title": "Btech student",
-                 "text": "Name: Pranav P; Batch: A."},
-                {"url": "r#btech/A/1", "title": "Btech student",
-                 "text": "Name: Pranav Prasanth; Batch: A; Admission No: 9."},
-                {"url": "r#btech/A/2", "title": "Btech student",
-                 "text": "Name: Anu K; Batch: A."}])
-            top = web_rag.retrieve("is pranav prasanth a student here")[0]
-            self.assertEqual(top[0], "r#btech/A/1")      # not every Pranav
-            self.assertEqual(top[2], web_rag.NAME_MATCH_SCORE)
-            self.assertEqual(web_rag.retrieve("who is saheer")[0][0], "p#t0r1")
-            # a short first name alone matches nobody in particular
-            self.assertNotIn("r#btech/A/2",
-                             [h[0] for h in web_rag.retrieve("is anu here")
-                              if h[2] == web_rag.NAME_MATCH_SCORE])
-        finally:
-            web_rag._embed_fn, web_rag._index = saved[0], saved[1]
-            web_rag._settings.clear()
-            web_rag._settings.update(saved[2])
-
-    @mock.patch.object(web_rag, "RELATIVE_CUT", 1.0)
-    @mock.patch.object(web_rag, "SECTION_CUT", 1.0)
-    def test_one_page_cannot_fill_the_top_k(self):
-        saved = (web_rag._embed_fn, web_rag._index, dict(web_rag._settings))
-        web_rag._embed_fn = fake_embed
-        web_rag._settings.update(chunk_words=10, chunk_overlap=0, top_k=3,
-                                 min_sim=0.01)
-        try:
-            web_rag._index = web_rag._build_index([
-                {"url": "u1", "title": "", "text": " ".join(["zorp alpha"] * 30)},
-                {"url": "u1#t0r1", "title": "", "text": "zorp alpha zorp"},
-                {"url": "u2", "title": "", "text": "zorp beta gamma delta"}])
-            # u1's text gets one slot, its table row another, then u2
-            self.assertEqual([h[0] for h in web_rag.retrieve("zorp alpha")],
-                             ["u1", "u1#t0r1", "u2"])
-        finally:
-            web_rag._embed_fn, web_rag._index = saved[0], saved[1]
-            web_rag._settings.clear()
-            web_rag._settings.update(saved[2])
-
-    @mock.patch.object(web_rag, "RELATIVE_CUT", 1.0)
-    @mock.patch.object(web_rag, "SECTION_CUT", 1.0)
-    def test_best_page_comes_as_a_section_not_a_scrap(self):
-        saved = (web_rag._embed_fn, web_rag._index, dict(web_rag._settings))
-        web_rag._embed_fn = fake_embed
-        web_rag._settings.update(chunk_words=10, chunk_overlap=2, top_k=2,
-                                 min_sim=0.01, page_words=30)
-        filler = " ".join(f"w{i}" for i in range(42))   # no short tail
-        try:
-            web_rag._index = web_rag._build_index([
-                {"url": "u1", "title": "News",
-                 "outline": ["Robot team wins", "Patent granted",
-                             "New lab opens"],
-                 "text": "zorp alpha one two three four five six seven "
-                         "eight " + filler + " zorp beta nine ten eleven"},
-                {"url": "u2", "title": "", "text": "zorp gamma delta"}])
-            hits = web_rag.retrieve("zorp alpha beta")
-            top = hits[0][1]
-            # the headlines first, then the page's best passages in reading
-            # order (a gap marked), not its single best chunk
-            self.assertTrue(top.startswith("News: Headlines on this page: "
-                                           "Robot team wins; Patent granted; "
-                                           "New lab opens. Details: "), top)
-            self.assertIn("zorp alpha", top)
-            self.assertIn("zorp beta", top)
-            self.assertLess(top.index("alpha"), top.index("beta"))
-            self.assertIn(" … ", top)
-            self.assertEqual(hits[1][0], "u2")     # others stay as passages
-            # off: the old single chunk
-            web_rag._settings["page_words"] = 0
-            self.assertNotIn("Headlines",
-                             web_rag.retrieve("zorp alpha beta")[0][1])
-        finally:
-            web_rag._embed_fn, web_rag._index = saved[0], saved[1]
-            web_rag._settings.clear()
-            web_rag._settings.update(saved[2])
-
-    @mock.patch.object(web_rag, "RELATIVE_CUT", 1.0)
-    def test_a_section_drops_much_weaker_extracts(self):
-        saved = (web_rag._embed_fn, web_rag._index, dict(web_rag._settings))
-        web_rag._embed_fn = fake_embed
-        web_rag._settings.update(chunk_words=10, chunk_overlap=2, top_k=3,
-                                 min_sim=0.01, page_words=40)
-        try:
-            web_rag._index = web_rag._build_index([
-                {"url": "u1", "title": "",
-                 "text": "zorp alpha beta one two three four five six seven "
-                         "zorp alpha beta eight nine ten eleven twelve"},
-                {"url": "u2", "title": "",
-                 "text": "zorp other words entirely here and there"}])
-            self.assertEqual([h[0] for h in web_rag.retrieve("zorp alpha beta")],
-                             ["u1"])
-        finally:
-            web_rag._embed_fn, web_rag._index = saved[0], saved[1]
-            web_rag._settings.clear()
-            web_rag._settings.update(saved[2])
-
-    def test_page_text_rejoins_chunks_without_overlap(self):
-        saved = (web_rag._embed_fn, web_rag._index, dict(web_rag._settings))
-        web_rag._embed_fn = fake_embed
-        web_rag._settings.update(chunk_words=10, chunk_overlap=3)
-        words = " ".join(f"w{i}" for i in range(31))   # no short tail
-        try:
-            idx = web_rag._build_index([{"url": "u", "title": "", "text": words}])
-            self.assertGreater(len(idx["chunks"]), 2)
-            self.assertEqual(web_rag.page_text(idx, "u"), words)
-        finally:
-            web_rag._embed_fn, web_rag._index = saved[0], saved[1]
-            web_rag._settings.clear()
-            web_rag._settings.update(saved[2])
-
     def test_headings_become_the_page_outline(self):
-        page = web_rag.parse_page(
+        page = crawler.parse_page(
             "<html><head><title>Achievements</title></head><body>"
             "<h2>Achievements</h2><h2>Team Jager wins   karting race</h2>"
             "<p>Long story.</p><h4>𝐀 𝐠𝐢𝐚𝐧𝐭 𝐥𝐞𝐚𝐩</h4>"
@@ -650,78 +471,45 @@ class TestDataAndLinks(unittest.TestCase):
         self.assertEqual(page["headings"],
                          ["Team Jager wins karting race", "A giant leap"])
 
-    def test_expand_query(self):
-        self.assertEqual(web_rag.expand_query("who is the HOD of cse?"),
-                         "who is the HOD head of department HOD of cse? "
-                         "computer science and engineering")
-        self.assertEqual(web_rag.expand_query("tell me about me"),
-                         "tell me about me")     # 2-letter keys never expand
-
-    def test_link_label_spells_out_slugs(self):
-        self.assertEqual(
-            web_rag.link_label("https://h/nts-cse.php", ["Staff"]),
-            "Staff | non teaching staff computer science and engineering")
-        self.assertEqual(web_rag.link_label("https://h/staff-profile.php?id=9"),
-                         "staff profile")
-
-    def test_website_request(self):
-        req = web_rag.website_request
-        self.assertEqual(req("look into the website"), (True, ""))
-        self.assertEqual(req("check online"), (True, ""))
-        self.assertEqual(req("can you check the website for the fee structure"),
-                         (True, "fee structure"))
-        self.assertEqual(req("website"), (True, ""))
-        self.assertEqual(req("what is the college website address"),
-                         (False, ""))
-        self.assertEqual(req("who is the principal"), (False, ""))
-        offer = "Shall I check the college website for that?"
-        self.assertEqual(req("yes please", offer), (True, ""))
-        self.assertEqual(req("yes please", "Do you like robots?"), (False, ""))
-        self.assertEqual(req("yes I study here", offer), (False, ""))
-
 
 class _SiteCase(unittest.TestCase):
     """The /s/ test college, configured like tkmce.ac.in: home + focus
     department as seeds, "qs" as the focus department's URL word."""
 
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="luna-test-webrag-site-")
+        self.tmp = tempfile.mkdtemp(prefix="luna-test-crawl-")
         self.srv, base = _start_server()
         self.base = base + "s/"
         _Handler.requests = []
-        web_rag.configure(
+        crawler.configure(
             url=self.base, seeds=[self.base, self.base + "dept-qs.html"],
             focus_name="Quantum Studies", focus_slugs=["qs"],
             skip_sections=["departments"], skip_slugs=["mechanical", "mech"],
-            cache_dir=self.tmp, max_pages=50, workers=4, chunk_words=40,
-            chunk_overlap=10, top_k=3, min_sim=0.05, route_topics=5,
-            route_min=0.05, online_timeout=0.5, fetch_timeout=3.0,
-            refresh_hours=24, live_pages=2, live_timeout=5.0,
+            max_pages=50, workers=4, online_timeout=0.5, fetch_timeout=3.0,
             links_file="",                # never the real college list here
-            pdfs=False, rosters=False, data_hosts=[])
+            pdfs=False, rosters=False, data_hosts=[], max_pdfs=80)
 
     def tearDown(self):
-        web_rag.wait(5)
         try:
             _stop_server(self.srv)
         except Exception:
             pass
-        web_rag.configure(url="")          # drop the index for the next test
+        crawler.configure(url="")
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _requests(self):
         with _Handler.lock:
             return list(_Handler.requests)
 
-    def _build(self):
-        web_rag.start(fake_embed, background=False)
-        self.assertTrue(web_rag.refresh(force=True), web_rag.status())
+    def _crawl(self):
+        data = crawler.crawl()
         _Handler.requests = []
-
+        return data
 
 class TestCatalog(_SiteCase):
+
     def test_menu_links_carry_their_menu_path(self):
-        links = web_rag.menu_links(PAGES["/s/"][1], self.base)
+        links = crawler.menu_links(PAGES["/s/"][1], self.base)
         self.assertIn((self.base + "admission.html", "UG/PG",
                        ["ACADEMICS", "Admissions"]), links)
         self.assertIn((self.base + "principal.html", "Principal",
@@ -729,7 +517,7 @@ class TestCatalog(_SiteCase):
         self.assertFalse(any("other.example" in u for u, _, _ in links))
 
     def test_classify(self):
-        c = web_rag.classify
+        c = crawler.classify
         self.assertEqual(c(self.base + "nts-qs.html", ["Staff"], ["People"]),
                          ("focus", ""))
         self.assertEqual(c(self.base + "dept-qs.html", ["Quantum Studies"],
@@ -742,7 +530,7 @@ class TestCatalog(_SiteCase):
         self.assertEqual(c(self.base + "uploads/brochure.pdf")[0], None)
 
     def test_verify_reports_every_link(self):
-        report = web_rag.verify(print_report=False)
+        report = crawler.verify(print_report=False)
         st = lambda page: report[self.base + page]
         self.assertTrue(st("about.html").startswith("[general] ok"))
         self.assertTrue(st("nts-qs.html").startswith("[focus]"))
@@ -759,18 +547,18 @@ class TestCatalog(_SiteCase):
 
 class TestCuratedLinks(_SiteCase):
     """data/website_links.txt: a hand-picked, grouped list of pages that are
-    always indexed, each routed under its group."""
+    always read, each under its group."""
 
     def _links(self, text):
         path = os.path.join(self.tmp, "links.txt")
         with open(path, "w") as f:
             f.write(text)
-        web_rag.configure(links_file=path)
-        self.addCleanup(web_rag.configure, links_file="")
+        crawler.configure(links_file=path)
+        self.addCleanup(crawler.configure, links_file="")
         return path
 
     def test_parse_links(self):
-        got = web_rag.parse_links("""# the college's important pages
+        got = crawler.parse_links("""# the college's important pages
             https://a.example/            # before any group
             [Main]
             https://a.example/
@@ -787,7 +575,7 @@ class TestCuratedLinks(_SiteCase):
             ("https://a.example/x.php", "Administration > General", "")])
 
     def test_labels_and_pages_in_several_groups(self):
-        got = web_rag.parse_links("""[CSE > Students]
+        got = crawler.parse_links("""[CSE > Students]
             https://a.example/student-achievements-cse.php
             [CSE > Others]
             https://a.example/student-chapter-cse.php   Student Chapters
@@ -803,7 +591,7 @@ class TestCuratedLinks(_SiteCase):
     def test_every_group_of_a_page_is_a_path(self):
         self._links(f"[About]\n{self.base}about.html   About us\n"
                     f"[History]\n{self.base}about.html\n")
-        catalog, _ = web_rag.discover()
+        catalog, _ = crawler.discover()
         info = catalog[self.base + "about.html"]
         self.assertEqual(info["paths"][:2], ["About", "History"])
         self.assertIn("About us", info["texts"])
@@ -811,20 +599,14 @@ class TestCuratedLinks(_SiteCase):
     def test_curated_pages_join_the_catalog_under_their_group(self):
         self._links(f"[About]\n{self.base}about.html\n"
                     f"[Departments]\n{self.base}mechanical.html\n")
-        catalog, skipped = web_rag.discover()
+        catalog, skipped = crawler.discover()
         self.assertEqual(catalog[self.base + "about.html"]["paths"][0], "About")
         mech = catalog[self.base + "mechanical.html"]     # no longer skipped
         self.assertEqual(mech["scope"], "other")
         self.assertNotIn(self.base + "mechanical.html", skipped)
 
-    def test_other_department_answers_only_when_named(self):
-        self._links(f"[Departments]\n{self.base}mechanical.html\n")
-        self._build()
-        text = lambda q: " ".join(t for _, t, _ in web_rag.retrieve(q, top_k=5))
-        self.assertNotIn("MECHWORD", text("gears and engines taught"))
-        self.assertIn("MECHWORD", text("mechanical gears and engines taught"))
 
-    def test_another_tkm_site_is_indexed_but_kept_apart(self):
+    def test_other_departments_and_sister_sites_keep_their_scope(self):
         PAGES["/s/sister.html"] = ("text/html",
             "<html><head><title>Sister Institute</title></head><body><p>"
             "ZEBRAWORD the sister institute teaches gears and engines too, "
@@ -832,133 +614,19 @@ class TestCuratedLinks(_SiteCase):
             "</p></body></html>")
         self.addCleanup(PAGES.pop, "/s/sister.html", None)
         other = self.base.replace("127.0.0.1", "localhost") + "sister.html"
-        self._links(f"[TKM institutions]\n{other}\n")
-        self._build()
-        scope = {t["url"]: t["scope"] for t in web_rag._index["links"]}
-        self.assertEqual(scope.get(other), "affiliate")
-        text = lambda q: " ".join(t for _, t, _ in web_rag.retrieve(q, top_k=5))
-        self.assertIn("ZEBRAWORD", text("sister institute"))
-        self.assertNotIn("ZEBRAWORD", text("when are the exams"))
-
-    def test_changing_the_list_triggers_a_rebuild(self):
-        path = self._links(f"[About]\n{self.base}about.html\n")
-        self._build()
-        self.assertFalse(web_rag._is_stale(web_rag._index))
-        with open(path, "a") as f:
-            f.write(f"[Exams]\n{self.base}exam.html\n")
-        self.assertTrue(web_rag._is_stale(web_rag._index))
-
-
-class TestRelatedSearch(unittest.TestCase):
-    """Second hop: passages elsewhere on the site about the people / things a
-    question (or its best answer) names — a faculty member's achievements, a
-    student's placement — found from the data, not a hard-coded page map."""
-
-    PAGES = {
-        "u/faculty":  ("Faculty", "Head of department HOD, 1 in total: "
-                       "Dr. MIRA K VANCE, Associate Professor. Dr. OREN DALE, "
-                       "Assistant Professor."),
-        "u/achieve":  ("Faculty achievements", "Prof. Oren Dale was awarded "
-                       "a Ph.D. in 2019. Prof. Mira Vance received the Best "
-                       "Teacher award in 2019. Prof. Mira Vance won the "
-                       "national innovation grant in 2025."),
-        "u/students": ("Student achievements", "Lena Fox got placed in "
-                       "Zentrix with a package of 12 lakhs. The students "
-                       "attended a workshop."),
-        "u/labs":     ("Labs", "The labs are open to all students. Computer "
-                       "labs have sixty systems for the students. Zentrix "
-                       "donated two servers to the labs."),
-        "u/fest":     ("Arts fest", "Prof. Mira Vance was the convenor of "
-                       "the arts fest."),
-    }
-
-    def setUp(self):
-        self.idx = {"chunks": [{"url": u, "page": u, "title": t, "text": x}
-                               for u, (t, x) in self.PAGES.items()],
-                    "links": [{"url": u, "scope": "general" if u == "u/fest"
-                               else "focus"} for u in self.PAGES]}
-
-    def related(self, q, hits=()):
-        return web_rag._related(self.idx, q, list(hits), now_year=2026)
-
-    def text(self, q, hits=()):
-        return " ".join(t for _, t, _ in self.related(q, hits))
-
-    def test_a_named_person_brings_their_achievements(self):
-        out = self.text("tell me about mira vance")
-        self.assertIn("national innovation grant in 2025", out)
-        self.assertNotIn("Oren Dale", out)
-
-    def test_recent_first(self):
-        out = self.text("what has mira vance done")
-        self.assertLess(out.index("2025"), out.index("2019"))
-
-    def test_hop_from_the_answer(self):
-        hod = ("u/faculty", "Faculty: Head of department HOD, 1 in total: "
-                            "Dr. MIRA K VANCE, Associate Professor.", 0.8)
-        out = self.text("who is the hod", [hod])
-        self.assertIn("national innovation grant", out)
-
-    def test_the_department_s_own_pages_come_first(self):
-        out = self.text("tell me about mira vance")
-        fest = out.find("convenor")             # may be past the cap entirely
-        self.assertTrue(fest == -1 or out.index("innovation grant") < fest)
-
-    def test_sentences_sharing_the_question_s_words_come_first(self):
-        out = self.text("did anyone get placed in zentrix")
-        self.assertLess(out.index("Lena Fox"), out.index("donated"))
-
-    def test_a_long_row_is_cut_around_the_name(self):
-        row = " | ".join(f"Talk {i} by Speaker{i}" for i in range(40))
-        self.idx["chunks"].append({"url": "u/talks", "page": "u/talks",
-                                   "title": "Talks", "text": row +
-                                   " | Talk 41 by Mira Vance on robots"})
-        out = self.text("what talks did mira vance give")
-        self.assertIn("Mira Vance on robots", out)
-
-    def test_no_hop_unless_the_question_asks_who(self):
-        hod = ("u/faculty", "Faculty: Head of department HOD, 1 in total: "
-                            "Dr. MIRA K VANCE, Associate Professor.", 0.8)
-        self.assertEqual(self.related("where is the department office", [hod]),
-                         [])
-
-    def test_sentences_one_by_one(self):
-        out = web_rag._related_sentences(self.idx, "tell me about mira vance",
-                                         [], now_year=2026)
-        self.assertTrue(all(len(r) == 3 for r in out))
-        self.assertIn("national innovation grant in 2025", out[0][2])
-
-    def test_staff_sections(self):
-        idx = {"chunks": [
-            {"url": "u/staff#regular_teaching_staff", "page": "u/staff",
-             "title": "CSE — Regular teaching staff",
-             "text": "Regular teaching staff, 1 in total: Dr. MIRA K VANCE, Professor"},
-            {"url": "u/staff#hod", "page": "u/staff", "title": "CSE — HOD",
-             "text": "Head of department HOD, 1 in total: Dr. MIRA K VANCE"},
-            {"url": "u/news#dept_news", "page": "u/news", "title": "News",
-             "text": "Dept news, 3 in total: something"}], "links": []}
-        with mock.patch.object(web_rag, "_index", idx):
-            got = web_rag.staff_sections()
-        self.assertEqual([t for t, _ in got], ["CSE — Regular teaching staff",
-                                               "CSE — HOD"])
-
-    def test_things_too_not_just_people(self):
-        self.assertIn("Lena Fox", self.text("did anyone get placed in zentrix"))
-
-    def test_ordinary_words_are_not_names(self):
-        self.assertEqual(self.related("what labs are there for students"), [])
-
-    def test_nothing_already_in_the_answer_is_repeated(self):
-        hit = ("u/students", "Student achievements: Lena Fox got placed in "
-                             "Zentrix with a package of 12 lakhs.", 0.9)
-        out = self.text("who got placed in zentrix", [hit])
-        self.assertNotIn("Lena Fox", out)              # already said
-        self.assertIn("donated two servers", out)      # still related
-
+        self._links(f"[Departments]\n{self.base}mechanical.html\n"
+                    f"[TKM institutions]\n{other}\n")
+        data = self._crawl()
+        self.assertEqual(data["catalog"][self.base + "mechanical.html"]["scope"],
+                         "other")
+        self.assertEqual(data["catalog"][other]["scope"], "affiliate")
+        text = " ".join(d["text"] for d in data["docs"])
+        self.assertIn("MECHWORD", text)
+        self.assertIn("ZEBRAWORD", text)
 
 class TestNewSources(_SiteCase):
-    """Data from another host (the college's ETLab), class lists, the PDFs a
-    page links to, and the one-.txt-per-link mirror."""
+    """Data from another host (the college's ETLab), class lists and the
+    PDFs a page links to."""
 
     ROSTER = """{"btech": [{"batch": "QS 2K23", "count": "2", "students": [
         {"sno": 1, "id": "7", "name": "VELLAN  ORSIK", "admission_no": "230011"},
@@ -984,10 +652,10 @@ class TestNewSources(_SiteCase):
              "in forty companies with a highest package of 44 lakhs per year",
              "and a median package of six lakhs per year in that batch"])))
         self._swap("/s/files/scan.pdf", ("application/pdf", _pdf([])))
-        web_rag.configure(data_hosts=[self.other.split("//")[1].rstrip("/")],
-                          pdfs=True, rosters=True, pages_txt=True)
-        self.addCleanup(web_rag.configure, pdfs=False, rosters=False,
-                        data_hosts=[], pages_txt=False)
+        crawler.configure(data_hosts=[self.other.split("//")[1].rstrip("/")],
+                          pdfs=True, rosters=True)
+        self.addCleanup(crawler.configure, pdfs=False, rosters=False,
+                        data_hosts=[])
 
     def _swap(self, path, value):
         old = PAGES.get(path)
@@ -998,13 +666,13 @@ class TestNewSources(_SiteCase):
     def test_data_endpoint_on_a_data_host(self):
         js = [f"$.ajax({{url: '{self.other}x/roster.php', data: {{id: 2}}}})",
               "fetch('https://elsewhere.com/a.php')"]
-        self.assertEqual(web_rag.find_data_endpoints(js, self.base + "a.html"),
+        self.assertEqual(crawler.find_data_endpoints(js, self.base + "a.html"),
                          [self.other + "x/roster.php?id=2"])
 
     def test_class_lists_by_student_or_counts_only(self):
         import json
         data = json.loads(self.ROSTER)
-        secs = web_rag.json_to_sections(data, "http://h/r.php", "QS")
+        secs = crawler.json_to_sections(data, "http://h/r.php", "QS")
         head = [s for s in secs if s["url"] == "http://h/r.php#btech"][0]
         self.assertEqual(head["text"], "Number of B.Tech students: 2, in 1 "
                                        "batches (QS 2K23, 2 students).")
@@ -1015,186 +683,66 @@ class TestNewSources(_SiteCase):
         self.assertFalse(any(r.get("data") for r in rows))     # not topics
         pubs = [s for s in secs if s["url"].endswith("#publications")][0]
         self.assertIn("Paper 59", pubs["text"])                # all, not 40
-        web_rag.configure(rosters=False)
-        secs = web_rag.json_to_sections(data, "http://h/r.php", "QS")
+        crawler.configure(rosters=False)
+        secs = crawler.json_to_sections(data, "http://h/r.php", "QS")
         text = " ".join(s["text"] for s in secs)
         self.assertIn("Number of B.Tech students: 2", text)
         self.assertNotIn("Orsik", text)
 
-    def test_pdfs_rosters_and_a_txt_per_link(self):
-        self._build()
-        rep = web_rag._index["report"]
+    def test_other_departments_data_is_marked(self):
+        self.assertTrue(crawler._other_department(
+            "Mechanical Engineering — Btech student"))
+        self.assertFalse(crawler._other_department(
+            "Quantum Studies — Btech"))           # the focus department
+        self.assertFalse(crawler._other_department("Placement statistics"))
+
+
+    def test_pdfs_and_rosters_in_the_crawl(self):
+        data = self._crawl()
+        rep, docs = data["report"], data["docs"]
         pdf = self.base + "files/placement%20stats.pdf"
         scan = self.base + "files/scan.pdf"
         self.assertTrue(rep[pdf].startswith("ok ("), rep.get(pdf))
         self.assertTrue(rep[scan].startswith("needs OCR"), rep.get(scan))
-        chunks = web_rag._index["chunks"]
-        placed = [c for c in chunks if c["url"] == pdf]
+        placed = [d for d in docs if d["url"] == pdf]
         self.assertTrue(placed and "44 lakhs" in placed[0]["text"])
         self.assertEqual(placed[0]["page"], self.base + "about.html")
-        mira = [c for c in chunks if "Mira Tollen" in c["text"]]
+        mira = [d for d in docs if "Mira Tollen" in d["text"]]
         self.assertEqual(mira[0]["topic"], self.other + "x/roster.php?id=2#btech")
-        topics = [t["url"] for t in web_rag._index["links"]]
-        self.assertIn(mira[0]["topic"], topics)
-        self.assertNotIn(mira[0]["url"], topics)          # rows aren't topics
-        d = os.path.join(self.tmp, "pages")
-        names = os.listdir(d)
-        about = open(os.path.join(d, [n for n in names
-                                      if n.endswith("about.html.txt")][0]),
-                     encoding="utf-8").read()
-        for want in ("Status: ok", "Mira Tollen", "=== PDF: placement stats",
-                     "44 lakhs", "needs OCR"):
-            self.assertIn(want, about)
-        # skipped links get a file too, saying why
-        mech = [n for n in names if "mechanical" in n]
-        self.assertTrue(mech, names)
-        self.assertIn("skipped", open(os.path.join(d, mech[0]),
-                                      encoding="utf-8").read())
-
+        self.assertTrue(rep[self.base + "mechanical.html"].startswith("skipped"))
+        self.assertIn(pdf, data["loads"][self.base + "about.html"])
 
     def test_pdf_cap_reports_what_was_left_out(self):
-        web_rag.configure(max_pdfs=1)
-        self.addCleanup(web_rag.configure, max_pdfs=80)
-        self._build()
-        rep = web_rag._index["report"]
+        crawler.configure(max_pdfs=1)
+        self.addCleanup(crawler.configure, max_pdfs=80)
+        rep = self._crawl()["report"]
         got = [rep[u] for u in rep if u.endswith(".pdf")]
-        self.assertEqual(sum(s.startswith("skipped: over WEB_RAG_MAX_PDFS")
+        self.assertEqual(sum(s.startswith("skipped: over SITE_MAX_PDFS")
                              for s in got), 1, got)
 
-    def test_other_departments_data_is_marked(self):
-        self.assertTrue(web_rag._other_department(
-            "Mechanical Engineering — Btech student"))
-        self.assertFalse(web_rag._other_department(
-            "Quantum Studies — Btech"))           # the focus department
-        self.assertFalse(web_rag._other_department("Placement statistics"))
-
-
-class TestRouting(_SiteCase):
-    def test_refresh_indexes_the_catalog(self):
-        self._build()
-        st = web_rag.status()
-        self.assertEqual(st["n_broken"], 1)                # broken.html
-        text = " ".join(c["text"] for c in web_rag._index["chunks"])
-        for bad in ("SECRETWORD", "MECHWORD", "SECRETSTUDENT", "12345",
-                    "ilvana@q.edu"):
-            self.assertNotIn(bad, text)
-        for good in ("Quintrell", "Tobrin Valesko", "December tenth",
-                     "fault tolerant"):
-            self.assertIn(good, text)
-        # shells (faculty/adhoc/staff pages) count as fetched: no live refetch
-        known = web_rag._known_urls(web_rag._index)
-        self.assertIn(self.base + "nts-qs.html", known)
-
-    def test_questions_are_routed_to_their_page(self):
-        self._build()
-        top = lambda q: web_rag.route(q)[0][0]
-        self.assertEqual(top("exam calendar dates"), self.base + "exam.html")
-        self.assertIn(top("who is the principal"),
-                      (self.base + "principal.html", self.base + "principal.php"))
-        self.assertTrue(top("non teaching staff").endswith("#non_teaching_staff"))
-        hits = web_rag.retrieve("when are the semester exam finals")
-        self.assertIn("December tenth", " ".join(t for _, t, _ in hits))
-
-    def test_misspelt_questions_are_corrected(self):
-        self._build()
-        self.assertEqual(web_rag.correct_spelling("examm calender dates"),
-                         "examm calendar dates")       # 5 letters: left alone
-        self.assertEqual(web_rag.correct_spelling("admision for btech"),
-                         "admission for btech")
-        self.assertEqual(web_rag.correct_spelling("what is photosynthesis"),
-                         "what is photosynthesis")     # nothing close: kept
-        self.assertEqual(web_rag.correct_spelling("admissions please"),
-                         "admissions please")          # a form of a site word
-        self.assertEqual(web_rag.route("admision")[0][0],
-                         self.base + "admission.html")
-
-    @mock.patch.object(web_rag, "RELATIVE_CUT", 1.0)
-    def test_faculty_group_brings_regular_and_adhoc(self):
-        self._build()
-        hits = " ".join(t for _, t, _ in web_rag.retrieve("regular faculty"))
-        self.assertIn("Orren Vask", hits)                  # regular
-        self.assertIn("Pell Ardane", hits)                 # adhoc, same group
+class TestCrawl(_SiteCase):
+    def test_crawl_returns_pages_data_and_report(self):
+        data = self._crawl()
+        self.assertEqual(data["url"], self.base)
+        pages = {d.get("page") or d["url"] for d in data["docs"]}
+        self.assertIn(self.base + "about.html", pages)
+        self.assertTrue(data["report"][self.base + "about.html"].startswith("ok"))
+        self.assertIn("duplicate of", data["report"][self.base + "principal.php"])
+        json.dumps(data)                  # site_index.py saves it as JSON
 
     def test_boilerplate_lines_are_stripped(self):
-        with mock.patch.object(web_rag, "BOILERPLATE_PAGES", 2):
-            self._build()
-        vision = [c["text"] for c in web_rag._index["chunks"]
-                  if c["url"].endswith("vision-qs.html")]
+        with mock.patch.object(crawler, "BOILERPLATE_PAGES", 2):
+            data = self._crawl()
+        vision = [d["text"] for d in data["docs"]
+                  if d["url"].endswith("vision-qs.html")]
         self.assertTrue(vision and vision[0].startswith("Vision"), vision)
 
-    def test_every_page_gets_a_readable_txt_mirror(self):
-        was = web_rag._settings["pages_txt"]
-        web_rag.configure(pages_txt=True)
-        try:
-            self._build()
-            d = os.path.join(self.tmp, "pages")
-            names = os.listdir(d)
-            self.assertTrue(names and all(n.endswith(".txt") for n in names))
-            about = [n for n in names if n.endswith("about.html.txt")]
-            self.assertEqual(len(about), 1, names)
-            with open(os.path.join(d, about[0]), encoding="utf-8") as f:
-                body = f.read()
-            self.assertIn(self.base + "about.html", body)
-            self.assertIn("Zorblax", body)
-            # a page that left the index loses its file on the next save
-            stale = os.path.join(d, "gone.example_x.txt")
-            open(stale, "w").close()
-            web_rag._save_cache(web_rag._index)
-            self.assertFalse(os.path.exists(stale))
-        finally:
-            web_rag.configure(pages_txt=was)
+    def test_unreachable_host_raises_clearly(self):
+        crawler.configure(url="http://127.0.0.1:1/", seeds=[])
+        with self.assertRaises(RuntimeError):
+            crawler.crawl()
 
-    def test_cache_survives_restart_offline(self):
-        self._build()
-        web_rag.configure(url="")
-        web_rag.configure(url=self.base)
-        _stop_server(self.srv)
-        web_rag.start(fake_embed)                          # offline now
-        self.assertTrue(web_rag.wait(5))
-        self.assertFalse(web_rag.status()["online"])
-        self.assertIn("Quintrell", " ".join(
-            t for _, t, _ in web_rag.retrieve("who is the principal")))
-
-    def test_routed_page_missing_from_cache_is_fetched_live(self):
-        FAIL_ONCE.add("/s/admission.html")                 # down at refresh
-        self._build()
-        self.assertNotIn(self.base + "admission.html",
-                         web_rag._known_urls(web_rag._index))
-        hits = web_rag.lookup("admission btech applications june")
-        self.assertIn("/s/admission.html", self._requests())
-        self.assertIn("state entrance", " ".join(t for _, t, _ in hits))
-        _Handler.requests = []                             # now cached
-        web_rag.lookup("admission btech applications june")
-        self.assertNotIn("/s/admission.html", self._requests())
-
-    def test_background_refresh_when_online_and_no_cache(self):
-        web_rag.start(fake_embed)
-        self.assertTrue(web_rag.wait(15))
-        self.assertTrue(web_rag.available())
-        self.assertTrue(web_rag.status()["online"])
-
-    def test_cache_with_other_dim_is_discarded(self):
-        self._build()
-        web_rag.configure(url="")
-        web_rag.configure(url=self.base)
-        other = lambda texts: fake_embed(texts)[:, :64]    # another model
-        web_rag.start(other, background=False)
-        self.assertFalse(web_rag.available())
-
-    def test_unreachable_host_never_raises(self):
-        empty = tempfile.mkdtemp(prefix="luna-test-webrag-empty-")
-        try:
-            web_rag.configure(url="http://127.0.0.1:1/", seeds=[],
-                              cache_dir=empty)
-            web_rag.start(fake_embed)
-            self.assertTrue(web_rag.wait(10))
-            self.assertFalse(web_rag.available())
-            self.assertEqual(web_rag.retrieve("anything"), [])
-            self.assertEqual(web_rag.lookup("anything"), [])
-            self.assertFalse(web_rag.refresh(force=True))
-            self.assertIsNotNone(web_rag.status()["last_error"])
-        finally:
-            shutil.rmtree(empty, ignore_errors=True)
 
 if __name__ == "__main__":
     unittest.main()
+

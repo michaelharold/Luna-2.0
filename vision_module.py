@@ -45,7 +45,7 @@ import cv2
 import numpy as np
 import torch
 
-from config import (MODEL_PATH, VISION_FPS, DEEPFACE_EVERY,
+from config import (MODEL_PATH, VISION_FPS, VISION_FPS_THINKING, DEEPFACE_EVERY,
                     SAD_CONFIDENCE, EMOTION_HISTORY_LEN, ENABLE_DEEPFACE,
                     ENABLE_FACE_RECOGNITION, FACE_DETECTOR,
                     YUNET_MODEL_PATH, SFACE_MODEL_PATH, FACE_DETECT_CONF,
@@ -462,6 +462,40 @@ def _reset_enrollment():
         _enroll_by_pose.clear()
 
 
+# While Luna asks for the name, the person is already looking at her: their
+# "look straight" samples are taken then, so registration can skip that pose.
+_precapture = []            # newest last, at most ENROLL_POSE_KEEP
+
+
+def _update_precapture(frame, det_row):
+    with state.lock:
+        until = state.enroll_precapture_until
+        faces = state.face_count
+    if time.time() > until:
+        if _precapture:
+            with _enroll_lock:
+                _precapture.clear()
+        return
+    if det_row is None or faces != 1:       # only one person in view: theirs
+        return
+    emb = _embed(frame, det_row)
+    if emb is not None:
+        with _enroll_lock:
+            _precapture.append(emb)
+            del _precapture[:-ENROLL_POSE_KEEP]
+
+
+def take_precapture():
+    """Move the samples taken during the name dialog into the "look
+    straight" pose of the registration now starting. Returns how many."""
+    with _enroll_lock:
+        got = list(_precapture)
+        _precapture.clear()
+        if got:
+            _enroll_by_pose.setdefault(0, [])[:0] = got
+    return len(got)
+
+
 def _finish_enrollment(request):
     """Store the collected samples (if there are enough) and report."""
     global _recog_last, _recog_streak, _enroll_done
@@ -510,6 +544,7 @@ def _update_enrollment(frame, det_row):
         _enroll_done = False
         if _enroll_by_pose:
             _reset_enrollment()
+        _update_precapture(frame, det_row)
         return
     if _enroll_done:
         return
@@ -640,7 +675,10 @@ def vision_loop():
         _feed_scene_memory(len(detections), emotion)
 
         elapsed   = time.monotonic() - t0
-        remaining = sleep_time - elapsed
+        with state.lock:                     # the LLM is reading a prompt:
+            thinking = state.thinking        # give it the CPU cores
+        remaining = ((1.0 / VISION_FPS_THINKING) if thinking
+                     else sleep_time) - elapsed
         if remaining > 0:
             time.sleep(remaining)
 

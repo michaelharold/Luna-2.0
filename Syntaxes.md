@@ -122,37 +122,33 @@ The full walkthrough is in [Train Instructions.md](Train%20Instructions.md).
 
 ## 5. Website knowledge (tkmce.ac.in)
 
-**How it works.** The site's own menus are Luna's topic map. She reads the menus of the home page and the CSE department page and keeps only:
-- **general college pages**: About, Administration, Academics, Admissions, Examination, Facilities, Placement, Research, IQAC, News
-- **Computer Science pages**
+**How it works** (in full: [docs/Fetch Algo.md](docs/Fetch%20Algo.md)). Two parts:
 
-Other departments, PDFs and images are skipped. She downloads every kept page in parallel (about 160 pages in under a minute) and caches them in `data/rag_cache/`, which also works offline. She refreshes the cache once a day when online.
-
-**Answering a question.** Each question is first **routed** to the pages it is about, for example:
-- "exam dates" → Exam Calendar
-- "non teaching staff" → the CSE staff list
-- "faculty" → Regular **and** Adhoc together, since they share the "People › Faculty" sub-menu
-
-Only those pages are searched. If her answer to a college question is still "I don't know", she says "Let me check the college website" and tries again. Saying **"look into the website"** or **"check online"** re-checks your last question.
+- **Indexing, about once a week, on the Mac.** It reads every page in the site's menus and in `data/website_links.txt`, plus the staff, student and publication data the pages load from ETLab and the PDFs they link to. Everything is grouped into topic files (`SITE_PAGES` in `config.py`: `cse_people`, `admissions`, `examinations`, …). Llama turns each file into compact notes, and its notes must keep the facts or the clean text is kept instead. Each file gets a one-line description in `data/site/catalog.json`.
+- **Data Fetch, every question.** The LLM sees the list of files with their descriptions and picks the ones that may hold the answer (or answers straight away for small talk, asks you to repeat, or ignores noise). Then it answers from those files. Nothing is downloaded while you wait.
 
 | What for | Command |
 |---|---|
-| List every link in scope and check it (ok / broken / duplicate / skipped and why) | `venv/bin/python web_rag.py --verify` |
-| Fetch everything now and rebuild the cache (about 1 minute) | `venv/bin/python web_rag.py --refresh` |
-| See which pages a question is routed to | `venv/bin/python web_rag.py --route "when is the exam"` |
-| See the passages a question gets | `venv/bin/python web_rag.py --query "who are the non teaching staff"` |
-| Same, fetching routed pages that aren't cached yet | `venv/bin/python web_rag.py --live --query "..."` |
-| Show the cache size, broken pages and online status | `venv/bin/python web_rag.py --status` |
+| Index the website (crawl + group + organize + describe; first run ~2 h, later runs only redo changed pages) | `venv/bin/python site_index.py` |
+| Same, without downloading again (after changing `SITE_PAGES` or a prompt) | `venv/bin/python site_index.py --offline` |
+| Show which topic files the pages would go to, without Llama | `venv/bin/python site_index.py --offline --plan` |
+| Rebuild only some files | `venv/bin/python site_index.py --offline --only cse_people admissions` |
+| Ignore the cached Llama answers (after changing `SITE_ORGANIZE_PROMPT`) | `venv/bin/python site_index.py --offline --force` |
+| Show what is indexed (files, words, descriptions) | `venv/bin/python site_index.py --status` |
+| Check every link in scope (ok / broken / duplicate / skipped and why) | `venv/bin/python site_crawler.py --verify` |
+| Try a question: which files, how much data, the answer, timings | `venv/bin/python fetch.py "who is the hod of cse"` |
+| See exactly what the LLM is told (persona + file list + rules) | `venv/bin/python fetch.py --library` |
+| Compare speed with another model / format (run it on the Pi) | `venv/bin/python fetch.py --model llama3.2:3b-instruct-q4_0 "who is the hod"` |
+| Send the index to the Pi | `scripts/deploy.sh --go` |
 
-**Settings** (`config.py`, `WEB_RAG_*`):
-- `WEB_RAG_SEEDS`: the pages whose menus form the catalog.
-- `WEB_RAG_FOCUS_NAME` / `WEB_RAG_FOCUS_SLUGS`: the department to include (CSE).
-- `WEB_RAG_SKIP_SECTIONS` / `WEB_RAG_SKIP_SLUGS`: the other departments to leave out.
-- `WEB_RAG_FETCH_WORKERS`: how many pages download at once.
-- `WEB_RAG_STARTUP_WAIT`: how long she waits at boot for a first download before she starts listening.
-- `WEB_RAG_URL = ""`: keeps Luna fully offline.
+**Settings** (`config.py`, sections 10 and 11):
+- `SITE_URL`, `SITE_SEEDS`, `SITE_LINKS_FILE`: what is read (`SITE_URL = ""` = no website).
+- `SITE_PAGES`, `SITE_SKIP_PAGES`, `SITE_SKIP_TITLES`: how pages are grouped, and what is never kept.
+- `SITE_ORGANIZE_PROMPT`, `SITE_DESCRIBE_PROMPT`: what Llama is asked while indexing.
+- `FETCH_SYSTEM_RULES`, `FETCH_ROUTE_TASK`, `FETCH_ANSWER_TASK`: what the LLM is told for each question.
+- `FETCH_DATA_WORDS`: how much page data an answer may read (more = fuller, slower on the Pi).
 
-Anything she must always get right (such as the principal's name) belongs in `data/knowledge.txt`, which takes priority over the website.
+Anything she must always get right (such as the principal's name) belongs in `data/knowledge.txt`. A very close match there is answered instantly, and the file is also one of the library pages (`kb`).
 
 ## 6. Setup and deploying to the Pi
 
@@ -174,7 +170,7 @@ Deploys never overwrite the Pi's faces, logs or learning state.
 | What for | Command |
 |---|---|
 | Run all unit tests (no hardware needed) | `venv/bin/python -m unittest discover tests` |
-| Run only the website tests | `venv/bin/python -m unittest tests.test_web_rag` |
+| Run only the website tests | `venv/bin/python -m unittest tests.test_site_crawler tests.test_site_index tests.test_fetch` |
 | Time face rendering and save a PNG per expression | `venv/bin/python scripts/bench_face.py --shots out/` |
 | Time face detection and recognition | `venv/bin/python scripts/bench_vision.py` |
 | Speech recognition benchmark (see its options) | `venv/bin/python scripts/bench_vosk.py --help` |
@@ -195,5 +191,4 @@ Deploys never overwrite the Pi's faces, logs or learning state.
 | "who am I?" / "who do you know?" / "forget me" | face recognition |
 | "good answer" / "that's wrong" | rates her last reply |
 | "remember that …" | teaches a fact (needs approval) |
-| "look into the website" / "check online" | re-checks the last question on the college website |
 | "exit", then "exit" | shuts down |

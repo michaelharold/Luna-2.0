@@ -1,11 +1,26 @@
-# config.py
+# config.py — every Luna setting, in one place, grouped by what it controls.
+#
+#  ┌─ CONTENTS ─────────────────────────────────────────────────────────────┐
+#  │  1  RUN MODE & TERMINAL           12  CAMERA                          │
+#  │  2  PERFORMANCE (Pi 5)            13  FACES: detect, recognise, enrol │
+#  │  3  IDENTITY & WAKE WORDS         14  EMOTION, SCENE & SCENE MEMORY   │
+#  │  4  MICROPHONE & AUDIO CLEAN-UP   15  PROACTIVE BEHAVIOUR             │
+#  │  5  SPEECH-TO-TEXT                16  FACE DISPLAY & ANIMATION        │
+#  │  6  "WAS THAT MEANT FOR LUNA?"    17  SCREEN CARDS, BANNERS & TOUCH   │
+#  │  7  CONVERSATION FLOW             18  ARMS (SERVOS)                   │
+#  │  8  VOICE (TEXT-TO-SPEECH)        19  HAND GESTURES                   │
+#  │  9  LLM (Ollama / llama.cpp)      20  VOICE COMMANDS                  │
+#  │ 10  WEBSITE: INDEXING (weekly)    21  CONVERSATION LOG & LEARNING     │
+#  │ 11  WEBSITE: DATA FETCH + KB      22  PATHS & MODEL FILES             │
+#  └────────────────────────────────────────────────────────────────────────┘
+#  Search for "── 10" (etc.) to jump to a section. How the website knowledge
+#  works end to end: docs/Fetch Algo.md.
 
 import os
 import platform
-import time
 
-# Load .env file if present (simple parser — no extra dependency needed).
-# .env is git-ignored, so secrets stay out of version control.
+# Load .env if present (simple parser, no extra dependency). .env is
+# git-ignored, so secrets stay out of version control.
 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 if os.path.exists(_env_path):
     with open(_env_path) as _f:
@@ -15,742 +30,706 @@ if os.path.exists(_env_path):
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
 
-# ── Run mode: one config, two machines ────────────────────────────────────────
-# "auto" — detect: a Mac runs in mac mode, anything else runs in pi mode.
-# "mac"  — force Mac-dev mode  (windowed face, USB/FaceTime camera, `say` TTS,
-#          simulated servos, osascript volume).
-# "pi"   — force Pi product mode (fullscreen kiosk, CSI camera, Piper TTS,
+
+# ══ 1  RUN MODE & TERMINAL ═══════════════════════════════════════════════════
+# "auto" — a Mac runs in mac mode, anything else in pi mode.
+# "mac"  — force Mac-dev mode (window, USB/FaceTime camera, `say`, simulated
+#          servos, osascript volume).
+# "pi"   — force Pi product mode (fullscreen kiosk, CSI camera, Piper,
 #          real servos, pactl volume).
 # Everything platform-dependent below derives from IS_MAC / IS_PI, so the SAME
-# config file deploys to both machines — the established pattern, made explicit.
+# file deploys to both machines.
 RUN_MODE = "auto"
 IS_MAC = (RUN_MODE == "mac") or (RUN_MODE == "auto"
                                  and platform.system() == "Darwin")
 IS_PI  = not IS_MAC
 
-# ── Terminal output ───────────────────────────────────────────────────────────
-# False — clean: what Luna heard, where each answer came from (website pages /
-#         knowledge-base entries), what she said, who she recognised, and any
-#         errors. Ollama's own logs go to data/logs/ollama.log (see
-#         OLLAMA_AUTOSTART).
-# True  — everything: speech-recognition scores, LLM speed, retrieval routes,
-#         timings, servo moves, start-up chatter and the libraries' own logs.
+# False — clean: what Luna heard, where each answer came from, what she said,
+#         who she recognised, and errors. Ollama's own logs go to OLLAMA_LOG.
+# True  — everything: recognition scores, LLM speed, routes, timings, servo
+#         moves, start-up chatter and the libraries' own logs.
 LOG_VERBOSE = False
 
-# ── Pi 5 fixed config ─────────────────────────────────────────────────────────
-PI_MODEL        = 5
-VISION_FPS      = 8
-GESTURE_FPS     = 6
-RENDER_FPS      = 60
-DEEPFACE_EVERY  = 4
-TORCH_THREADS   = 4
 
-# ── Camera ────────────────────────────────────────────────────────────────────
-# Where Luna's vision gets its frames:
-#   "picam" — Raspberry Pi CSI camera (ribbon cable) via libcamera/rpicam-vid.
-#             This is the on-board Pi Camera. Captured with a subprocess so it
-#             works regardless of the venv's Python version.
-#   "usb"   — USB / V4L2 webcam through OpenCV (cv2.VideoCapture).
-#   "esp32" — ESP32-CAM MJPEG stream over WiFi (ESP32_STREAM below).
-# Mode-aware default: the Pi uses its CSI camera, a Mac uses the built-in /
-# USB webcam. Replace the expression with a plain string to force one.
-CAMERA_SOURCE  = "usb" if IS_MAC else "picam"
+# ══ 2  PERFORMANCE (Pi 5) ════════════════════════════════════════════════════
+PI_MODEL            = 5
+VISION_FPS          = 8      # vision loop frames per second
+VISION_FPS_THINKING = 1      # ... while the LLM reads a prompt: the camera
+                             # and the LLM share the Pi's 4 cores
+GESTURE_FPS         = 6
+RENDER_FPS          = 60     # face animation
+DEEPFACE_EVERY      = 4      # (DeepFace only) run it every Nth vision frame
+TORCH_THREADS       = 4      # CPU threads for torch, the LLM and STT engines
+VISION_DETECT_SCALE = 0.5    # detect faces on a downscaled frame (0.5 = a
+                             # quarter of the pixels, the biggest vision cost)
 
-# Pi CSI camera (rpicam-vid) settings
-PICAM_WIDTH    = 640
-PICAM_HEIGHT   = 480
-PICAM_FPS      = 15
-PICAM_HFLIP    = False   # set True if the image is left-right mirrored
-PICAM_VFLIP    = False   # set True if the camera is mounted upside down
 
-# USB / V4L2 webcam settings (used when CAMERA_SOURCE = "usb")
-CAMERA_ID      = 0
-FRAME_WIDTH    = 320
-FRAME_HEIGHT   = 240
-FPS            = 30
+# ══ 3  IDENTITY & WAKE WORDS ═════════════════════════════════════════════════
+ROBOT_NAME   = "Luna"
+WAKE_WORDS   = ["hello", "luna", "hey luna"]   # any of these opens a conversation
+WAKE_REPLIES = ["Yes?", "I'm listening!", "Hi! How can I help?"]  # name alone
 
-# ESP32-CAM stream (used when CAMERA_SOURCE = "esp32")
-ESP32_STREAM   = "http://10.240.252.155/stream"
-USE_ESP32_CAM  = False   # legacy flag, kept for reference; CAMERA_SOURCE wins
 
-# ── Models ────────────────────────────────────────────────────────────────────
-MODEL_PATH     = "models/emotion_raf_mobilenet_finetuned.pth"
-KNOWLEDGE_PATH = "data/knowledge.txt"
+# ══ 4  MICROPHONE & AUDIO CLEAN-UP ═══════════════════════════════════════════
+# Capture through PIPEWIRE, not the raw USB device: direct-hw capture locks
+# the dongle and paplay can't play Luna's reply out of it (silent replies).
+# The "pipewire" PortAudio device (pipewire-alsa package) shares it, and is a
+# stable NAME. Fallback: "USB PnP Sound Device" (then output must not use the
+# dongle).
+AUDIO_INPUT_DEVICE = None if IS_MAC else "pipewire"   # Mac: system default mic
 
-# ── Robot identity ────────────────────────────────────────────────────────────
-ROBOT_NAME = "Luna"
-WAKE_WORDS = ["hello", "luna", "hey luna"]  # any of these activates conversation
+# None = the device's native rate (recommended). The Pi's USB dongle only
+# opens at 44100/48000 via PortAudio; the code resamples to 16 kHz.
+MIC_SAMPLE_RATE  = None if IS_MAC else 48000
+VOSK_SAMPLE_RATE = 16000     # Vosk always needs 16000 — do not change
 
-# ── Noise / false-trigger filtering ───────────────────────────────────────────
-# Luna should ignore surrounding chatter and other-language speech that Vosk
-# mistranscribes into random, meaningless words. Once a wake word has opened the
-# conversation window, each follow-up utterance must pass a meaning gate before
-# Luna answers — otherwise she stays silent instead of replying to nonsense.
-#
-# Two signals decide "is this real speech aimed at Luna":
-#   1) confidence — average Vosk word-confidence. Garbled / other-language audio
-#      scores low here. Utterances at or above STT_CONFIDENCE_MIN are accepted.
-#   2) meaning    — a low-confidence utterance is still (optionally) rescued if
-#      it clearly matches the knowledge base, i.e. it has real content Luna
-#      knows about. Random words that match nothing are dropped.
-#
-# ── FINE-TUNING GUIDE (tweak these live, then re-run) ──
-#   • Luna replies to background noise / other languages  → RAISE STT_CONFIDENCE_MIN
-#     (e.g. 0.62 → 0.72) and/or RAISE STT_MIN_WORDS (2 → 3).
-#   • She still answers garbled nonsense that happens to match the KB
-#     → set STT_RESCUE_WITH_KNOWLEDGE = False, or RAISE STT_RESCUE_MATCH_MIN.
-#   • She ignores YOU / misses real questions → LOWER STT_CONFIDENCE_MIN.
-#   • You want her to answer ONLY when addressed by name every time (no bystander
-#     pickup at all) → set STT_REQUIRE_WAKE_EACH_TURN = True. She'll still catch
-#     the answer to a question SHE just asked (continuity), but otherwise stays
-#     silent until she hears a wake word again.
-STT_CONFIDENCE_MIN = 0.62   # 0..1 main strictness knob (was 0.55)
-STT_MIN_WORDS      = 2      # ignore utterances with fewer real words than this
-
-STT_RESCUE_WITH_KNOWLEDGE = True   # rescue a low-confidence utterance if it
-                                   # strongly matches the knowledge base
-STT_RESCUE_MATCH_MIN      = 0.70   # how strong that match must be (higher =
-                                   # stricter; independent of LOCAL_MATCH_THRESH)
-STT_REQUIRE_WAKE_EACH_TURN = False # True = only answer wake-word utterances
-                                   # (plus the reply to Luna's own question)
-STT_MIN_LOUDNESS   = 0.10   # 0..1 closeness (addressing.loudness_score). An
-                            # utterance quieter than this is background noise
-                            # Vosk turned into a word ("laughs" at 0.00, "gina"
-                            # at 0.01; people at the mic measure 0.35-0.85) —
-                            # ignored unless it says Luna's name
-STT_UNCLEAR_CONF   = 0.60   # below this Vosk confidence a sentence that matches
-                            # nothing Luna knows was probably misheard ("who is
-                            # an issue", 0.56): she asks to hear it again
-STT_ONE_WORD_CONF  = 0.85   # a lone word needs this much confidence ("good",
-                            # 0.998) unless it is a reply / known topic
-
-# ── Conversation mode ─────────────────────────────────────────────────────────
-CONVO_TIMEOUT      = 10    # seconds of silence before deactivating conversation
-POST_SPEAK_DELAY   = 0.45  # settle time after Luna speaks before listening again
-DOUBLE_FLUSH       = True  # flush audio queue twice (before and after delay)
-MIC_BLOCK_AFTER_SPEAK = 0.4   # echo-guard after speech ends (the mic is already
-                              # held shut for the whole of synthesis+playback via
-                              # state.tts_active, so this only has to cover the
-                              # speaker's own tail/reverb)
-
-# (TTS_EARLY_RETURN_RATIO used to live here, padding the mic block when
-# pyttsx3 returned before its audio had finished. pyttsx3 is gone; piper's
-# player and macOS `say` both block until playback really ends, so there is
-# nothing left to compensate for.)
-
-# Extra defense: if what the mic just heard closely matches what Luna just
-# said (within this many seconds), it's almost certainly speaker echo/room
-# reverb, not a real new utterance from the user — discard it. Both checks
-# must pass (AND, not OR) to stay high-precision — heavily garbled ASR
-# echoes won't always clear this, but the mic being held shut for the whole
-# of synthesis and playback prevents most of those from being heard in the
-# first place; this is just cleanup for trailing echo/reverb.
-ECHO_GUARD_WINDOW  = 8.0    # seconds after speaking to check for self-echo
-ECHO_RUN_THRESH    = 0.5    # longest contiguous word-run shared with the reply
-ECHO_OVERLAP_THRESH = 0.6   # fraction of heard words that appear in the reply
-
-# Spoken when a wake word is heard on its own ("Luna!") with no question attached
-WAKE_REPLIES = ["Yes?", "I'm listening!", "Hi! How can I help?"]
-
-# ── Emotion smoothing ─────────────────────────────────────────────────────────
-EMOTION_HISTORY_LEN  = 5
-SAD_CONFIDENCE       = 55.0
-
-# How the FACE follows the camera's emotion (face_renderer.EmotionFilter).
-# Vision re-guesses the emotion 8 times a second and its guess flickers, so
-# copying it straight onto the face gave one-second smiles that snapped away.
-# A new mood must be reported steadily for EMOTION_ONSET_SECS before Luna
-# wears it, and once worn it stays for at least EMOTION_MIN_HOLD_SECS.
-# Explicit faces (face.happy(), compliments, gestures) are not delayed.
-EMOTION_ONSET_SECS    = 0.8
-EMOTION_MIN_HOLD_SECS = 2.5
-
-# DeepFace (TensorFlow) is the heaviest thing Luna can load (~1-2 GB RAM and a
-# slow import) and only improves "Sad" detection. That RAM is now budgeted to
-# the local LLM instead, so DeepFace is OFF by default — the PyTorch emotion
-# model covers everything else. Flip to True to bring Sad detection back if
-# you're not running the LLM.
-ENABLE_DEEPFACE = False
-
-# ── Sleep / wake ──────────────────────────────────────────────────────────────
-# Luna sleeps (closed eyes + zzz) after this many seconds with NO face in view,
-# and wakes the instant a face reappears. Wake is immediate; only the drop-off
-# to sleep is delayed, so a brief detection flicker doesn't nod her off.
-SLEEP_AFTER_SECONDS  = 15
-SLEEP_AFTER_FRAMES   = RENDER_FPS * SLEEP_AFTER_SECONDS
-
-# ── Servos ────────────────────────────────────────────────────────────────────
-ENABLE_SERVOS = True    # False = simulation (Mac/dev), True = drive real servos.
-                        # On a Mac the GPIO backends fail to load and it falls
-                        # back to simulation automatically, so True is safe there.
-
-# ── Gesture recognition ───────────────────────────────────────────────────────
-# False = ignore hand gestures entirely: no thumbs-up / peace / wave / open-palm
-# detection or reactions, and the MediaPipe hand tracker isn't even started
-# (saves CPU). The detector isn't reliable yet, so it's off for now — flip to
-# True to bring gesture reactions back.
-ENABLE_GESTURES = False
-
-# Which BCM GPIO each arm's SIGNAL wire is on — set these to match YOUR wiring.
-# NOTE: BCM GPIO numbers, NOT physical header pin numbers (BCM17=pin11,
-# BCM18=pin12, BCM5=pin29 …). The RIGHT arm is the one that waves and shakes
-# hands, so put your best / most-reachable servo there. If unsure which pin an
-# arm is on, sweep candidates with:  python3 /tmp/one.py <bcm-gpio>
-SERVO_LEFT_PIN  = 17
-SERVO_RIGHT_PIN = 18
-
-# Pulse generation backend:
-#   "auto"    — use pigpio if its daemon is running, else RPi.GPIO
-#   "pigpio"  — force pigpio (needs `sudo pigpiod`)
-#   "rpigpio" — force RPi.GPIO software PWM
-# pigpio times the pulses with DMA instead of a Python thread. Software PWM
-# jitters by a few tens of microseconds whenever the scheduler is busy, and the
-# servo physically chases that jitter — that is the "buzzing / twitching a few
-# degrees non-stop" symptom. Prefer pigpio on the Pi.
-SERVO_BACKEND = "auto"
-
-# Stop pulsing a servo once it has reached its target and settled. A servo with
-# no pulse is not actively holding, so it cannot hunt or buzz — this is what
-# makes Luna genuinely motionless while she is not talking. Set False only if
-# an arm sags under its own weight at rest (then fix it mechanically instead).
-SERVO_DETACH_AT_REST = True
-SERVO_SETTLE_SECS    = 0.35   # keep driving this long after a move, then release
-SERVO_STEP_DELAY     = 0.02   # seconds between interpolation steps
-
-# Global SPEED multiplier for all arm GESTURE moves (wave, handshake, arm
-# raises, arms up). 1.0 = normal, 2.0 = twice as fast, 0.5 = half speed/gentler.
-# This scales every gesture at once; the per-gesture *_SECS knobs below still let
-# you fine-tune individual moves. (Talk-sway speed is set by TALK_SWAY_PERIOD.)
-SERVO_SPEED = 1.0
-
-# Pulse width range for the full 0-180° sweep. 500-2500 µs is the usual
-# SG90/MG90 range and matches the 2.5-12.5% duty cycle in docs/SERVO_SETUP.md.
-# Narrow this (e.g. 600-2400) if an arm strains against its end stop.
-SERVO_MIN_PULSE_US = 500
-SERVO_MAX_PULSE_US = 2500
-
-# Arm positions, in degrees
-ARM_REST_ANGLE = 90    # arms down at the sides — the motionless default
-ARM_UP_ANGLE   = 160   # arm raised (wave, celebrate)
-ARM_DOWN_ANGLE = 30    # arm lowered below rest
-
-# How long a plain arm raise/lower takes (arm_up, arm_down, arms_up gestures).
-# Smaller = snappier, larger = slower/gentler.
-ARM_MOVE_SECS = 0.45
-
-# Talking: a small synchronized sway of both arms, and nothing else.
-# Raise TALK_SWAY_DEGREES for more animated speech, lower it for subtler.
-TALK_SWAY_DEGREES = 8      # peak degrees either side of rest
-TALK_SWAY_PERIOD  = 1.6    # seconds for one full up-down-up sway
-
-# Wave: right arm up, small wiggle at the top, back down
-WAVE_WIGGLES        = 3      # number of wiggles at the top
-WAVE_WIGGLE_DEGREES = 14     # how far each wiggle travels
-WAVE_RAISE_SECS     = 0.5    # time to raise/lower the arm
-WAVE_WIGGLE_SECS    = 0.18   # time per wiggle (smaller = faster wiggle)
-
-# Handshake: right arm swings out perpendicular to the body to meet the
-# person, holds while they take it, then shakes gently up and down.
-# Tune HANDSHAKE_ANGLE to whatever "arm horizontal, pointing at the visitor"
-# is on your build (between ARM_REST_ANGLE and ARM_UP_ANGLE).
-HANDSHAKE_ANGLE      = 125
-HANDSHAKE_HOLD_SECS  = 2.0   # pause before shaking, so a hand can be offered
-HANDSHAKE_SHAKES     = 3
-HANDSHAKE_DEGREES    = 12    # travel either side during the shake
-HANDSHAKE_RAISE_SECS = 0.6   # time to swing the arm out / back
-HANDSHAKE_SHAKE_SECS = 0.16  # time per shake (smaller = faster/firmer shake)
-
-# Luna has no head servo, so there is no nod. Left here as documentation of a
-# deliberate removal: servo.nod() is now a no-op.
-SERVO_NOD_ON_REPLY = False
-
-# ── Local LLM (fully offline — replaces Groq) ─────────────────────────────────
-# Luna's generative brain is a llama.cpp model running ON the Pi. Nothing ever
-# leaves the device and there are no tokens, keys or daily limits — she runs
-# indefinitely with no internet. The model is a single .gguf file; swap
-# LLM_MODEL_PATH for any other GGUF (bigger = smarter but slower) and restart.
-# Qwen2.5-1.5B-Instruct Q4_K_M (~1.0 GB) is the shipped default: good short
-# conversational answers at ~8-12 tokens/s on the Pi 5 CPU.
-# scripts/install_pi.sh downloads it once; after that Luna is offline forever.
-LLM_ENABLED     = True
-LLM_MODEL_PATH  = "models/llm/qwen2.5-1.5b-instruct-q4_k_m.gguf"
-LLM_CTX         = 2048   # context window; 2048 keeps prefill fast on the Pi
-LLM_THREADS     = TORCH_THREADS
-LLM_WARMUP      = True   # load the model in the background at boot (like TTS)
-
-# Instead of stuffing the WHOLE knowledge base into every prompt (slow prefill
-# on the Pi), only the LLM_KB_TOP_K entries most similar to the question are
-# included. The sentence-transformer that already powers offline matching does
-# the retrieval, so this costs nothing extra.
-LLM_KB_TOP_K    = 4
-LLM_KB_MIN_SIM  = 0.45   # retrieved entries below this similarity are dropped
-                         # (0.30 let unrelated facts in: "hostel fee" got the
-                         # average-package fact at 0.33 and the model talked about it)
-
-# ── LLM backend: Ollama (default) or in-process llama.cpp ─────────────────────
-# "ollama"   — talk to a local Ollama server (http://127.0.0.1:11434). Still
-#              fully offline: Ollama runs ON the Pi as a service, models are
-#              pulled once at install (scripts/install_pi.sh). Swapping models is
-#              `ollama pull <tag>` + editing OLLAMA_BASE_MODEL; the custom "luna"
-#              model (persona + knowledge baked in) is rebuilt with
-#              scripts/make_luna_model.py. Benchmarked with scripts/bench_llm.py.
-# "llamacpp" — the V2 path: one .gguf via llama-cpp-python (LLM_MODEL_PATH).
-# Either way brain.py sees the same llm_local.stream()/ask() contract; if the
-# chosen backend is unavailable Luna degrades to knowledge-base-only answers.
-LLM_BACKEND       = "ollama"
-OLLAMA_HOST       = "http://127.0.0.1:11434"
-OLLAMA_MODEL      = "luna"          # the model brain.py talks to (built by
-                                    # scripts/make_luna_model.py from the base)
-OLLAMA_BASE_MODEL = "llama3.2:3b"   # base for "luna" — benchmark winner: best
-                                    # knowledge + scope scores, zero invented
-                                    # facts (docs/llm_benchmark.md). Faster,
-                                    # weaker option: "qwen2.5:1.5b".
-OLLAMA_NUM_CTX    = 4096            # context window for the Ollama model
-OLLAMA_NUM_THREAD = TORCH_THREADS   # CPU threads Ollama may use on the Pi
-OLLAMA_KEEP_ALIVE = -1              # -1 = keep the model resident forever
-                                    # (never pay the load again mid-conversation)
-OLLAMA_TIMEOUT    = 90.0            # seconds before a generation is abandoned
-OLLAMA_AUTOSTART  = True            # no server running? start `ollama serve`
-                                    # in the background, its logs going to
-                                    # OLLAMA_LOG instead of this terminal
-OLLAMA_LOG        = "data/logs/ollama.log"
-OLLAMA_BAKE_KNOWLEDGE = False       # make_luna_model.py puts the WHOLE
-                                    # knowledge.txt in the model's SYSTEM
-                                    # prompt (Ollama caches that static prefix,
-                                    # so it is prefilled once per load, not per
-                                    # question). RAG-lite retrieval still adds
-                                    # the top-K entries per turn. OFF: with
-                                    # llama3.2:3b retrieval-only scored higher
-                                    # (0.97 vs 0.91 — baked made it refuse
-                                    # general questions) and keeps the Pi's
-                                    # prompt short.
-
-# ── Audio preprocessing (before Vosk) ─────────────────────────────────────────
-# Cleans each mic block before it reaches the recogniser (audio_preprocess.py):
-#   • high-pass — removes DC offset and the 50 Hz mains hum the dongle picks
-#     up without an earth ground (see the gotchas in docs/PROJECT_PIPELINE.md); the
-#     hum otherwise clips the ADC and kills recognition.
-#   • normalise — brings quiet speech (collar mic, soft talker) up to a
-#     consistent level so Vosk sees the same loudness every time.
-#   • noise gate — blocks whose RMS sits below AUDIO_GATE_DB are silenced so
-#     room noise never becomes garbage words.
-AUDIO_PREPROCESS     = True
-AUDIO_HIGHPASS_HZ    = 100.0   # cutoff; speech starts ~85 Hz, hum is 50/100 Hz
-AUDIO_NORMALIZE      = True
-AUDIO_TARGET_PEAK    = 0.85    # fraction of full scale the loudest sample is
-                               # brought to (never amplify past this)
-AUDIO_MAX_GAIN       = 8.0     # never boost more than this (x) — avoids
-                               # blowing up silence into noise
-AUDIO_GATE_DB        = -50.0   # blocks quieter than this (dBFS RMS) are muted;
-                               # None disables the gate
-#   • noise suppression — steady room noise (fans, AC, machines) is learned
-#     from the gaps between words and turned down by up to
-#     AUDIO_NOISE_FLOOR_DB, before the gate and gain. OFF by default: measured
-#     with scripts/bench_stt_noise.py it halves errors in LOUD steady noise
-#     (fan at 0 dB SNR: 18-24 % -> 9-13 %) but makes crowd chatter worse
-#     (5 dB SNR: ~57 % -> ~71 %), because chatter is speech too and the
-#     filter eats into the voice it should keep. Turn it on only where the
-#     noise is a fan / AC / machine hum, not people talking.
-#     (Always on, regardless: the anti-aliasing resampler in front of all of
-#     this — audio_preprocess.Resampler.)
+# Each mic block is cleaned before recognition (audio_preprocess.py):
+#   high-pass  — DC offset and 50/100 Hz mains hum (it clips the ADC without
+#                an earth ground, see docs/PROJECT_PIPELINE.md)
+#   normalise  — quiet speech brought up to a steady level
+#   gate       — blocks below AUDIO_GATE_DB are silenced
+AUDIO_PREPROCESS  = True
+AUDIO_HIGHPASS_HZ = 100.0    # speech starts ~85 Hz, hum is 50/100 Hz
+AUDIO_NORMALIZE   = True
+AUDIO_TARGET_PEAK = 0.85     # loudest sample brought to this (never past it)
+AUDIO_MAX_GAIN    = 8.0      # never boost more than this (x)
+AUDIO_GATE_DB     = -50.0    # dBFS RMS; None disables the gate
+# Noise suppression: learns steady noise (fan, AC) between words and turns it
+# down. OFF: it halves errors in loud steady noise (fan 0 dB: 18-24 % ->
+# 9-13 %) but makes crowd chatter worse (5 dB: ~57 % -> ~71 %). Turn on only
+# where the noise is a machine, not people (scripts/bench_stt_noise.py).
 AUDIO_NOISE_SUPPRESS = False
-AUDIO_NOISE_FLOOR_DB = -12.0     # deepest cut; -20 dB distorted speech
+AUDIO_NOISE_FLOOR_DB = -12.0  # deepest cut; -20 dB distorted speech
 
-# ── Web RAG: the college website (only when online) ─────────────────────────
-# How it works (web_rag.py):
-#  1. CATALOG — the menus of WEB_RAG_SEEDS (the home page and the focus
-#     department's page) are the site's own topic map: every link with its
-#     menu path ("ACADEMICS > Admissions > B.Tech Lateral Entry"). Kept: the
-#     general college pages and the focus department's pages. Skipped: other
-#     departments, PDFs/images/documents, other sites.
-#  2. FETCH — every catalog page is downloaded in parallel (WEB_RAG_FETCH_WORKERS
-#     at a time), verified (broken / not HTML / duplicate are reported), split
-#     into passages, table rows and the JSON data pages load with JavaScript
-#     (the staff lists), embedded and cached in WEB_RAG_CACHE_DIR. Re-done when
-#     online and older than WEB_RAG_REFRESH_HOURS; the cache works offline.
-#  3. ROUTE — each question is matched against the catalog's topics first; only
-#     the best pages are searched (falls back to all pages if no topic fits). A
-#     routed page that isn't cached yet is fetched live.
-# An empty WEB_RAG_URL disables all of it (Luna's offline-forever default).
-WEB_RAG_ENABLED        = True
-WEB_RAG_URL            = "https://tkmce.ac.in/"   # "" = offline-forever
-WEB_RAG_SEEDS          = (                 # pages whose menus form the catalog
-    "https://tkmce.ac.in/",
-    "https://tkmce.ac.in/computer-science-and-engineering",
-    "https://tkmce.ac.in/cse.php",
-)
-WEB_RAG_LINKS_FILE     = "data/website_links.txt"  # hand-picked pages, grouped:
-                                           # always indexed, routed by group
-WEB_RAG_RELATED        = True              # second hop: a question about a
-                                           # person / thing also pulls what else
-                                           # the site says about them (a
-                                           # teacher's latest award). A
-                                           # knowledge-base answer that has such
-                                           # extras goes through the LLM
-                                           # (slower) to weave one in
-WEB_RAG_FOCUS_NAME     = "Computer Science and Engineering"
-WEB_RAG_FOCUS_SLUGS    = ("cse",)          # URL words that mark focus pages
-WEB_RAG_SKIP_SECTIONS  = ("departments",)  # menu sections skipped (other depts)
-WEB_RAG_SKIP_SLUGS     = (                 # URL words of other departments
-    "mech", "mechanical", "civil", "eee", "ece", "electrical", "electronics",
-    "chem", "chemical", "chemistry", "ce", "arch", "architecture", "ca", "mca",
-    "application", "coa", "artificial", "maths", "mathematics", "phy", "physics",
-    "physical", "humanities", "iic", "instrumentation",
-)
-WEB_RAG_MAX_PAGES      = 250           # catalog cap
-WEB_RAG_DATA_HOSTS     = ("tkmce.etlab.in",)  # other hosts the site's pages
-                                       # load their data from (ETLab serves
-                                       # the CSE staff, student lists,
-                                       # publications and news as JSON)
-WEB_RAG_STUDENT_ROSTERS = True         # index the student lists (name,
-                                       # batch, admission no.) the BTech /
-                                       # MTech / research scholar pages
-                                       # show. False = only the batch counts
-WEB_RAG_PDFS           = True          # read the PDFs pages link to (pypdf;
-                                       # placement stats, NAAC, notices).
-                                       # Scanned PDFs have no text: listed as
-                                       # "needs OCR" in the crawl report
-WEB_RAG_MAX_PDFS       = 300           # PDFs read per refresh, CSE pages first
-WEB_RAG_FETCH_WORKERS  = 8             # pages downloaded at the same time
-WEB_RAG_CHUNK_WORDS    = 120           # words per passage
-WEB_RAG_TOP_K          = 5             # passages / rows / pages added to a
-                                       # prompt (page text shares the
-                                       # WEB_RAG_PAGE_WORDS budget)
-WEB_RAG_PAGE_WORDS     = 1200          # website PAGES go to the LLM whole,
-                                       # not as 120-word scraps: every page an
-                                       # answer draws on, whole while they fit
-                                       # in this many words (shared), else
-                                       # their most relevant passages in
-                                       # reading order. ~1.3 tokens per word:
-                                       # 1200 words + the rest of the prompt
-                                       # fits OLLAMA_NUM_CTX 4096. Bigger =
-                                       # fuller answers but a slower first
-                                       # word (Mac M3: ~1 s per 1000 words;
-                                       # the Pi's CPU far slower — measure)
-WEB_RAG_PAGES_TXT      = True          # also write one readable .txt per
-                                       # page to <WEB_RAG_CACHE_DIR>/pages/,
-                                       # rewritten on every refresh — what
-                                       # Luna knows about each page
-WEB_RAG_MIN_SIM        = 0.35          # below this a passage is noise
-WEB_RAG_ROUTE_TOPICS   = 5             # best-matching topics a question is routed to
-WEB_RAG_ROUTE_MIN      = 0.30          # a topic must match at least this well
-                                       # (unrelated questions score ~0.2)
-WEB_RAG_CACHE_DIR      = "data/rag_cache"
-WEB_RAG_REFRESH_HOURS  = 168           # re-index the website once a week
-                                       # (when online and older than this);
-                                       # force one: python web_rag.py --refresh
-WEB_RAG_FETCH_TIMEOUT  = 8.0           # seconds per page
-WEB_RAG_ONLINE_TIMEOUT = 1.5           # seconds for the "are we online?" probe
-WEB_RAG_LIVE_PAGES     = 0             # routed-but-uncached pages fetched per
-                                       # question. 0 = answers come only from
-                                       # the weekly index (no downloads while
-                                       # a visitor waits, no second "let me
-                                       # check the website" reply)
-WEB_RAG_LIVE_TIMEOUT   = 6.0           # s a question waits for those (later
-                                       # arrivals are still cached)
-WEB_RAG_LIVE_MIN_KB    = 0.3           # only questions this close to the
-                                       # knowledge base (= about the college)
-                                       # may trigger a live fetch on their own
-WEB_RAG_DEPARTMENT     = "computer science and engineering"
-                                       # what "the department" means in a
-                                       # website search
-WEB_RAG_STARTUP_WAIT   = 60.0          # s Luna waits at boot for the website
-                                       # fetch before she starts listening (face
-                                       # shows "Reading the college website…");
-                                       # 0 = listen at once, fetch in background.
-                                       # Offline / cache fresh: ends at once.
 
-# ── Audio devices ─────────────────────────────────────────────────────────────
-# Capture through PIPEWIRE, not the raw USB device. Direct-hw capture on this
-# dongle exclusively locks the card, so PipeWire/paplay can't play Luna's reply
-# out the same dongle (silent reply). Going through the "pipewire" PortAudio
-# device (needs the pipewire-alsa package) lets PipeWire share the dongle for
-# capture + playback at once. It's also a stable NAME, immune to the index
-# reshuffling that put the mic on the webcam's slot. Fallback: "USB PnP Sound
-# Device" (direct hw, but then output must not use the dongle).
-AUDIO_INPUT_DEVICE  = None if IS_MAC else "pipewire"   # Mac: system default mic
-AUDIO_OUTPUT_DEVICE = None
-
-# ── STT ───────────────────────────────────────────────────────────────────────
-# en-in = English (India) — trained on Indian-accented English. Benchmarked on
-# the Pi 5 (scripts/bench_vosk.py): the full en-in-0.5 model transcribed a test
-# sentence markedly better than the small en-in-0.4 / en-us-0.15 models, and
-# still runs comfortably in real time (RTF ~0.4, finalization ~0.07 s). Its only
-# real cost is RAM (~1.7 GB resident vs ~0.17 GB), which the 8 GB Pi affords.
-# Drop back to "vosk-model-small-en-in-0.4" if RAM ever gets tight.
-VOSK_MODEL_PATH = "vosk-model-en-in-0.5"
-
-# ── Speech-to-text engine (pick by number) ───────────────────────────────────
-#   0  Vosk only — streaming, the original path
-#   1  Parakeet-TDT 0.6B v2 (NVIDIA)  — most accurate overall, fast  [default]
-#   2  Whisper small.en (OpenAI)      — best in very loud chatter, ~4x slower
-#   3  Whisper base.en  (OpenAI)      — lighter Whisper
-# With 1-3, Vosk still listens live and decides when an utterance ended
-# (and catches the wake word); the chosen engine then re-reads that
-# utterance's audio and its words are what Luna answers. An utterance the
-# engine hears no words in (a cough, a laugh, room noise) is dropped.
-# Missing model / sherpa-onnx → Luna says so at start-up and uses Vosk.
-# Word error rate, scripts/bench_stt_noise.py (Mac M3, 72 clips):
+# ══ 5  SPEECH-TO-TEXT ════════════════════════════════════════════════════════
+# Vosk listens live (end of utterance, wake word); with STT_ENGINE 1-3 that
+# engine then re-reads the utterance and its words are used. No words from
+# the engine = a cough / laugh / noise -> dropped. Missing model or
+# sherpa-onnx -> a start-up line and plain Vosk.
+#   0  Vosk only
+#   1  Parakeet-TDT 0.6B v2 (NVIDIA) — most accurate overall, fast [default]
+#   2  Whisper small.en (OpenAI)     — best in very loud chatter, ~4x slower
+#   3  Whisper base.en  (OpenAI)     — lighter Whisper
+# Word error rate (scripts/bench_stt_noise.py, Mac M3, 72 clips):
 #                 quiet   fan 0 dB  chatter 10 dB  chatter 5 dB  compute/s
 #   0 Vosk         2.6%    13.8%       26.5%         56.6%        (live)
 #   1 Parakeet     0.5%     4.2%        1.6%          4.8%        0.036 s
 #   2 Whisper sm   1.6%     5.3%        2.1%          2.1%        0.144 s
 #   3 Whisper base 1.6%     6.3%        4.2%         10.6%        0.048 s
-# Models: models/stt/ (scripts/download_models.sh). Re-measure on the Pi:
-#   venv/bin/python scripts/bench_stt_noise.py  (needs a Mac for `say`), or
-#   time a real utterance there with LOG_VERBOSE = True.
 STT_ENGINE         = 1
-STT_ENGINE_THREADS = 4      # CPU threads for engines 1-3
+STT_ENGINE_THREADS = 4       # CPU threads for engines 1-3
 
-# None = auto-detect the device's native sample rate (recommended).
-# Set to a number (e.g. 48000, 44100, 32000, 16000) only if auto-detect fails.
-# Find your mic's rate: python3 -c "import sounddevice as sd; print(sd.query_devices())"
-MIC_SAMPLE_RATE = None if IS_MAC else 48000   # Mac: device default. Pi: USB PnP dongle only opens at 44100/48000 via
-                          # PortAudio (not 16k/32k); code resamples to 16k for Vosk
+# en-in = Indian-accented English. The full en-in-0.5 model beat the small
+# ones on the Pi (RTF ~0.4) at ~1.7 GB RAM; "vosk-model-small-en-in-0.4" if
+# RAM ever gets tight.
+VOSK_MODEL_PATH = "vosk-model-en-in-0.5"
 
-VOSK_SAMPLE_RATE = 16000    # vosk always needs 16000 — do not change
 
-# ── TTS ───────────────────────────────────────────────────────────────────────
+# ══ 6  "WAS THAT MEANT FOR LUNA?" — noise filter + addressing score ══════════
+# Inside a conversation window each utterance must look meant for Luna.
+# TUNING:
+#   • She answers chatter / other languages -> RAISE STT_CONFIDENCE_MIN or
+#     ADDR_THRESHOLD, or STT_MIN_WORDS 2 -> 3.
+#   • She ignores you                         -> LOWER them.
+#   • Answer ONLY when named every time       -> STT_REQUIRE_WAKE_EACH_TURN.
+STT_CONFIDENCE_MIN = 0.62    # 0..1 average word confidence (legacy gate)
+STT_MIN_WORDS      = 2       # fewer real words than this are ignored
+STT_RESCUE_WITH_KNOWLEDGE = True   # rescue a low-confidence utterance that
+STT_RESCUE_MATCH_MIN      = 0.70   # matches the knowledge base this well
+STT_REQUIRE_WAKE_EACH_TURN = False # True = only wake-word utterances (plus
+                                   # the reply to Luna's own question)
+STT_MIN_LOUDNESS   = 0.10    # 0..1 closeness. Quieter = room noise Vosk made
+                             # a word of ("laughs" 0.00; people at the mic
+                             # measure 0.35-0.85) — ignored unless it names Luna
+STT_UNCLEAR_CONF   = 0.60    # below this the speech is "unsure": the route
+                             # step is told so and may ask to repeat
+STT_ONE_WORD_CONF  = 0.85    # a lone word below this is "unsure" too
 
-TTS_RATE = 155
+# Echo guard: something heard right after Luna spoke that matches her own
+# reply is her echo, not a person. Both checks must pass.
+ECHO_GUARD_WINDOW   = 8.0    # s after speaking to check for self-echo
+ECHO_RUN_THRESH     = 0.5    # longest shared word-run, / heard words
+ECHO_OVERLAP_THRESH = 0.6    # fraction of heard words in the reply
 
-# Mac mode ────────────────────────────────────────────────────────────────────
-# Piper + paplay is a Linux/Pi setup — neither exists on macOS, so on a Mac dev
-# box Luna routes speech through macOS's built-in `say` (plays on the default
-# Mac output and blocks until finished, so mic echo protection is unchanged).
-# Follows RUN_MODE (see the top of this file): True in mac mode (Darwin or
-# forced), False in pi mode. A hardcoded True here previously got synced to
-# the Pi and made it try `say`, which doesn't exist there → silent replies.
-MAC_MODE = IS_MAC
+# The addressing score (addressing.py): each signal adds its weight; the
+# utterance is accepted at ADDR_THRESHOLD. False = the plain confidence gate.
+ADDRESSED_SCORING   = True
+ADDR_THRESHOLD      = 1.35   # clear speech alone (ADDR_W_CONF 1.2) can't pass
+ADDR_REQUIRE_SIGNAL = True   # hard rule: confidence alone never passes
+ADDR_FACE_OR_NAME   = False  # True = also require a face, her name or a
+                             # pending answer (strictest)
+ADDR_W_CONF          = 1.2   # x recognition confidence (0..1)
+ADDR_W_LOUDNESS      = 0.45  # x closeness (0..1, LOUDNESS_* below)
+ADDR_W_NAME          = 0.8   # Luna's name / a wake word
+ADDR_W_QUESTION      = 0.35  # question-shaped (what / where / can you ...)
+ADDR_W_SECOND_PERSON = 0.25  # "you / your"
+ADDR_W_KB            = 0.5   # x knowledge-base similarity
+ADDR_W_FACE          = 0.3   # a face is looking at Luna
+ADDR_W_CONTINUITY    = 0.7   # Luna just asked a question
+LOUDNESS_NEAR_DB     = -22.0 # dBFS RMS mapped to closeness 1.0
+LOUDNESS_FAR_DB      = -42.0 # ... and to 0.0
 
-# Voice for `say`. None = system default voice.
-# List them with:  say -v '?'
-MAC_VOICE = None
 
-# Words per minute for `say`. macOS default is ~175; 155 matches TTS_RATE.
-MAC_TTS_RATE = TTS_RATE
+# ══ 7  CONVERSATION FLOW ═════════════════════════════════════════════════════
+CONVO_TIMEOUT                = 10    # s of silence that end a conversation
+CONVO_TIMEOUT_AFTER_QUESTION = 20    # ... after Luna asked a follow-up
+POST_SPEAK_DELAY      = 0.45  # settle time after Luna speaks before listening
+DOUBLE_FLUSH          = True  # flush the audio queue before and after it
+MIC_BLOCK_AFTER_SPEAK = 0.4   # echo guard after speech ends (the mic is shut
+                              # during synthesis + playback already)
 
-# Piper voice engine
-PIPER_PATH = "/home/luna/piper/piper/piper"
 
-PIPER_MODEL = (
-    "/home/luna/piper/voices/"
-    "en_US-lessac-medium.onnx"
-)
-
-# Higher = slower speech
-# 1.0 = default
-# 1.3 = natural assistant pace
-PIPER_LENGTH_SCALE = 1.3
-
+# ══ 8  VOICE (TEXT-TO-SPEECH) ════════════════════════════════════════════════
+TTS_RATE   = 155
 TTS_PLAYER = "afplay" if IS_MAC else "paplay"
 
-# How speech is played, which decides how precisely the talking mouth lines up
-# with the voice (see piper_tts / lip_sync):
-#   True  — in-process through sounddevice, which reports exactly when the
-#           sound is heard. The Mac default.
-#   False — through TTS_PLAYER. It can't say when sound starts, so Luna
-#           estimates it: TTS_PLAYER_LATENCY to begin with, then re-measured
-#           from every sentence played. The Pi default, since paplay is the
-#           known-good path through PipeWire there.
-# If in-process playback fails it falls back to TTS_PLAYER automatically.
+# Mac: macOS `say` (Piper + paplay are a Pi setup). Follows RUN_MODE — a
+# hard-coded True once reached the Pi and made it silent.
+MAC_MODE     = IS_MAC
+MAC_VOICE    = None          # None = system voice; list: say -v '?'
+MAC_TTS_RATE = TTS_RATE      # words per minute for `say`
+
+# Piper (the Pi's voice)
+PIPER_PATH  = "/home/luna/piper/piper/piper"
+PIPER_MODEL = "/home/luna/piper/voices/en_US-lessac-medium.onnx"
+PIPER_LENGTH_SCALE = 1.3     # higher = slower; 1.3 = natural assistant pace
+PIPER_STREAMING    = True    # play while synthesising (falls back once to the
+                             # file path for good if streaming fails)
+PIPER_PERSISTENT   = True    # one piper process for the session (loading the
+                             # voice takes seconds on the Pi)
+TTS_WARMUP         = True    # load the voice at boot
+
+# Speech goes out sentence by sentence while the LLM still writes.
+TTS_CHUNK_MIN_CHARS = 60     # shorter chunks merge with the next
+TTS_FIRST_CLAUSE_CHARS = 25  # the FIRST chunk may end at a comma this soon:
+                             # Luna starts talking ~2 s earlier on the Pi
+TTS_CHUNK_MAX_CHARS = 220    # longer ones split at a comma
+TTS_SYNTH_TIMEOUT       = 20.0   # s per chunk before falling back
+TTS_FIRST_SYNTH_TIMEOUT = 60.0   # the first one also loads the voice
+
+# Lip sync: True plays in-process (exact timing, the Mac default); False uses
+# TTS_PLAYER and estimates when sound starts (the Pi default — paplay is the
+# known-good path through PipeWire).
 TTS_INPROCESS_PLAYBACK = IS_MAC
-TTS_PLAYER_LATENCY     = 0.2    # s, first guess at TTS_PLAYER's start-up delay
+TTS_PLAYER_LATENCY     = 0.2  # s, first guess at TTS_PLAYER's start delay
+TTS_LIPSYNC_LEAD       = 0.05 # mouth leads the voice slightly (looks natural)
 
-# The mouth reads the voice's loudness this far ahead of the sound. Real lips
-# move a touch before the sound they make, and a mouth that leads the voice
-# by a few frames looks natural where one that lags looks dubbed.
-TTS_LIPSYNC_LEAD = 0.05
 
-# Stream piper audio straight into the player so speech starts on the first
-# audio chunk (instead of waiting for the whole file to synthesize — the old
-# ~5s gap). If the streaming pipeline fails once on this machine, Luna caches
-# that and permanently uses the safe synth-to-file path — it never retries the
-# streaming path per reply, so there is no repeated overhead or error spam.
-# Set False to force the plain file path (e.g. if streaming plays silence).
-PIPER_STREAMING = True
+# ══ 9  LLM (Ollama / llama.cpp) ══════════════════════════════════════════════
+# Fully offline. "ollama": a local Ollama server keeps the model resident and
+# caches the static system prompt. "llamacpp": one .gguf in-process. Either
+# way a missing backend degrades to knowledge-base answers.
+LLM_ENABLED       = True
+LLM_BACKEND       = "ollama"
+LLM_STREAMING     = True     # speak the first sentence while it writes on
+LLM_MAX_TOKENS    = 150      # per reply (chat / REPLY answers)
+LLM_TEMPERATURE   = 0.3      # 0.7 invented "85% placement" next to a 90% fact
+LLM_MAX_HISTORY   = 6        # earlier messages kept (the conversation context)
+LLM_FILLER_AFTER  = 1.2      # s: a slow first word gets a filler meanwhile
+LLM_FILLERS       = ("Hmm, let me think.", "Let me see.", "One moment.")
 
-# Keep ONE piper process alive for the whole session instead of spawning a new
-# one per reply. Loading en_US-lessac-medium.onnx takes several seconds on the
-# Pi, and the old code paid that cost on *every* answer — that is the bulk of
-# the ~11 s first reply and the 3-4 s gap on later ones. With a persistent
-# process the model is loaded once at startup (see TTS_WARMUP) and a reply only
-# costs actual synthesis. Falls back automatically if the piper build in use
-# doesn't support the persistent mode.
-PIPER_PERSISTENT = True
+# Ollama
+OLLAMA_HOST       = "http://127.0.0.1:11434"
+OLLAMA_MODEL      = "luna"         # built by scripts/make_luna_model.py
+OLLAMA_BASE_MODEL = "llama3.2:3b"  # benchmark winner (docs/llm_benchmark.md);
+                                   # faster, weaker: "qwen2.5:1.5b"
+OLLAMA_NUM_CTX    = 8192     # persona + knowledge base + digest (~7k tokens,
+                             # read ONCE and cached) + history + query + reply.
+                             # KV cache ~0.9 GB on the Pi
+OLLAMA_NUM_THREAD = TORCH_THREADS
+OLLAMA_KEEP_ALIVE = -1       # keep the model resident forever
+OLLAMA_TIMEOUT    = 90.0     # s before a generation is abandoned
+OLLAMA_AUTOSTART  = True     # start `ollama serve` if none is running
+OLLAMA_LOG        = "data/logs/ollama.log"
+OLLAMA_BAKE_KNOWLEDGE = False  # make_luna_model.py: put knowledge.txt in the
+                               # model's SYSTEM (scored lower: 0.91 vs 0.97)
 
-# Synthesize a throwaway phrase in the background at boot so the model is
-# already resident when the first real question arrives.
-TTS_WARMUP = True
+# llama.cpp (LLM_BACKEND = "llamacpp")
+LLM_MODEL_PATH = "models/llm/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+LLM_CTX        = 2048
+LLM_THREADS    = TORCH_THREADS
+LLM_WARMUP     = True        # load the model at boot
 
-# Speech is synthesized and played one chunk at a time, so Luna starts talking
-# after the FIRST sentence is ready rather than the whole reply. Chunks shorter
-# than the minimum are merged with the next one (a lone "Sure!" isn't worth its
-# own player process); anything longer than the maximum is split at a comma.
-TTS_CHUNK_MIN_CHARS = 60
-TTS_CHUNK_MAX_CHARS = 220
 
-# Seconds to wait for piper to synthesize one chunk before giving up on the
-# persistent process and falling back. The first call also covers model load.
-TTS_SYNTH_TIMEOUT       = 20.0
-TTS_FIRST_SYNTH_TIMEOUT = 60.0
+# ══ 10  WEBSITE KNOWLEDGE: INDEXING (weekly, by hand) ════════════════════════
+# python site_index.py — crawl the site, group pages into page files, let
+# Llama organize each one, describe each one. Output: SITE_DIR/pages/*.txt +
+# SITE_DIR/catalog.json. Run it on the Mac, then scripts/deploy.sh --go.
+# Full description: docs/Fetch Algo.md.
 
-# ── Brain ─────────────────────────────────────────────────────────────────────
-LLM_MAX_TOKENS      = 150   # max tokens per response (keep short for speech)
-LLM_TEMPERATURE     = 0.3   # creativity (0.0 = factual, 1.0 = creative). Was
-                            # 0.7: it invented "85% placement last year" next
-                            # to a knowledge-base fact that said 90%
-LLM_MAX_HISTORY     = 6     # max conversation history turns kept in the prompt
-# When the model's first word takes longer than this (s), Luna says a short
-# filler while it keeps writing, so a slow answer never starts as a silent
-# pause. 0 = never.
-LLM_FILLER_AFTER    = 1.2
-LLM_FILLERS         = ("Hmm, let me think.", "Let me see.", "One moment.")
-LOCAL_MATCH_THRESH  = 0.55  # min similarity score for local knowledge match
+# What to crawl (site_crawler.py)
+SITE_URL           = "https://tkmce.ac.in/"   # "" = no website knowledge
+SITE_SEEDS         = (                        # pages whose menus are the map
+    "https://tkmce.ac.in/",
+    "https://tkmce.ac.in/computer-science-and-engineering",
+    "https://tkmce.ac.in/cse.php",
+)
+SITE_LINKS_FILE    = "data/website_links.txt" # hand-picked pages, always read
+SITE_FOCUS_NAME    = "Computer Science and Engineering"   # Luna's department
+SITE_FOCUS_SLUGS   = ("cse",)                 # URL words of its pages
+SITE_SKIP_SECTIONS = ("departments",)         # menu sections not crawled
+SITE_SKIP_SLUGS    = (                        # URL words of other departments
+    "mech", "mechanical", "civil", "eee", "ece", "electrical", "electronics",
+    "chem", "chemical", "chemistry", "ce", "arch", "architecture", "ca", "mca",
+    "application", "coa", "maths", "mathematics", "phy", "physics",
+    "physical", "humanities", "iic", "instrumentation",
+)
+SITE_MAX_PAGES       = 250
+SITE_DATA_HOSTS      = ("tkmce.etlab.in",)    # ETLab serves staff, student
+                                              # lists, publications and news
+SITE_STUDENT_ROSTERS = True    # every student's name, batch, admission no.
+SITE_PDFS            = True    # read linked PDFs (pypdf; scans need OCR)
+SITE_MAX_PDFS        = 300     # per crawl, CSE pages' first
+SITE_FETCH_WORKERS   = 8       # pages downloaded at once
+SITE_FETCH_TIMEOUT   = 8.0     # s per page
 
-# ── Offline-first answering ───────────────────────────────────────────────────
-# Before waking the LLM, Luna checks the knowledge base with the sentence-
-# transformer. If a question matches a known entry at/above this score she
-# answers straight from the KB — instant, and exactly the wording the KB
-# author wrote. Only questions the KB isn't confident about go to the LLM.
-# Higher = stricter (fewer KB answers, more LLM); lower = more KB answers (risk
-# of giving a KB answer to a loosely-related question). Set 1.1 to disable and
-# always use the LLM first.
-ANSWER_OFFLINE_FIRST = True
-LOCAL_ANSWER_THRESH  = 0.70
+# Where the index lives
+SITE_DIR = "data/site"         # crawl.json, pages/, catalog.json, llm_cache.json
 
-# Stream the reply out of the LLM token-by-token instead of waiting for the
-# whole completion. Combined with chunked TTS above, Luna starts speaking the
-# first sentence while the model is still writing the rest of the answer.
-LLM_STREAMING = True
+# Organizing with Llama
+SITE_INDEX_MODEL     = OLLAMA_BASE_MODEL  # the plain model, not the persona
+SITE_INDEX_NUM_CTX   = 8192    # room for a piece + its notes
+SITE_LLM_CHUNK_WORDS = 700     # prose sent to Llama per call
+SITE_MIN_FACT_KEEP   = 0.8     # notes must keep this share of the piece's
+                               # numbers and names (and invent no number),
+                               # else the cleaned piece is kept as it is
+SITE_MIN_PAGE_WORDS  = 25      # a page file with less is dropped
+SITE_PDF_MAX_WORDS   = 1500    # words read from one linked PDF
+SITE_GROUP_MAX_WORDS = 12000   # input words per page file (its own pages'
+                               # text and data first, then PDFs)
+SITE_OTHER_DEPT_MAX_WORDS = 3000  # ... for another department's file
+SITE_OTHER_DEPT_DATA = ("staff", "hod", "overview", "btech", "mtech", "mca")
+                               # which ETLab sections of other departments
+                               # are kept (not their publications / news)
 
-# ── Gestures / expressions ────────────────────────────────────────────────────
-GESTURE_REACT_COOLDOWN = 8.0   # seconds between spoken reactions to a gesture
-FACE_OVERRIDE_SECS     = 4.0   # how long gesture-triggered faces (excited/love) last
+# Grouping: each page, data section and PDF goes to the FIRST page file whose
+# patterns match. A pattern is a piece of the URL (of the PDF / data source,
+# else of the page), "...$" = the URL ends with it, "#key" = an ETLab data
+# section whose name contains key ("#staff" -> non_teaching_staff). Other
+# departments get one file each (dept_<name>), the other TKM institutions
+# share one, and a page no rule matches gets a file of its own — check new
+# ones with: python site_index.py --plan
+SITE_PAGES = (
+    # name                title (what the file is)                   patterns
+    ("students", "Student lists: every student's name, batch and admission "
+                 "number, and how many students each programme has",
+     ("#btech", "#mtech", "#mca", "#research_scholars")),
+    ("cse_people", "CSE department people: head of department, teaching "
+                   "staff (faculty) and non-teaching staff",
+     ("#hod", "#staff", "/faculty-cse", "/adhoc-cse", "/nts-cse", "/hod-cse",
+      "/research-supervisors-cse")),
+    ("cse_department", "CSE department: about, history, vision and mission",
+     ("#overview", "computer-science-and-engineering", "/cse.php",
+      "/about-cse", "/vision-cse")),
+    ("cse_programmes", "CSE programmes: B.Tech, M.Tech and PhD in Computer "
+                       "Science and Engineering",
+     ("/ug-cse", "/pg-cse", "/phd-cse", "/btech-cse", "/mtech-cse")),
+    ("cse_research", "CSE research: faculty publications, research labs, "
+                     "research scholars, funded projects, innovations",
+     ("#publications", "/research-lab-cse", "/rs-cse", "/funded-projects-cse",
+      "/innovations-cse")),
+    ("cse_achievements", "CSE achievements: awards and achievements of CSE "
+                         "faculty and students",
+     ("/faculty-achievements-cse", "/student-achievements-cse")),
+    ("cse_events", "CSE news and events: department news, expert talks, "
+                   "workshops, student chapters and associations",
+     ("#dept_news", "#dept_events", "/expert-talks-cse", "/workshop-cse",
+      "/student-chapter-cse")),
+    ("cse_facilities", "CSE labs and facilities",
+     ("/labs-cse", "/facilities-cse")),
+    ("examinations", "Examinations: exam calendar, notifications, results, "
+                     "forms, exam manual, controller of examinations",
+     ("#exam", "exam")),
+    ("college_news", "College news and announcements: flash news, events, "
+                     "achievements, blog",
+     ("#news", "news.php", "/blog.php", "nanavu", "tkmce.ac.in/$",
+      "#achievements", "/achievements.php", "/awards.php")),
+    ("admissions", "Admissions: B.Tech, lateral entry, M.Tech, MCA and PhD "
+                   "admission rules, schedule and documents",
+     ("admission", "let-btech", "let%20web", "b.tech%20schedule")),
+    ("programmes", "Programmes the college offers: UG, PG and PhD "
+                   "programmes and intake",
+     ("ug-programmes", "pg-programmes", "phd-programmes", "phd.pdf")),
+    ("academic_rules", "Academic regulations, curricula and syllabus (2022, "
+                       "2023, 2024 schemes), academic policy, autonomy",
+     ("regulation", "curriculum", "syllabus", "academic%20policy",
+      "decentralization")),
+    ("academic_calendar", "Academic calendar: semester dates and events",
+     ("academic-calendar",)),
+    ("policies", "College policies and rules, and the code of conduct",
+     ("code-of-conduct", "college-policies")),
+    ("administration", "College administration: principal, deans, heads of "
+                       "all departments, governing body, councils, "
+                       "committees, administrative office",
+     ("/principal", "/deans", "/hods", "governing-body", "academiccouncil",
+      "financecommittee", "board-of-studies", "committee",
+      "administrative-office")),
+    ("college_about", "About TKM College of Engineering: history, founder, "
+                      "chairman, vision, mission, campus, contact",
+     ("about-tkm", "tkm-founder", "vision-mission", "chairman-tkm",
+      "/campus.php", "/contact.php")),
+    ("placements", "Placements and training: placement cell, recruiters, "
+                   "industry-institute interaction",
+     ("placement", "industry-institute")),
+    ("research", "College research: research centre and council, "
+                 "supervisors, scholars, thrust areas, facilities, awards, "
+                 "conferences",
+     ("research", "international-conference")),
+    ("research_projects", "Funded and government projects, seed money, "
+                          "patents and the IPR cell",
+     ("funded-projects", "govt-projects", "seed-money", "patent",
+      "ipr-cell")),
+    ("collaborations", "MoUs and collaborations with industry and "
+                       "institutions",
+     ("/mou", "collaboration")),
+    ("facilities", "Campus facilities: central library, hostels, central "
+                   "computing facility, sports, IDEA lab, FAB lab, CNC lab, "
+                   "workshops",
+     ("central-library", "hostel", "/ccf", "sports", "idea-lab", "/fab.php",
+      "/cnc", "me-workshops")),
+    ("student_life", "Student life: scholarships, forms, arts, alumni, PTA, "
+                     "MOOC, internships, skill programmes, student induction, "
+                     "social responsibility, ISRO outreach",
+     ("scholarship", "downloads", "/arts.php", "alumni", "/pta.php", "mooc",
+      "events-internship", "events-skill", "/sip", "/isr.php", "/isro.php")),
+    ("quality_accreditation", "Quality and accreditation: IQAC, NAAC, NBA, "
+                              "NIRF ranking, AICTE / UGC approval, audit, "
+                              "ARIIA, TEQIP, NITTTR, disclosures, "
+                              "development plan",
+     ("iqac", "nirf", "/ugc.php", "audit", "/approval.php", "ariia", "teqip",
+      "nitttr", "disclosure", "institutional_development", "strategic-plan")),
+    ("dept_architecture_planning", "Department of Architecture and Planning",
+     ("dap.tkmce.ac.in",)),
+)
+SITE_STUDENTS_PAGE    = "students"          # every student row goes here
+SITE_AFFILIATES_PAGE  = "tkm_institutions"  # the other TKM institutions
+# Never indexed: patterns as above, or words in a page / PDF title.
+SITE_SKIP_PAGES  = ("tenders", "rti-queries", "office-proceedings")
+SITE_SKIP_TITLES = ("enquiry notice", "quotation", "tender", "minutes")
 
-# ── Face style ────────────────────────────────────────────────────────────────
-# 1 = Luna classic (purple, soft rounded)
-# 2 = Robo (cyan, sharp corners, equalizer-bar mouth — NIMO/modern-robot look)
-# 3 = Aurora (Face 3 — EMO/Vector-style big gradient eyes, eyes-only at rest,
-#     squash-and-stretch blinks, catchlights. The product face.)
-# Press 1 / 2 / 3 on the face window to switch live; this sets the startup default.
-FACE_STYLE = 3
+# What Llama is asked. {title} = the page, {text} = one piece of it.
+SITE_ORGANIZE_PROMPT = """You turn text copied from a college website page \
+into compact notes that a small assistant will answer visitors' questions \
+from.
 
-# ── Display fit ───────────────────────────────────────────────────────────────
-# The face is drawn on a fixed 1400x800 logical canvas. With pygame's SCALED
-# flag it is automatically scaled to the REAL display resolution while keeping
-# its aspect ratio (letterboxed with black bars if the screen ratio differs), so
-# the face fits and stays centred on any screen — e.g. the Pi's 800x480 DSI panel
-# — instead of being cropped by the oversized window.
-# DISPLAY_FULLSCREEN = True fills the whole screen (kiosk mode, best on the Pi).
-# Mode-aware: kiosk on the Pi, a normal window on the Mac. Replace with a plain
-# True/False to force it.
-DISPLAY_FULLSCREEN = IS_PI
+Page: {title}
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Ported from the dev/Luna branch (yesterday's animation + gesture + continuity
-# work) onto this Vosk base. See UPDATES.txt. These drive robot_face.py's newer
-# animation, gesture_module.py's tuned hand detection, and the follow-up
-# conversation-continuity behaviour in brain.py / speech_to_text.py.
-# ══════════════════════════════════════════════════════════════════════════════
+Rules:
+- Keep EVERY fact: names, designations, numbers, dates, years, fees, \
+counts, places, phone numbers, programme and course names, deadlines, \
+achievements, awards, rankings.
+- Remove menus, navigation words, "read more", links, image captions and \
+sentences that carry no fact.
+- Write short "- " lines, one fact per line, in plain phrases. Group \
+related lines under short "## " headings.
+- Do not add, guess or explain anything that is not in the text. Do not \
+summarise facts away.
+- If the text has no useful fact at all, reply with exactly: NONE
 
-# ── Conversation continuity ───────────────────────────────────────────────────
-# After Luna asks a follow-up question she waits longer before the conversation
-# window times out, so the person has time to think without losing the thread.
-CONVO_TIMEOUT_AFTER_QUESTION = 20   # seconds (vs CONVO_TIMEOUT for normal turns)
+Text:
+{text}
 
-# ── Hand-gesture detection (MediaPipe) ────────────────────────────────────────
-GESTURE_STABLE_FRAMES       = 3    # frames a gesture must persist to register
-GESTURE_REACT_STABLE_FRAMES = 6    # stricter stability before a spoken reaction
-THUMB_RISE_RATIO        = 0.50     # thumb tip above its own MCP, / hand span
-THUMB_ABOVE_INDEX_RATIO = 0.35     # thumb tip above the index knuckle, / span
-HAND_DETECT_CONF   = 0.75          # MediaPipe min_detection_confidence
-HAND_TRACK_CONF    = 0.65          # MediaPipe min_tracking_confidence
-HAND_MIN_HANDEDNESS = 0.80         # min left/right classification score
-HAND_MIN_SPAN      = 0.13          # hand bbox must cover this fraction of frame
-HAND_MODEL_COMPLEXITY = 1
-GESTURE_DEBUG = False
+Notes:"""
 
-# ── Face animation (robot_face.py) ────────────────────────────────────────────
-MOUTH_FILLED_TALK = True   # False restores the old four-shape jaw
-MOUTH_MIN_DEPTH   = 8      # bulge depth (px) at silence — the "C"
-MOUTH_MAX_DEPTH   = 104    # bulge depth at full volume — the "D"
-MOUTH_CLOSED_H    = 14     # thickness of the closed-mouth bar
-ARC_EYES_HAPPY = True
-WAKE_ARMS = True
+# {title} = the page file, {headings} = its sections, {text} = its start.
+SITE_DESCRIBE_PROMPT = """These notes are one file of a college \
+assistant's library.
+File: {title}
+Sections: {headings}
 
-# Conversation "listening" indicator light
-CONVO_LIGHT_COL        = (255, 45, 45)   # red
-CONVO_LIGHT_RADIUS     = 9               # core radius in px
-CONVO_LIGHT_MARGIN     = 34              # distance from the top-left corner
-CONVO_LIGHT_LABEL      = True            # show the word "LISTENING" beside it
-CONVO_LIGHT_LABEL_SIZE = 20
+{text}
 
-# Ambient floating motes + "thinking" dots
-AMBIENT_MOTES      = True
-AMBIENT_MOTE_COUNT = 18
-THINKING_DOTS = True
+Write ONE line, at most 25 words, saying what facts this file holds, so \
+someone can tell from the line alone whether a question can be answered \
+from it. Name the main kinds of facts and key topics. Start with the \
+topic itself, like "CSE faculty: names, designations ...", not with "This \
+file". Reply with the line only."""
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Luna V2 — fully-offline product features (2026-09).
-# See docs/superpowers/specs/2026-09-07-luna-v2-design.md for the design.
-# ══════════════════════════════════════════════════════════════════════════════
 
-# ── Face recognition (offline — YuNet detect + SFace embed) ──────────────────
-# Luna remembers faces you enroll by voice ("Luna, remember me — my name is
-# Alice"), greets people by name, and logs sightings. Everything stays on the
-# device: embeddings in data/faces/, the log in data/face_log.jsonl.
+# The DIGEST: the key facts of every page file in ONE compact file
+# (data/site/digest.txt). FETCH_MODE "digest" sends it with every question,
+# in the cached system prompt. Words per page file: the longest matching
+# name prefix wins; the whole digest is cut at SITE_DIGEST_MAX_WORDS.
+SITE_DIGEST_WORDS     = {"cse_people": 400, "cse_": 160, "dept_": 40,
+                         "students": 80, "": 80}
+SITE_DIGEST_MAX_WORDS = 3500
+SITE_DIGEST_PROMPT = """These notes are one file of a college assistant's \
+library: {title}
+
+{text}
+
+Write the key facts from these notes that visitors are most likely to ask \
+about, in at most {words} words, as short "- " lines. Keep every name with \
+its role, and the important numbers, dates and places exactly as written. \
+Nothing that is not in the notes. Reply with the lines only."""
+
+# The FAQ: questions each page file answers, answered once at indexing
+# time. A visitor's question that closely matches one is answered at once,
+# with no LLM call (like knowledge.txt). 0 = no FAQ.
+SITE_FAQ_PER_PAGE = 8
+SITE_FAQ_PROMPT = """These notes are one file of a college assistant's \
+library: {title}
+
+{text}
+
+Write the {n} questions visitors to the college are most likely to ask \
+that these notes answer, each with a short, friendly spoken answer (one or \
+two sentences) taken ONLY from the notes — no lists, no markdown. Use \
+exactly this form, one pair per two lines:
+Q: question
+A: answer"""
+
+
+# ══ 11  WEBSITE KNOWLEDGE: DATA FETCH (every question) + KNOWLEDGE BASE ══════
+# brain.py -> fetch.py. ROUTE (LLM call 1): persona + LIBRARY (page: one
+# line) + FETCH_SYSTEM_RULES as the system prompt (identical on every call,
+# so the Pi reads it once), FETCH_ROUTE_TASK as the message -> PAGES /
+# REPLY / AGAIN / IGNORE. ANSWER (LLM call 2): FETCH_ANSWER_TASK with the
+# data of those pages. Full description: docs/Fetch Algo.md.
+FETCH_ENABLED        = True
+FETCH_MODE           = "digest"  # "digest": ONE call — the digest of every
+                                 # page is in the cached system prompt, the
+                                 # lines that match the query's names / rare
+                                 # words are added to it. "route": two calls
+                                 # (choose pages, then answer from them)
+FETCH_SECTION_WORDS  = 120     # a college question with no distinctive
+                               # matching line gets the best section of the
+                               # best page instead (0 = never)
+FETCH_LOOKUP_LINES   = 6       # matching lines from the full page files
+                               # added to a question (misheard names too:
+                               # "rishma sheikh" -> Dr. Reshma Sheik)
+FETCH_MAX_PAGES      = 3       # page files one answer may read
+FETCH_DATA_WORDS     = 250     # page data per answer (~1.4 tokens a word):
+                               # the sections / lines that match the query.
+                               # The Pi reads every word before the first one
+                               # is spoken — the biggest speed knob (700 was
+                               # ~3x slower)
+FETCH_DIRECT         = True    # skip the ROUTE call when the pages are
+                               # obvious: "who is <a name in the index>", or
+                               # one page file named by the query ("placements")
+FETCH_ROUTE_MODEL    = None    # a smaller model just for ROUTE, e.g.
+                               # "llama3.2:1b" (~3x faster, +1.3 GB RAM; it
+                               # keeps its own cached system prompt). None =
+                               # the answer model
+FETCH_CACHE          = True    # remember answers from page data: the same
+FETCH_CACHE_DAYS     = 7       # question again (similarity >= FETCH_CACHE_SIM)
+FETCH_CACHE_SIM      = 0.92    # is answered at once; a new index clears it
+FETCH_CACHE_PATH     = "data/answer_cache.json"
+FETCH_ANSWER_MAX_TOKENS = 260  # an answer from data may be longer than chat
+FETCH_PRIME_AT_BOOT  = True    # read the system prompt once at boot, so the
+                               # first visitor doesn't wait for it
+# A REPLY (the model's own knowledge) is never allowed for a query with one
+# of these words, or that matches the knowledge base: the pages whose names /
+# descriptions share its words are answered from instead — a 3B model once
+# REPLY'd "who are the teachers in cse" with invented names.
+FETCH_COLLEGE_WORDS = (
+    "college", "tkm", "tkmce", "campus", "department", "cse", "faculty",
+    "teacher", "teachers", "professor", "hod", "principal", "dean", "staff",
+    "student", "students", "admission", "admissions", "fee", "fees", "exam",
+    "exams", "result", "syllabus", "semester", "hostel", "library", "lab",
+    "labs", "placement", "placements", "course", "courses", "programme",
+    "program", "btech", "mtech", "phd", "mca", "research", "scholarship",
+    "club", "event", "events", "canteen", "bus", "timetable", "calendar")
+FETCH_REPEAT_REPLIES = ("Sorry, I didn't quite catch that. Could you say "
+                        "it again?",
+                        "I missed some of that. Could you say it once more?")
+
+# The knowledge base — curated "question: answer" lines. Also a page ("kb")
+# in the LIBRARY, read live, so edits work without re-indexing.
+KNOWLEDGE_PATH       = "data/knowledge.txt"
+FETCH_KB_PAGE        = "kb"
+FETCH_KB_DESCRIPTION = ("Curated facts: the college's name, location, "
+                        "founding, principal, accreditation and ranking; the "
+                        "CSE department's vision, mission, HOD and faculty "
+                        "profiles")
+ANSWER_OFFLINE_FIRST = True    # a very close knowledge-base match is said
+LOCAL_ANSWER_THRESH  = 0.70    # verbatim at once, no LLM (1.1 = never)
+LOCAL_MATCH_THRESH   = 0.55    # closest-entry fallback when the LLM is down;
+                               # also a "kb" routing hint above this
+
+# FETCH_MODE "digest": the system prompt after the persona + knowledge base
+# ({digest} = data/site/digest.txt), and the message for each question
+# ({query}; {lines} = matching lines from the pages; {notes} as below).
+FETCH_DIGEST_RULES = """COLLEGE FACTS FROM THE WEBSITE (the key facts of \
+every page; quote them, never contradict them):
+{digest}
+
+HOW TO ANSWER
+- Answer college questions only from the knowledge base, these facts and \
+the matching lines given with the question. If none of them has the \
+answer, say you do not have that information yet and suggest the \
+department office. Never make up names, numbers or dates, and never \
+guess what is "usual" or "typical" (months, fees, counts).
+- Say names as the facts spell them, even when the query misheard them.
+- The matching lines are public facts from the college website: answer \
+from them (a student's programme, batch and admission number, a staff \
+member's role). A query that is only a name means "who is this?".
+- Do not introduce yourself unless you are asked or greeted.
+- The query comes from speech recognition and may have misheard words, \
+names most of all ("rishma sheikh" for Reshma Sheik): if you are more than \
+half sure what was meant, answer that.
+- If the query is only noise or random words, reply with just: IGNORE
+- If it is too garbled to understand, reply with just: AGAIN"""
+
+FETCH_DIGEST_TASK = """Query: "{query}"
+{lines}
+{notes}"""
+
+# FETCH_MODE "route" — the system prompt after the persona. {library} = "page: description" per
+# line, {max_pages} = FETCH_MAX_PAGES.
+FETCH_SYSTEM_RULES = """LIBRARY — pages of college information you can \
+read (page: what it holds):
+{library}
+
+You get one of two tasks.
+
+TASK: ROUTE — decide how to handle the visitor's query. Write ONE line, \
+in one of these four forms and nothing else:
+PAGES: page, page
+REPLY: your whole spoken answer, on the same line
+AGAIN
+IGNORE
+Use PAGES when the query needs facts about the college: list every page \
+that may hold the answer, most useful first, at most {max_pages}, names \
+copied exactly from the LIBRARY. For a person, think of every page about \
+people like them (staff lists, research, achievements, student lists).
+Use REPLY for greetings, thanks, small talk, jokes, poems, general \
+knowledge, questions about you or about who is around you, and for a \
+college question no page covers (then say you do not have that \
+information yet). A query that names nothing about the college — no \
+department, person, programme, exam, fee, facility or event of it — is \
+general knowledge: REPLY.
+Use AGAIN when the query is too garbled to understand.
+Use IGNORE when the query is only noise or random words.
+The query comes from speech recognition and may have misheard words: if \
+you are more than half sure what was meant, treat it as that.
+Examples:
+"who is the head of the cse department" -> PAGES: cse_people, kb
+"who are the teachers in cse" -> PAGES: cse_people
+"when do b tech admissions start" -> PAGES: admissions
+"tell me a joke" -> REPLY: Why did the robot go back to school? Its \
+skills were getting a little rusty!
+"what is photosynthesis" -> REPLY: It is how plants turn sunlight, water \
+and air into their food.
+"what is the capital of japan" -> REPLY: Tokyo is the capital of Japan.
+"is there a hostel for boys" -> PAGES: facilities
+"who is the principle of the collage" -> PAGES: administration, kb
+"the uh gina blah" -> IGNORE
+"what is the fees for the ah some thing" -> AGAIN
+
+TASK: ANSWER — the message gives the query, the data from the pages and \
+the instructions. Follow them."""
+
+# LLM call 1. {query}; {notes} = who is asking, scene, "speech recognition
+# was unsure", name hints, reply style — each only when there is one.
+FETCH_ROUTE_TASK = """TASK: ROUTE
+Query: "{query}"
+{notes}
+Your one line:"""
+
+# LLM call 2. {query}; {data} = the chosen pages; {notes} as above.
+FETCH_ANSWER_TASK = """TASK: ANSWER
+Query: "{query}"
+
+Data:
+{data}
+
+{notes}
+Instructions: Answer the query "{query}" from the data above. Give every \
+detail of the data that answers it, as a friendly, well-ordered spoken \
+answer: no lists, no markdown, no links. If the data does not answer it, \
+say you do not have that information yet and suggest asking at the \
+department office; do not talk about other things in the data instead. \
+If the query is a general question, not about the college, answer it from \
+your own knowledge. \
+Mention the person asking or the scene only if they matter to the query. \
+The query may have misheard words: answer what was most likely meant. \
+Never make up names, numbers or dates."""
+
+
+# ══ 12  CAMERA ═══════════════════════════════════════════════════════════════
+#   "picam" — the Pi's CSI camera via rpicam-vid (subprocess)
+#   "usb"   — USB / V4L2 webcam through OpenCV
+#   "esp32" — ESP32-CAM MJPEG stream over Wi-Fi (ESP32_STREAM)
+CAMERA_SOURCE = "usb" if IS_MAC else "picam"
+
+PICAM_WIDTH  = 640           # Pi CSI camera
+PICAM_HEIGHT = 480
+PICAM_FPS    = 15
+PICAM_HFLIP  = False         # True if the image is mirrored
+PICAM_VFLIP  = False         # True if mounted upside down
+
+CAMERA_ID    = 0             # USB webcam
+FRAME_WIDTH  = 320
+FRAME_HEIGHT = 240
+FPS          = 30
+
+ESP32_STREAM = "http://10.240.252.155/stream"
+
+
+# ══ 13  FACES: DETECT, RECOGNISE, REGISTER ═══════════════════════════════════
+# YuNet detects, SFace recognises. Everything stays on the device:
+# embeddings in data/faces/, sightings in data/face_log.jsonl.
 ENABLE_FACE_RECOGNITION = True
-FACE_DETECTOR      = "yunet"   # "yunet" (better, gives landmarks) | "haar" (fallback)
-YUNET_MODEL_PATH   = "models/vision/face_detection_yunet_2023mar.onnx"
-SFACE_MODEL_PATH   = "models/vision/face_recognition_sface_2021dec.onnx"
-FACE_DETECT_CONF   = 0.80      # YuNet detection score threshold
-FACE_MATCH_THRESH  = 0.36      # SFace cosine similarity — the paper's 0.363,
-                               # rounded. RAISE if strangers get named, LOWER
-                               # if enrolled people aren't recognised.
-RECOGNIZE_EVERY    = 3         # run the embedder every Nth vision frame
-FACE_DB_DIR        = "data/faces"
-FACE_MAX_TEMPLATES = 6         # looks per person (day, night, glasses…): each
-                               # registration adds one; matching takes the best
-# Learning a new look by itself — when Luna is VERY sure it is you in light she
-# hasn't stored yet (e.g. the first evening after a daytime registration). All
-# must hold: recognised steadily for FACE_LEARN_STABLE_SECS, a match of at least
-# FACE_LEARN_MIN_SIM (well above FACE_MATCH_THRESH) yet below
-# FACE_LEARN_NOVEL_BELOW (a look she already has is nothing new), a clear
-# FACE_LEARN_MARGIN over every other enrolled person, exactly one face in view,
-# and at most one new look per person per FACE_LEARN_EVERY_SECS. The new look is
-# the average of FACE_LEARN_SAMPLES consecutive qualifying sightings.
+FACE_DETECTOR      = "yunet"   # "yunet" (landmarks) | "haar" (fallback)
+FACE_DETECT_CONF   = 0.80      # YuNet score threshold
+FACE_MATCH_THRESH  = 0.36      # SFace cosine: RAISE if strangers get named,
+                               # LOWER if registered people aren't
+RECOGNIZE_EVERY    = 3         # embed every Nth vision frame
+FACE_MAX_TEMPLATES = 6         # looks per person (day, night, glasses ...)
+
+# Learning a new look by itself, only when VERY sure it is you: recognised
+# steadily for FACE_LEARN_STABLE_SECS at >= FACE_LEARN_MIN_SIM but below
+# FACE_LEARN_NOVEL_BELOW, FACE_LEARN_MARGIN clear of everyone else, one face in
+# view, at most one look per FACE_LEARN_EVERY_SECS (average of
+# FACE_LEARN_SAMPLES sightings).
 FACE_AUTO_LEARN        = True
-FACE_LEARN_MIN_SIM     = 0.55
+FACE_LEARN_MIN_SIM     = 0.65
 FACE_LEARN_NOVEL_BELOW = 0.80
 FACE_LEARN_MARGIN      = 0.15
 FACE_LEARN_STABLE_SECS = 10.0
 FACE_LEARN_EVERY_SECS  = 600.0
 FACE_LEARN_SAMPLES     = 5
-FACE_LOG_PATH      = "data/face_log.jsonl"
+
 FACE_LOG_ENABLED   = True
-FACE_LOG_COOLDOWN  = 60.0      # min seconds between log entries per person
+FACE_LOG_COOLDOWN  = 60.0      # s between log entries per person
 
-# Voice enrollment: how many embedding samples to average, and how long the
-# person has to hold still-ish in front of the camera before Luna gives up.
-ENROLL_FRAMES      = 8
-ENROLL_TIMEOUT     = 12.0
+# Registration: voice ("remember me, my name is Alice", guided poses + name
+# check), touch (hold the centre of the face) or photos
+# (scripts/enroll_faces.py data/enroll/<Name>/*.jpg).
+ENROLL_FRAMES          = 8
+ENROLL_TIMEOUT         = 12.0
+ENROLL_GUIDED_POSES    = True
+ENROLL_POSES = (
+    "Look straight at me.",
+    "Now turn a little to your left.",
+    "And a little to your right.",
+)
+ENROLL_FRAMES_PER_POSE = 4
+ENROLL_MIN_FRAMES      = 4     # store if at least this many samples were good
+ENROLL_CONFIRM_NAME    = True  # "Did you say Alice?"
+ENROLL_PREVIEW         = True  # live mirrored camera view while registering
+ENROLL_PREVIEW_SECS    = 40.0
+TOUCH_ENROLL           = True
+TOUCH_ENROLL_HOLD_SECS = 1.2
 
-# ── Scene context (offline "what do you see?") ───────────────────────────────
-# When a question sounds like it's about what the camera sees, Luna assembles a
-# description of the live scene (people, names, emotions, motion, brightness —
-# plus detected objects) and answers through the local LLM. Object detection is
-# YOLOv8n via OpenCV's dnn, loaded lazily and run ON DEMAND only, so it costs
-# nothing while idle.
+
+# ══ 14  EMOTION, SCENE & SCENE MEMORY ════════════════════════════════════════
+EMOTION_HISTORY_LEN   = 5
+SAD_CONFIDENCE        = 55.0
+EMOTION_ONSET_SECS    = 0.8    # a mood must be steady this long before the
+EMOTION_MIN_HOLD_SECS = 2.5    # face wears it, and is worn at least this long
+ENABLE_DEEPFACE       = False  # TensorFlow, 1-2 GB RAM, only better "sad"
+
+# "What do you see?": a live scene description (+ YOLOv8n objects on demand)
+# answered through the LLM.
 ENABLE_SCENE_CONTEXT    = True
 ENABLE_OBJECT_DETECTION = True
-YOLO_MODEL_PATH   = "models/vision/yolov8n.onnx"
-YOLO_INPUT_SIZE   = 416        # must match the exported ONNX imgsz
-YOLO_CONF         = 0.35
-YOLO_NMS          = 0.45
-# Phrases that route a question through the scene context. Substring match on
-# the lowercased utterance.
-VISION_QUERY_PHRASES = (
+YOLO_INPUT_SIZE = 416          # must match the exported ONNX imgsz
+YOLO_CONF       = 0.35
+YOLO_NMS        = 0.45
+VISION_QUERY_PHRASES = (       # substrings that make it a camera question
     "what do you see", "what can you see", "what are you seeing",
     "who am i", "who do you see", "do you see", "can you see",
     "how do i look", "how am i looking", "what am i holding",
@@ -758,77 +737,34 @@ VISION_QUERY_PHRASES = (
     "describe what you see", "look at me", "what am i wearing",
 )
 
-# ── Addressed-speech scoring ──────────────────────────────────────────────────
-# Inside a conversation window, "was that meant for Luna?" is decided by a
-# weighted score instead of the old confidence-only gate. Signals that a human
-# uses to know they're being spoken to: being named, being asked a question,
-# being looked at, the topic being something Luna knows, and having just asked
-# a question herself. Each weight is how much that signal adds; the utterance
-# is accepted when the total reaches ADDR_THRESHOLD.
-# Set ADDRESSED_SCORING = False to fall back to the plain confidence gate.
-ADDRESSED_SCORING   = True
-ADDR_THRESHOLD      = 1.35  # was 1.0: with ADDR_W_CONF=1.2 a crisp sentence
-                            # passed on confidence ALONE, so clear chatter
-                            # between two people got answered. Now at least one
-                            # addressing signal (name / question / "you" /
-                            # topic / face / loudness / continuity) is needed.
-ADDR_REQUIRE_SIGNAL = True  # hard rule on top of the score: confidence alone
-                            # can never pass, whatever the weights say
-ADDR_W_CONF         = 1.2   # × Vosk confidence (0..1) — the base signal
-ADDR_W_LOUDNESS     = 0.45  # × how close the talker sounds (0..1, from the
-                            # utterance level measured by audio_preprocess):
-                            # people talking TO Luna stand at her mic; room
-                            # chatter is quieter. LOUDNESS_NEAR_DB / _FAR_DB
-                            # map dBFS RMS onto 0..1.
-LOUDNESS_NEAR_DB    = -22.0
-LOUDNESS_FAR_DB     = -42.0
-ADDR_FACE_OR_NAME   = False # True = inside a conversation window ALSO require
-                            # a visible face, Luna's name, or a pending answer
-                            # (strictest: nothing said off-camera is answered)
-ADDR_W_NAME         = 0.8   # Luna's name / a wake word appears anywhere
-ADDR_W_QUESTION     = 0.35  # utterance is question-shaped (what/where/can you…)
-ADDR_W_SECOND_PERSON = 0.25 # "you / your" — they're talking TO someone
-ADDR_W_KB           = 0.5   # × KB similarity — it's about something Luna knows
-ADDR_W_FACE         = 0.3   # a face is looking at Luna right now
-ADDR_W_CONTINUITY   = 0.7   # Luna just asked a question — this is likely the answer
+# Scene memory: who arrived / left, moods, objects — the "scene context" for
+# questions about who is or was around, and conversation starters.
+ENABLE_SCENE_MEMORY    = True
+SCENE_MEMORY_EVENTS    = 12     # recent events kept
+SCENE_MEMORY_MAX_AGE   = 1800   # s, older events are forgotten
+SCENE_MEMORY_IN_PROMPT = True
+SCENE_LINGER_SECS      = 8.0    # a known person standing quietly this long
+                                # gets a conversation starter
 
-# ── Voice commands ────────────────────────────────────────────────────────────
-# Handled before the brain: instant, offline, no LLM involved. All phrase
-# tables are plain substring/word matches on the lowercased utterance.
-ENABLE_VOICE_COMMANDS = True
-VOLUME_STEP           = 10     # percent per "volume up"/"volume down"
-VOLUME_MIN, VOLUME_MAX = 20, 100
 
-# ── Proactive behaviour (EMO-style liveliness) ────────────────────────────────
-# Luna acts on what she sees, without being spoken to first: greets people she
-# recognises, reacts to a smile, checks in on a sad face. Everything is
-# cooldown-limited so she is charming, not needy, and she never interrupts an
-# active conversation or her own speech.
-ENABLE_PROACTIVE          = True
-PROACTIVE_GREET_RECOGNIZED = True   # "Hi Alice!" + wave + name banner
-GREET_COOLDOWN_SECS       = 120.0   # Luna greets a person once per VISIT; a
-                                    # new visit (back after PERSON_AWAY_SECS
-                                    # out of sight) is greeted again only if
-                                    # the last greeting was this long ago
+# ══ 15  PROACTIVE BEHAVIOUR & THE RECOGNITION MOMENT ═════════════════════════
+# Luna greets people she knows, smiles back, checks in on a sad face — all
+# cooldown-limited, never during speech or an open conversation.
+ENABLE_PROACTIVE           = False
+PROACTIVE_GREET_RECOGNIZED = True
+GREET_COOLDOWN_SECS        = 120.0  # one greeting per visit
+PERSON_AWAY_SECS           = 60.0   # out of sight longer = they left
+RECOG_SWITCH_SECS          = 3.0    # camera must disagree this long to
+                                    # replace a recognised name
+PROACTIVE_SMILE_REACT      = True
+SMILE_REACT_COOLDOWN       = 120.0
+PROACTIVE_SAD_REACT        = True
+SAD_REACT_COOLDOWN         = 240.0
+PROACTIVE_POLL_SECS        = 0.5
+PROACTIVE_STABLE_SECS      = 2.0    # an emotion must last this long
+PROACTIVE_CONVERSATION_STARTERS = True
 
-# What counts as someone LEAVING. A face that drops out of view for less than
-# this — looking down at a phone, turning to a friend, the camera missing a
-# few frames — is still the same visit: same name, no "welcome back", no
-# "you're back again". Out of sight for longer = they left.
-PERSON_AWAY_SECS          = 30.0
-# A recognised name is only replaced (by a stranger, or someone else) once the
-# camera has disagreed for this long — one badly-angled frame that fails to
-# match must not make Luna forget who she is talking to.
-RECOG_SWITCH_SECS         = 3.0
-PROACTIVE_SMILE_REACT     = True    # smile back + a happy word
-SMILE_REACT_COOLDOWN      = 120.0
-PROACTIVE_SAD_REACT       = True    # gentle check-in on a sad face
-SAD_REACT_COOLDOWN        = 240.0
-PROACTIVE_POLL_SECS       = 0.5     # how often the proactive loop looks around
-PROACTIVE_STABLE_SECS     = 2.0     # emotion must persist this long to react
-
-# What she actually says. {name} is filled in for greetings.
-GREET_PHRASES = (
+GREET_PHRASES = (                   # {name} is filled in
     "Hi {name}! Good to see you again!",
     "Hey {name}! How's it going?",
     "Oh, hi {name}! I was hoping you'd come by.",
@@ -842,169 +778,174 @@ SAD_PHRASES = (
     "Hey... you look a little down. Want to talk about it?",
     "Everything okay? I'm here if you want to chat.",
 )
-
-# ── Touch interactions (Face 3) ───────────────────────────────────────────────
-# The DSI panel is a touchscreen — tapping Luna's eyes boops her (they pop and
-# cross for a moment), tapping the mouth area gets a giggle smile. Works with a
-# mouse too, for desktop testing.
-ENABLE_TOUCH_REACTIONS = True
-BOOP_SECONDS           = 1.4    # (boop / giggle faces, still in expressions.py)
-TOUCH_ANGRY_SECS       = 4.0    # a tap on the screen makes Luna angry this long
-                                # (press-and-hold in the middle still registers)
-
-# ── Screen cards (face_cards.py) ──────────────────────────────────────────────
-# Some answers are better SHOWN: the face fades out and a full-screen card
-# fades in — the date (a calendar tile like the macOS widget), the time (an
-# analog clock), a person (name in big rounded bold, role, one highlight), or
-# the name of someone Luna has just recognised.
-SCREEN_CARDS      = True
-CARD_FADE_SECS    = 0.35   # face <-> card cross-fade
-CARD_LINGER_SECS  = 3.0    # a card stays this long after Luna stops speaking
-CARD_START_GRACE  = 8.0    # a card waiting for a voice that never starts
-PERSON_CARDS      = True   # only when the person is certain (people.py)
-GREET_CARD        = True   # recognition: the name card instead of the banner
-GREET_CARD_DELAY  = 1.0    # s — after the eye double-take
-GREET_CARD_SECS   = 4.0
-RECOG_DEDUP_SECS  = 30.0   # one recognition moment per arrival: vision's
-                           # on-sight moment and the spoken greeting share it
-
-# ── Greeting name banner ──────────────────────────────────────────────────────
-# "Hi <name>!" drawn on screen when a recognised face is greeted (the sketch's
-# "Hello 'name' on screen"). Also used for enrollment confirmations.
-GREET_BANNER       = True
-GREET_BANNER_SECS  = 4.0
-GREET_BANNER_SIZE  = 44
-
-# ── The recognition moment ────────────────────────────────────────────────────
-# What happens in the second Luna realises she KNOWS the face in front of her.
-# A dedicated expression ("recognised": eyes pop, sparkle burst, a hop) plus a
-# quick double-take of the eyes, the name banner sliding up, and — if the
-# greeting ends in a question — the conversation window opens so the person
-# can answer without saying the wake word. Someone who left only a moment ago
-# gets a "welcome back" instead of a full greeting.
-RECOG_ANIMATION        = True
-RECOG_EXPRESSION_SECS  = 4.0    # how long the "recognised" face is held
-RECOG_DOUBLE_TAKE      = True   # quick left-right eye dart before locking on
-RECOG_BANNER_SLIDE     = True   # banner slides up and pops (vs just appearing)
-RECOG_GREET_OPENS_CONVERSATION = True
-RECOG_EXPRESSION       = "excited"  # the face worn with the "Hi {name}!" banner
-RECOG_ON_SIGHT         = True   # show the banner + face the moment a registered
-                                # person is recognised (not only when greeted)
-RECOG_SIGHT_COOLDOWN   = 60.0   # s before the same person gets it again
-ENROLL_PREVIEW         = True   # live mirrored camera view while registering,
-                                # so people can see (and centre) their face
-ENROLL_PREVIEW_SECS    = 40.0   # preview stays up this long after each step
-WELCOME_BACK_SECS      = 900    # left less than this long ago → "welcome back"
-                                # (must exceed GREET_COOLDOWN_SECS)
-WELCOME_BACK_PHRASES = (
-    "Welcome back, {name}!",
-    "Back again, {name}? Nice to see you.",
-    "Hey {name}, that was quick! Did you forget something?",
-)
-
-# ── Face registration options ─────────────────────────────────────────────────
-# Three ways to register a face, all ending in the same face_store entry:
-#   voice  — "remember me, my name is Alice" (existing), now GUIDED: Luna asks
-#            for a couple of head poses so the stored embedding is the average
-#            of straight/left/right views (recognition survives angles), and
-#            confirms the name she heard before storing it (Vosk mishears
-#            names more than anything else).
-#   touch  — press and hold the centre of the face for TOUCH_ENROLL_HOLD_SECS;
-#            Luna asks for the name by voice.
-#   photos — scripts/enroll_faces.py data/enroll/<Name>/*.jpg registers people
-#            from photos with no camera (pre-load the department staff).
-ENROLL_GUIDED_POSES    = True
-ENROLL_POSES = (
-    "Look straight at me.",
-    "Now turn your head a little to your left.",
-    "And a little to your right.",
-)
-ENROLL_FRAMES_PER_POSE = 4      # samples collected while each pose is spoken
-ENROLL_MIN_FRAMES      = 4      # store if at least this many samples were good
-ENROLL_CONFIRM_NAME    = True   # "Did you say Alice?" → yes / no
-TOUCH_ENROLL           = True
-TOUCH_ENROLL_HOLD_SECS = 1.2
-ENROLL_PHOTO_DIR       = "data/enroll"
-
-# ── Scene memory (contextual, continuous conversation) ───────────────────────
-# A rolling memory of what the camera has seen recently — who arrived, who
-# left, moods, objects noticed — summarised in one or two sentences and added
-# to EVERY LLM turn, so Luna can say "you looked tired earlier" or "Bob was
-# here a few minutes ago" without being asked "what do you see". Also drives
-# conversation starters: a known person who has been standing there quietly
-# for SCENE_LINGER_SECS gets a friendly opener (once per visit).
-ENABLE_SCENE_MEMORY     = True
-SCENE_MEMORY_EVENTS     = 12     # recent events kept
-SCENE_MEMORY_MAX_AGE    = 1800   # seconds — older events are forgotten
-SCENE_MEMORY_IN_PROMPT  = True   # add the summary to LLM turns
-SCENE_LINGER_SECS       = 8.0
-PROACTIVE_CONVERSATION_STARTERS = True
 CONVERSATION_STARTERS = (
     "So {name}, what brings you to the department today?",
     "{name}, anything I can help you find today?",
     "How is your day going so far, {name}?",
 )
 
-# ── Conversation log ──────────────────────────────────────────────────────────
-# Every utterance Luna hears and everything she answers, one JSON line per
-# turn in data/logs/conversation_YYYY-MM-DD.jsonl: raw + cleaned text, Vosk
-# confidence, loudness, the addressing-score breakdown and the decision,
-# recognised person, which path answered (command / vision / kb / llm /
-# fallback), the knowledge entries retrieved, the exact reply, timings, and
-# any reward that arrives afterwards. IGNORED utterances are logged too, with
-# the reason — a question she wrongly ignored is as fixable as a wrong answer.
-# Read a day back with scripts/review_log.py. This is also the training data
-# for learning.py. Files are pruned after CONVO_LOG_RETENTION_DAYS.
+# The second Luna realises she KNOWS you: the "recognised" face, an eye
+# double-take, the name sliding up, and the conversation opens.
+RECOG_ANIMATION        = True
+RECOG_EXPRESSION_SECS  = 4.0
+RECOG_DOUBLE_TAKE      = True
+RECOG_BANNER_SLIDE     = True
+RECOG_GREET_OPENS_CONVERSATION = True
+RECOG_EXPRESSION       = "excited"  # the face worn with "Hi {name}!"
+RECOG_ON_SIGHT         = True       # also when not greeted
+RECOG_SIGHT_COOLDOWN   = 60.0
+RECOG_DEDUP_SECS       = 30.0       # one recognition moment per arrival
+WELCOME_BACK_SECS      = 900        # left less than this ago -> welcome back
+                                    # (must exceed GREET_COOLDOWN_SECS)
+WELCOME_BACK_PHRASES = (
+    "Welcome back, {name}!",
+    "Back again, {name}? Nice to see you.",
+    "Hey {name}, that was quick! Did you forget something?",
+)
+
+
+# ══ 16  FACE DISPLAY & ANIMATION ═════════════════════════════════════════════
+# 1 Luna classic (purple) · 2 Robo (cyan) · 3 Aurora (EMO-style, the product
+# face). Keys 1 / 2 / 3 switch live.
+FACE_STYLE         = 3
+DISPLAY_FULLSCREEN = IS_PI     # kiosk on the Pi, a window on the Mac
+                               # (1400x800 canvas, scaled to fit any screen)
+
+SLEEP_AFTER_SECONDS = 15       # no face this long -> sleep (wakes at once)
+SLEEP_AFTER_FRAMES  = RENDER_FPS * SLEEP_AFTER_SECONDS
+
+MOUTH_FILLED_TALK = True       # False = the old four-shape jaw
+MOUTH_MIN_DEPTH   = 8          # px at silence
+MOUTH_MAX_DEPTH   = 104        # px at full volume
+MOUTH_CLOSED_H    = 14
+ARC_EYES_HAPPY    = True
+WAKE_ARMS         = True
+
+CONVO_LIGHT_COL        = (255, 45, 45)   # the "listening" light
+CONVO_LIGHT_RADIUS     = 9
+CONVO_LIGHT_MARGIN     = 34
+CONVO_LIGHT_LABEL      = True            # "LISTENING" beside it
+CONVO_LIGHT_LABEL_SIZE = 20
+
+AMBIENT_MOTES      = True                # floating motes
+AMBIENT_MOTE_COUNT = 18
+THINKING_DOTS      = True
+
+FACE_OVERRIDE_SECS = 4.0       # how long a gesture-triggered face lasts
+
+
+# ══ 17  SCREEN CARDS, BANNERS & TOUCH ════════════════════════════════════════
+# Cards: date, time, a person (only when certain, people.py), a recognised
+# name.
+SCREEN_CARDS     = True
+CARD_FADE_SECS   = 0.35
+CARD_LINGER_SECS = 3.0         # after Luna stops speaking
+CARD_START_GRACE = 8.0         # a card waiting for a voice that never starts
+PERSON_CARDS     = True
+GREET_CARD       = True        # recognition shows the name card
+GREET_CARD_DELAY = 1.0         # s, after the eye double-take
+GREET_CARD_SECS  = 4.0
+
+GREET_BANNER      = True       # "Hi <name>!" (and enrolment confirmations)
+GREET_BANNER_SECS = 4.0
+GREET_BANNER_SIZE = 44
+
+ENABLE_TOUCH_REACTIONS = True  # tap an eye: boop; tap the mouth: giggle
+TOUCH_ANGRY_SECS       = 4.0   # a tap elsewhere makes Luna angry this long
+
+
+# ══ 18  ARMS (SERVOS) ════════════════════════════════════════════════════════
+ENABLE_SERVOS   = True     # a Mac falls back to simulation by itself
+SERVO_LEFT_PIN  = 17       # BCM GPIO numbers, NOT header pins
+SERVO_RIGHT_PIN = 18       # the right arm waves and shakes hands
+SERVO_BACKEND   = "auto"   # "auto" | "pigpio" (DMA, no jitter) | "rpigpio"
+SERVO_DETACH_AT_REST = True    # stop pulsing at rest: no buzzing
+SERVO_SETTLE_SECS    = 0.35
+SERVO_STEP_DELAY     = 0.02
+SERVO_SPEED          = 1.0     # all gestures: 2.0 = twice as fast
+SERVO_MIN_PULSE_US   = 500     # full 0-180° sweep (SG90/MG90)
+SERVO_MAX_PULSE_US   = 2500
+
+ARM_REST_ANGLE = 90
+ARM_UP_ANGLE   = 160
+ARM_DOWN_ANGLE = 30
+ARM_MOVE_SECS  = 0.45
+
+TALK_SWAY_DEGREES = 8          # small sway of both arms while talking
+TALK_SWAY_PERIOD  = 1.6
+
+WAVE_WIGGLES        = 3
+WAVE_WIGGLE_DEGREES = 14
+WAVE_RAISE_SECS     = 0.5
+WAVE_WIGGLE_SECS    = 0.18
+
+HANDSHAKE_ANGLE      = 125     # arm horizontal, pointing at the visitor
+HANDSHAKE_HOLD_SECS  = 2.0
+HANDSHAKE_SHAKES     = 3
+HANDSHAKE_DEGREES    = 12
+HANDSHAKE_RAISE_SECS = 0.6
+HANDSHAKE_SHAKE_SECS = 0.16
+
+
+# ══ 19  HAND GESTURES (MediaPipe) ════════════════════════════════════════════
+ENABLE_GESTURES = False        # unreliable yet: off (the tracker isn't started)
+GESTURE_REACT_COOLDOWN      = 8.0
+GESTURE_STABLE_FRAMES       = 3
+GESTURE_REACT_STABLE_FRAMES = 6
+THUMB_RISE_RATIO        = 0.50
+THUMB_ABOVE_INDEX_RATIO = 0.35
+HAND_DETECT_CONF        = 0.75
+HAND_TRACK_CONF         = 0.65
+HAND_MIN_HANDEDNESS     = 0.80
+HAND_MIN_SPAN           = 0.13
+HAND_MODEL_COMPLEXITY   = 1
+GESTURE_DEBUG           = False
+
+
+# ══ 20  VOICE COMMANDS ═══════════════════════════════════════════════════════
+ENABLE_VOICE_COMMANDS  = True  # volume, sleep, style, registration ... (no LLM)
+VOLUME_STEP            = 10    # percent per "volume up / down"
+VOLUME_MIN, VOLUME_MAX = 20, 100
+
+
+# ══ 21  CONVERSATION LOG & LEARNING ══════════════════════════════════════════
+# One JSON line per turn in data/logs/ (heard, why accepted / ignored, the
+# path, the reply, timings, rewards). Read with scripts/review_log.py.
 CONVO_LOG_ENABLED        = True
-CONVO_LOG_DIR            = "data/logs"
 CONVO_LOG_RETENTION_DAYS = 365 if IS_MAC else 45
 
-# ── Learning from daily life (learning.py) ────────────────────────────────────
-# Not weight training — a small on-device learning loop that runs everywhere:
-#   rewards   — explicit ("good answer", "that's wrong", a thumbs-up) and
-#               implicit (they kept talking / said thanks / repeated the same
-#               question / walked away) signals, scored against the previous
-#               turn.
-#   manner    — a contextual bandit (Thompson sampling) picks a reply STYLE
-#               (length × tone × follow-up) per context (known person or not,
-#               question kind, time of day) and learns from the rewards which
-#               style people respond to. State: data/learning/bandit.json.
-#   people    — per-person profiles (visits, topics, preferred style) used
-#               in the prompt when that person is recognised.
-#   exemplars — replies that earned a high reward are kept and retrieved as
-#               few-shot examples for similar questions (how a small model
-#               picks up style without touching its weights).
-#   facts     — "remember that…" / corrections go to a PENDING file and only
-#               enter knowledge.txt after approval (scripts/approve_facts.py).
-#   diary     — a nightly one-paragraph summary of the day's log
-#               (data/diary/), retrievable like the website index.
-# Bootstrap on the Mac with scripts/train_learning.py (replays logs and can
-# run simulated visitor sessions), then deploy ONCE with
-# `scripts/deploy.sh --go --seed-learning`; afterwards the Pi keeps learning
-# and deploys never overwrite data/learning/.
-LEARNING_ENABLED           = True
-LEARNING_DIR               = "data/learning"
-LEARNING_STYLE_ENABLED     = True    # let the bandit steer reply style
-LEARNING_EXEMPLARS_K       = 2       # liked replies shown as examples per turn
-LEARNING_EXEMPLAR_MIN_REWARD = 0.5   # reward needed to keep a reply as example
-LEARNING_ENGAGEMENT_WINDOW = 20.0    # s: a follow-up within this = engaged (+)
-LEARNING_REPEAT_SIM        = 0.80    # same question again (similarity) = (−)
-LEARNING_REWARD_EXPLICIT   = 1.0     # "good answer" / "that's wrong"
-LEARNING_REWARD_THUMBS     = 0.6     # thumbs-up gesture right after a reply
-LEARNING_REWARD_THANKS     = 0.5     # thanks / laughter / compliment
-LEARNING_REWARD_ENGAGED    = 0.25    # kept the conversation going
-LEARNING_REWARD_REPEAT     = -0.5    # asked the same thing again
-LEARNING_REWARD_CORRECTION = -1.0    # "no, that's not right…"
-LEARNING_REWARD_ABANDON    = -0.2    # walked away mid-answer / no reply
-LEARNING_MIN_TURNS_TO_STEER = 8      # before this many rewarded turns per
-                                     # context, styles are explored uniformly
-PENDING_FACTS_PATH         = "data/learning/pending_facts.txt"
-DIARY_ENABLED              = True
-DIARY_DIR                  = "data/diary"
-DIARY_WRITE_HOUR           = 22      # first idle moment after this hour
+# learning.py: rewards -> a reply-style bandit, liked replies as examples,
+# per-person profiles, taught facts (approved with scripts/approve_facts.py)
+# and a nightly diary. Bootstrap on the Mac (scripts/train_learning.py), deploy
+# once with scripts/deploy.sh --go --seed-learning.
+LEARNING_ENABLED             = True
+LEARNING_STYLE_ENABLED       = True
+LEARNING_EXEMPLARS_K         = 2     # liked replies shown as examples
+LEARNING_EXEMPLAR_MIN_REWARD = 0.5
+LEARNING_ENGAGEMENT_WINDOW   = 20.0  # s: a follow-up within this = engaged
+LEARNING_REPEAT_SIM          = 0.80  # same question again = negative
+LEARNING_REWARD_EXPLICIT     = 1.0   # "good answer" / "that's wrong"
+LEARNING_REWARD_THUMBS       = 0.6
+LEARNING_REWARD_THANKS       = 0.5
+LEARNING_REWARD_ENGAGED      = 0.25
+LEARNING_REWARD_REPEAT       = -0.5
+LEARNING_REWARD_CORRECTION   = -1.0
+LEARNING_REWARD_ABANDON      = -0.2
+LEARNING_MIN_TURNS_TO_STEER  = 8     # explore styles uniformly before this
+DIARY_ENABLED                = True
+DIARY_WRITE_HOUR             = 22    # first idle moment after this hour
 
-# ── Vision performance ────────────────────────────────────────────────────────
-# Detect faces on a downscaled copy of the frame (boxes and landmarks are
-# scaled back up for SFace alignment and tracking). 0.5 = quarter the pixels
-# for YuNet, the single biggest cost in the vision loop on the Pi.
-VISION_DETECT_SCALE = 0.5
+
+# ══ 22  PATHS & MODEL FILES ══════════════════════════════════════════════════
+MODEL_PATH         = "models/emotion_raf_mobilenet_finetuned.pth"
+YUNET_MODEL_PATH   = "models/vision/face_detection_yunet_2023mar.onnx"
+SFACE_MODEL_PATH   = "models/vision/face_recognition_sface_2021dec.onnx"
+YOLO_MODEL_PATH    = "models/vision/yolov8n.onnx"
+FACE_DB_DIR        = "data/faces"
+FACE_LOG_PATH      = "data/face_log.jsonl"
+ENROLL_PHOTO_DIR   = "data/enroll"
+CONVO_LOG_DIR      = "data/logs"
+LEARNING_DIR       = "data/learning"
+PENDING_FACTS_PATH = "data/learning/pending_facts.txt"
+DIARY_DIR          = "data/diary"
+# (KNOWLEDGE_PATH: section 11; SITE_DIR: section 10; OLLAMA_LOG: section 9)

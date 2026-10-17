@@ -145,17 +145,18 @@ def _capabilities(name):
         return []
 
 
-def _options():
+def _options(max_tokens=None):
     """Generation options — sent on EVERY /api/chat call, the warmup load
     included. Ollama's scheduler reloads the model whenever a runner option
     (num_ctx, num_thread, ...) differs from the resident instance's, so the
     load call must carry exactly what the real questions carry; otherwise the
-    first answer after every boot pays the multi-second load a second time."""
+    first answer after every boot pays the multi-second load a second time.
+    num_predict is not a runner option: max_tokens may differ per call."""
     return {
         "num_ctx": OLLAMA_NUM_CTX,
         "num_thread": OLLAMA_NUM_THREAD,
         "temperature": LLM_TEMPERATURE,
-        "num_predict": LLM_MAX_TOKENS,
+        "num_predict": max_tokens or LLM_MAX_TOKENS,
     }
 
 
@@ -319,15 +320,15 @@ def last_stats():
     return dict(_last_stats)
 
 
-def _chat_payload(messages):
+def _chat_payload(messages, max_tokens=None, model=None):
     payload = {
-        "model": _model,
+        "model": model or _model,
         "messages": list(messages),
         "stream": True,
         "keep_alive": OLLAMA_KEEP_ALIVE,
-        "options": _options(),
+        "options": _options(max_tokens),
     }
-    if _supports_thinking:
+    if _supports_thinking and not model:
         payload["think"] = False    # Luna speaks; she never shows her working
     return payload
 
@@ -369,13 +370,16 @@ def _iter_deltas(resp):
             return
 
 
-def stream(messages):
+def stream(messages, max_tokens=None, model=None):
     """Yield reply-text deltas for a chat `messages` list.
 
     Same contract as llm_local.stream: the first next() does real work, so a
     failure surfaces before anything is spoken and brain.py can still fall
     back to the knowledge base. The lock is held for the WHOLE generation —
-    the consumer (chunked TTS) drains it promptly.
+    the consumer (chunked TTS) drains it promptly. Closing the generator
+    early (fetch.py stops reading once "PAGES: ..." is complete) closes the
+    connection, and Ollama stops generating. `model`: another pulled
+    model for this one call (FETCH_ROUTE_MODEL), same options.
     """
     with _lock:
         if not _available:
@@ -386,7 +390,8 @@ def stream(messages):
             if not _available:
                 return
         try:
-            with _request("/api/chat", _chat_payload(messages)) as resp:
+            with _request("/api/chat",
+                          _chat_payload(messages, max_tokens, model)) as resp:
                 yield from _iter_deltas(resp)
         except urllib.error.HTTPError as e:
             try:
@@ -398,11 +403,24 @@ def stream(messages):
             print(f"[llm] Generation error: {e}")
 
 
-def ask(messages):
+def ask(messages, max_tokens=None, model=None):
     """Whole reply as one string, or None on failure."""
-    parts = list(stream(messages))
+    parts = list(stream(messages, max_tokens, model))
     reply = "".join(parts).strip()
     return reply or None
+
+
+def complete(messages, model, options, timeout=600.0):
+    """One non-streamed reply from any pulled `model` with its own
+    `options` (num_ctx, temperature, ...), or raise. For site_index.py's
+    weekly indexing, which uses the base model with a larger context —
+    not for answering visitors (that is stream(), on the resident model)."""
+    reply = _json("/api/chat", {"model": model, "messages": list(messages),
+                                "stream": False, "options": dict(options),
+                                "keep_alive": "5m"}, timeout=timeout)
+    if reply.get("error"):
+        raise RuntimeError(reply["error"])
+    return ((reply.get("message") or {}).get("content") or "").strip()
 
 
 def shutdown():

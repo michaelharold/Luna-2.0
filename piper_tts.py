@@ -67,6 +67,7 @@ from config import (
     PIPER_STREAMING,
     PIPER_PERSISTENT,
     TTS_CHUNK_MIN_CHARS,
+    TTS_FIRST_CLAUSE_CHARS,
     TTS_CHUNK_MAX_CHARS,
     TTS_SYNTH_TIMEOUT,
     TTS_FIRST_SYNTH_TIMEOUT,
@@ -188,6 +189,17 @@ def chunk_stream(token_iter):
                 yield piece
                 first = False
             buffer = tail
+
+        if first:                            # the first words: at a comma
+            clause = None                    # once long enough, not only at
+            for m in _CLAUSE_END.finditer(buffer):     # the sentence's end
+                if len(buffer[:m.start()].strip()) >= TTS_FIRST_CLAUSE_CHARS:
+                    clause = m
+                    break
+            if clause is not None:
+                yield buffer[:clause.start()].strip()
+                buffer = buffer[clause.end():]
+                first = False
 
         if len(buffer) > TTS_CHUNK_MAX_CHARS:
             pieces = _split_long(buffer)

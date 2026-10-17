@@ -25,13 +25,15 @@ models/llm/Modelfile.*
 models/vision/face_recognition_sface_2021dec.onnx
 
 # Runtime data the robot creates about people and its day — never publish
+# (data/site/ is the website index: it holds student rosters)
 data/faces/
 data/face_log.jsonl
 data/logs/
 data/logs_sim/
 data/diary/
 data/learning/
-data/rag_cache/
+data/site/
+data/answer_cache.json
 data/enroll/
 
 # Benchmark output, screenshots, local backups

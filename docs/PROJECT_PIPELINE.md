@@ -17,9 +17,9 @@ chatter. She **learns from daily life**: which reply style people respond to,
 who asks about what, which answers were liked, and facts people teach her
 (after approval). Built for a college CS department (booth / helpdesk use).
 
-The only optional network use is the website index (`web_rag.py`): when a site
-is configured and the Pi happens to be online it refreshes a cached copy of
-that site. Everything else works with no internet at all.
+The only network use is the weekly website indexing (`site_index.py`), run by
+hand on the Mac and deployed with the code. While Luna runs, nothing is
+downloaded: she works with no internet at all.
 
 ---
 
@@ -72,20 +72,27 @@ fullscreen, volume backend, servo simulation, and log retention.
 **Thinking**
 - `brain.py`: the answer pipeline, in priority order:
   1. `commands.py`: volume, sleep, style, registration, feedback, teaching.
-  2. vision questions: live scene description (+ on-demand YOLOv8n) → LLM.
-  3. KB direct match ≥ `LOCAL_ANSWER_THRESH` → the verbatim KB answer.
-  4. local LLM with retrieval: top-K KB entries, website chunks, scene
-     memory, the learned reply style, liked past answers, the person's
-     profile and diary context, all in the user turn. The static system
-     prompt is prefix-cached by Ollama.
-  5. KB fallback when the LLM is unavailable.
+  2. date / time from the clock (calendar / clock card).
+  3. vision questions: live scene description (+ on-demand YOLOv8n) → LLM.
+  4. KB direct match ≥ `LOCAL_ANSWER_THRESH` → the verbatim KB answer.
+  5. Data Fetch (`fetch.py`, [Fetch Algo.md](Fetch%20Algo.md)): ROUTE (LLM
+     call 1: the LIBRARY of page files + the query → `PAGES` / `REPLY` /
+     `AGAIN` / `IGNORE`), then ANSWER (LLM call 2: the query + those
+     pages' data + who is asking + scene notes + learned style).
+  6. KB fallback when the LLM is unavailable.
   Every answered turn goes to the conversation log.
-- `persona.py`: the one system prompt (voice + scope rules) shared by brain,
-  the Ollama Modelfile and the benchmark.
+- `fetch.py`: the LIBRARY (catalog.json), the system prompt (persona +
+  LIBRARY + `FETCH_SYSTEM_RULES`, identical on every call so Ollama keeps it
+  cached), the route / answer messages, reading the route reply, choosing
+  page data within `FETCH_DATA_WORDS`.
+- `persona.py`: Luna's persona (voice + scope rules) shared by brain, the
+  Ollama Modelfile and the benchmark.
 - `llm_local.py`: backend dispatcher; `llm_ollama.py` (default) or the
   in-process llama.cpp path. Same `warmup/available/stream/ask` contract.
-- `web_rag.py`: optional website crawl → chunks → embeddings → on-disk cache;
-  answers offline from the cache.
+- `site_index.py` + `site_crawler.py`: Indexing (weekly, by hand): crawl the
+  website (pages, ETLab data, PDFs) → group into topic files (`SITE_PAGES`)
+  → Llama organizes each (fact-checked) → one-line descriptions →
+  `data/site/pages/*.txt` + `data/site/catalog.json`.
 
 **Seeing**
 - `vision_module.py`: YuNet detection on a half-scale frame, emotion model,
@@ -124,8 +131,9 @@ fullscreen, volume backend, servo simulation, and log retention.
 1. **Vision:** camera → `state.frame` → detect → emotion → recognise →
    face renderer + proactive + scene memory.
 2. **Voice:** mic → preprocess → Vosk → wake word / addressing gate →
-   `brain.process` → command / KB / LLM (streaming) → Piper → speaker →
-   conversation log → rewards on the next turn.
+   `brain.process` → command / clock / vision / KB / route → answer
+   (streaming) → Piper → speaker → conversation log → rewards on the next
+   turn.
 3. **Touch:** tap an eye → boop; tap the mouth → giggle; hold the centre →
    register.
 
@@ -139,7 +147,7 @@ fullscreen, volume backend, servo simulation, and log retention.
 | `data/logs_sim/` | simulated training sessions |
 | `data/learning/` | bandit, exemplars, profiles, pending facts |
 | `data/diary/` | nightly summaries |
-| `data/rag_cache/` | cached website index |
+| `data/site/` | website index (built on the Mac, synced by deploy.sh) |
 
 ## Verification
 
@@ -155,7 +163,8 @@ fullscreen, volume backend, servo simulation, and log retention.
 - **The dev machine is the source of truth.** Edit there, then
   `scripts/deploy.sh --go` (rsync) to push. **Do not hand-edit on the Pi.**
 - deploy.sh **excludes** the venv, Vosk models, `models/llm/`, and every
-  runtime data path above. `--seed-learning` pushes a Mac-trained
+  runtime data path above except `data/site/` (the website index the Mac
+  builds weekly; its raw crawl and Llama cache stay on the Mac). `--seed-learning` pushes a Mac-trained
   `data/learning/` once; after that the Pi keeps learning on its own.
 - `knowledge.txt` **hot-reloads**; code changes need a restart. After
   editing the persona or switching models, re-run

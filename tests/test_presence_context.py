@@ -20,6 +20,7 @@ import io
 import os
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from unittest import mock
@@ -34,7 +35,7 @@ config.FACE_DB_DIR = _tmpdir
 import numpy as np  # noqa: E402
 
 import console  # noqa: E402
-import persona  # noqa: E402
+import fetch  # noqa: E402
 import proactive  # noqa: E402
 import scene_memory as sm  # noqa: E402
 from shared_state import state  # noqa: E402
@@ -154,6 +155,11 @@ class TestVisionPresence(unittest.TestCase):
         self.assertEqual(self.person()[0], "Dee")
 
 
+# a match strong enough to learn from, yet new — between the configured
+# bounds, whatever they are tuned to
+GOOD = round((config.FACE_LEARN_MIN_SIM + config.FACE_LEARN_NOVEL_BELOW) / 2, 3)
+
+
 class TestAutoLearn(unittest.TestCase):
     """Luna adds a new look for someone only when she is VERY sure."""
 
@@ -163,9 +169,28 @@ class TestAutoLearn(unittest.TestCase):
         except Exception as e:                       # noqa: BLE001
             raise unittest.SkipTest(f"vision_module unavailable: {e}")
         self.vm = vision_module
-        self.ok = dict(name="Dee", conf=0.62, published="Dee", since=T0,
+        self.ok = dict(name="Dee", conf=GOOD, published="Dee", since=T0,
                        faces=1, enrolling=False, runner_up=0.20,
                        last_learned=float("-inf"), now=T0 + 30)
+
+    def test_precapture_while_the_name_is_asked(self):
+        vm = self.vm
+        vm._precapture.clear()
+        with mock.patch.object(vm, "_embed", lambda f, d: np.ones(128)):
+            with state.lock:
+                state.enroll_precapture_until = time.time() + 5
+                state.face_count = 1
+            for _ in range(3):
+                vm._update_precapture(None, object())
+            with state.lock:
+                state.face_count = 2                 # someone else in view
+            vm._update_precapture(None, object())
+        self.assertEqual(vm.take_precapture(), 3)
+        self.assertEqual(len(vm._enroll_by_pose.get(0, [])), 3)
+        vm._reset_enrollment()
+        with state.lock:
+            state.enroll_precapture_until = 0.0
+            state.face_count = 0
 
     def test_all_conditions_hold(self):
         self.assertTrue(self.vm.should_learn(**self.ok))
@@ -178,7 +203,7 @@ class TestAutoLearn(unittest.TestCase):
                      ("enrolling", True),
                      ("conf", 0.50),                          # not sure enough
                      ("conf", 0.85),                          # look already known
-                     ("runner_up", 0.55),                     # too close to another
+                     ("runner_up", GOOD - config.FACE_LEARN_MARGIN / 2),                     # too close to another
                      ("last_learned", T0 + 30 - 60)):         # learned a minute ago
             with self.subTest(**{k: v}):
                 self.assertFalse(self.vm.should_learn(**{**self.ok, k: v}))
@@ -194,7 +219,7 @@ class TestAutoLearn(unittest.TestCase):
                 state.face_count, state.enroll_request = 1, None
             vm._learned_at.clear()
             for i in range(vm.FACE_LEARN_SAMPLES):
-                learned = vm._maybe_learn("Dee", 0.62, np.full(128, i + 1.0),
+                learned = vm._maybe_learn("Dee", GOOD, np.full(128, i + 1.0),
                                           T0 + 30 + i)
             self.assertTrue(learned)
             self.assertEqual(len(added), 1)
@@ -202,7 +227,7 @@ class TestAutoLearn(unittest.TestCase):
             np.testing.assert_allclose(added[0][1], np.full(128, 3.0))
             # ... and not again for FACE_LEARN_EVERY_SECS
             for i in range(10):
-                vm._maybe_learn("Dee", 0.62, np.ones(128), T0 + 60 + i)
+                vm._maybe_learn("Dee", GOOD, np.ones(128), T0 + 60 + i)
             self.assertEqual(len(added), 1)
         with state.lock:
             state.person_name, state.person_since, state.face_count = None, 0.0, 0
@@ -218,9 +243,9 @@ class TestAutoLearn(unittest.TestCase):
                 state.face_count, state.enroll_request = 1, None
             vm._learned_at.clear()
             for i in range(vm.FACE_LEARN_SAMPLES - 1):
-                vm._maybe_learn("Dee", 0.62, np.ones(128), T0 + 30 + i)
+                vm._maybe_learn("Dee", GOOD, np.ones(128), T0 + 30 + i)
             vm._maybe_learn("Dee", 0.40, np.ones(128), T0 + 40)     # unsure
-            vm._maybe_learn("Dee", 0.62, np.ones(128), T0 + 41)
+            vm._maybe_learn("Dee", GOOD, np.ones(128), T0 + 41)
             self.assertEqual(added, [])
         with state.lock:
             state.person_name, state.person_since, state.face_count = None, 0.0, 0
@@ -305,16 +330,17 @@ class TestGreetOncePerVisit(unittest.TestCase):
 # What the model is told
 # ══════════════════════════════════════════════════════════════════════════════
 class TestBackgroundContext(unittest.TestCase):
-    def test_background_is_marked_do_not_mention(self):
-        out = persona.format_context(background="Michael has been here a while.")
+    def test_scene_notes_are_marked_do_not_mention(self):
+        out = fetch.route_message("hello",
+                                  scene="Michael has been here a while.")
         self.assertIn("Michael has been here a while.", out)
-        self.assertNotIn("RIGHT NOW", out)
-        self.assertNotIn("answer from this", out)
-        self.assertIn("do not bring", out.lower())
+        self.assertNotIn("right now", out.lower())
+        self.assertIn("do not bring it up", out.lower())
 
-    def test_live_scene_block_unchanged(self):
-        out = persona.format_context(scene="a person smiling")
-        self.assertIn("What your camera sees RIGHT NOW", out)
+    def test_a_camera_question_answers_from_the_live_scene(self):
+        out = fetch.answer_message("what do you see", None,
+                                   camera="a person smiling")
+        self.assertIn("What your camera sees right now:\na person smiling", out)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
